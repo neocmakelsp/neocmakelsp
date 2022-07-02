@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(dbusexample)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+function(SETUP_TESTS)
+       foreach(_testname ${ARGN})
+           add_executable(${_testname} tst_${_testname}.cpp )
+           add_test(NAME ${_testname} COMMAND ${_testname})
+           target_link_libraries(${_testname} Qt${QT_MAJOR_VERISION}::Test QWAMLib)
+       endforeach()
+endfunction()
+function(SETUP_TESTS2)
+       foreach(_testname ${ARGN})
+           add_executable(${_testname} tst_${_testname}.cpp )
+           add_test(NAME ${_testname} COMMAND ${_testname})
+           target_link_libraries(${_testname} Qt${QT_MAJOR_VERISION}::Test QWAMLib)
+       endforeach()
+endfunction()
+add_subdirectory(server)
+add_subdirectory(client)
