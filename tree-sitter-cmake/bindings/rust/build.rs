@@ -8,7 +8,9 @@ fn main() {
         .flag_if_supported("-Wno-unused-but-set-variable")
         .flag_if_supported("-Wno-trigraphs");
     let parser_path = src_dir.join("parser.c");
+    let scanner_path = src_dir.join("scanner.cc");
     c_config.file(&parser_path);
+    c_config.file(&scanner_path);
 
     // If your language uses an external scanner written in C,
     // then include this block of code:

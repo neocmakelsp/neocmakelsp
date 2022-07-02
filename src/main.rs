@@ -9,6 +9,7 @@ use tree_sitter::Parser;
 //use tree_sitter::Point;
 use std::collections::HashMap;
 mod gammer;
+mod snippets;
 use gammer::checkerror;
 #[allow(dead_code)]
 enum Type {
@@ -56,13 +57,7 @@ impl LanguageServer for Backend {
                 )),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
-                    trigger_characters: Some(vec![
-                        ".".to_string(),
-                        //" ".to_string(),
-                        "|".to_string(),
-                        "-".to_string(),
-                        //"|".to_string(),
-                    ]),
+                    trigger_characters: None,
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                 }),
@@ -248,91 +243,19 @@ impl LanguageServer for Backend {
     }
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
-        if let Some(contexts) = input.context {
-            match contexts.trigger_character {
-                Some(completea) => match completea.as_str() {
-                    "|" => Ok(Some(CompletionResponse::Array(vec![
-                        CompletionItem {
-                            label: "help".to_string(),
-                            kind: Some(CompletionItemKind::METHOD),
-                            detail: Some("Dispaly help information about commands".to_string()),
-                            ..CompletionItem::default()
-                        },
-                        CompletionItem {
-                            label: "char".to_string(),
-                            kind: Some(CompletionItemKind::METHOD),
-                            detail: Some("Output special character (eg., 'newline')".to_string()),
-                            ..CompletionItem::default()
-                        },
-                    ]))),
-                    "-" => Ok(Some(CompletionResponse::Array(vec![
-                        CompletionItem {
-                            label: "--all".to_string(),
-                            kind: Some(CompletionItemKind::TYPE_PARAMETER),
-                            detail: Some("Show hidden files".to_string()),
-                            ..CompletionItem::default()
-                        },
-                        CompletionItem {
-                            label: "-a".to_string(),
-                            kind: Some(CompletionItemKind::TYPE_PARAMETER),
-                            detail: Some("Show hidden files".to_string()),
-                            ..CompletionItem::default()
-                        },
-                        CompletionItem {
-                            label: "--du".to_string(),
-                            kind: Some(CompletionItemKind::TYPE_PARAMETER),
-                            detail: Some("Dispaly the apparent directory size in place of the directory metadata size".to_string()),
-                            ..CompletionItem::default()
-                        },
-                        CompletionItem {
-                            label: "-d".to_string(),
-                            kind: Some(CompletionItemKind::TYPE_PARAMETER),
-                            detail: Some("Dispaly the apparent directory size in place of the directory metadata size".to_string()),
-                            ..CompletionItem::default()
-                        },
-                    ]))),
-
-                    "." => Ok(Some(CompletionResponse::Array(vec![
-                        CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
-                        CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
-                        CompletionItem {
-                            label: "test".to_string(),
-                            kind: Some(CompletionItemKind::METHOD),
-                            detail: Some("beta".to_string()),
-                            ..CompletionItem::default()
-                        },
-                    ]))),
-                    _ => Ok(Some(CompletionResponse::Array(vec![
-                        CompletionItem {
-                            label: "help".to_string(),
-                            kind: Some(CompletionItemKind::METHOD),
-                            detail: Some("Dispaly help information about commands".to_string()),
-                            ..CompletionItem::default()
-                        },
-                        CompletionItem {
-                            label: "char".to_string(),
-                            kind: Some(CompletionItemKind::METHOD),
-                            detail: Some("Output special character (eg., 'newline')".to_string()),
-                            ..CompletionItem::default()
-                        },
-                    ]))),
-                },
-                _ => {
-                    //Ok(None)
-                    let uri = input.text_document_position.text_document.uri;
-                    let storemap = self.buffers.lock().await;
-                    notify_send("test", Type::Error);
-                    match storemap.get(&uri) {
-                        Some(context) => {
-                            let mut parse = Parser::new();
-                            parse.set_language(tree_sitter_cmake::language()).unwrap();
-                            let thetree = parse.parse(context.clone(), None);
-                            let tree = thetree.unwrap();
-                            Ok(gammer::getcoplete(tree.root_node(), context))
-                        }
-                        None => Ok(None),
-                    }
-                } 
+        if input.context.is_some() {
+            let uri = input.text_document_position.text_document.uri;
+            let storemap = self.buffers.lock().await;
+            notify_send("test", Type::Error);
+            match storemap.get(&uri) {
+                Some(context) => {
+                    let mut parse = Parser::new();
+                    parse.set_language(tree_sitter_cmake::language()).unwrap();
+                    let thetree = parse.parse(context.clone(), None);
+                    let tree = thetree.unwrap();
+                    Ok(gammer::getcoplete(tree.root_node(), context))
+                }
+                None => Ok(None),
             }
         } else {
             Ok(None)
