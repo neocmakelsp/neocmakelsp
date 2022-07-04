@@ -8,9 +8,9 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::Parser;
 //use tree_sitter::Point;
 use std::collections::HashMap;
+mod ast;
 mod gammer;
 mod snippets;
-mod ast;
 use gammer::checkerror;
 #[allow(dead_code)]
 enum Type {
@@ -66,6 +66,12 @@ impl LanguageServer for Backend {
                     commands: vec!["dummy.do_something".to_string()],
                     work_done_progress_options: Default::default(),
                 }),
+                document_symbol_provider: Some(OneOf::Right(DocumentSymbolOptions {
+                    label: None,
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                })),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
                         supported: Some(true),
@@ -285,7 +291,7 @@ impl LanguageServer for Backend {
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri.clone();
         let storemap = self.buffers.lock().await;
-        notify_send("test", Type::Error);
+        //notify_send("test", Type::Error);
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
