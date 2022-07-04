@@ -10,6 +10,7 @@ use tree_sitter::Parser;
 use std::collections::HashMap;
 mod gammer;
 mod snippets;
+mod ast;
 use gammer::checkerror;
 #[allow(dead_code)]
 enum Type {
@@ -271,7 +272,13 @@ impl LanguageServer for Backend {
             Ok(None)
         }
     }
-    // TODO
+    async fn goto_definition(
+        &self,
+        _: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        Ok(None)
+    }
+    // TODO ? Why cannot get it?
     async fn document_symbol(
         &self,
         input: DocumentSymbolParams,
@@ -281,13 +288,16 @@ impl LanguageServer for Backend {
         notify_send("test", Type::Error);
         match storemap.get(&uri) {
             Some(context) => {
+                let mut parse = Parser::new();
+                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                let thetree = parse.parse(context.clone(), None);
+                let tree = thetree.unwrap();
                 notify_send(context, Type::Error);
-                Ok(None)
+                //Ok(None)
+                Ok(ast::getast(tree.root_node(), context))
             }
             None => Ok(None),
         }
-        //self.client.send_request
-        //Ok(None)
     }
 }
 
@@ -303,4 +313,3 @@ async fn main() {
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-

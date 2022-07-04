@@ -1,7 +1,7 @@
-use lsp_types::{CompletionItem, CompletionItemKind};
 use crate::snippets::BUILD_COMMAND;
 use crate::CompletionResponse;
-/// checkerror the gammer error 
+use lsp_types::{CompletionItem, CompletionItemKind};
+/// checkerror the gammer error
 /// if there is error , it will return the position of the error
 pub fn checkerror(
     input: tree_sitter::Node,
@@ -45,7 +45,7 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
                 complete.push(CompletionItem {
-                    label: format!("{}()",name),
+                    label: format!("{}()", name),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some("defined function".to_string()),
                     ..Default::default()
@@ -105,7 +105,7 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
                 complete.push(CompletionItem {
-                    label: format!("{}()",name),
+                    label: format!("{}()", name),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some("defined function".to_string()),
                     ..Default::default()
@@ -145,4 +145,3 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
         Some(complete)
     }
 }
-
