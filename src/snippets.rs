@@ -12,7 +12,10 @@ pub static BUILD_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     let temp = String::from_utf8_lossy(&output);
     let key: Vec<_> = re
         .find_iter(&temp)
-        .map(|message| message.as_str())
+        .map(|message| {
+            let temp : Vec<&str> = message.as_str().split('\n').collect();
+            temp[0]
+        })
         .collect();
     let content: Vec<_> = re.split(&temp).into_iter().collect();
     let context = &content[1..];

@@ -227,9 +227,9 @@ impl LanguageServer for Backend {
             active_parameter: None,
         }))
     }
-    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        params.text_document_position_params.position;
-        notify_send("Hovered", Type::Info);
+    async fn hover(&self, _params: HoverParams) -> Result<Option<Hover>> {
+        //params.text_document_position_params.position;
+        //notify_send("Hovered", Type::Info);
         self.client.log_message(MessageType::INFO, "Hovered!").await;
         Ok(Some(Hover {
             contents: HoverContents::Scalar(MarkedString::String("Test".to_string())),
@@ -256,7 +256,7 @@ impl LanguageServer for Backend {
         if input.context.is_some() {
             let uri = input.text_document_position.text_document.uri;
             let storemap = self.buffers.lock().await;
-            notify_send("test", Type::Error);
+            //notify_send("test", Type::Error);
             match storemap.get(&uri) {
                 Some(context) => {
                     let mut parse = Parser::new();
@@ -303,15 +303,4 @@ async fn main() {
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-//#[cfg(test)]
-//mod tests {
-//    use tree_sitter::TreeCursor;
-//    #[test]
-//    fn test_gamma() {
-//        let source = "import";
-//        let mut parse = tree_sitter::Parser::new();
-//        parse.set_language(tree_sitter_cmake::language()).unwrap();
-//        let tree = parse.parse(source, None).unwrap();
-//        assert_eq!(tree.root_node().to_sexp(), "(source_file (ERROR))");
-//    }
-//}
+
