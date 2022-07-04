@@ -227,12 +227,22 @@ impl LanguageServer for Backend {
             active_parameter: None,
         }))
     }
-    async fn hover(&self, _params: HoverParams) -> Result<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        params.text_document_position_params.position;
         notify_send("Hovered", Type::Info);
         self.client.log_message(MessageType::INFO, "Hovered!").await;
         Ok(Some(Hover {
             contents: HoverContents::Scalar(MarkedString::String("Test".to_string())),
-            range: None,
+            range: Some(Range {
+                start: Position {
+                    line: 2,
+                    character: 2,
+                },
+                end: Position {
+                    line: 2,
+                    character: 5,
+                },
+            }),
         }))
     }
     async fn did_close(&self, _: DidCloseTextDocumentParams) {
@@ -293,59 +303,15 @@ async fn main() {
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-#[cfg(test)]
-mod tests {
-    use tree_sitter::TreeCursor;
-    #[test]
-    fn test_gamma() {
-        let source = "import";
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(tree_sitter_cmake::language()).unwrap();
-        let tree = parse.parse(source, None).unwrap();
-        assert_eq!(tree.root_node().to_sexp(), "(source_file (ERROR))");
-    }
-    //fn recurse<'a>(node: Node<'a>) {
-    //    println!(
-    //        "{}:{}",
-    //        node.walk().field_name().unwrap_or("null"),
-    //        node.kind()
-    //    );
-    //    let mut course = node.walk();
-    //    node.children(&mut course).for_each(recurse);
-    //}
-    fn walk<'a>(cursor: &mut TreeCursor<'a>) {
-        loop {
-            println!(
-                "it is {}:{}",
-                cursor.field_name().unwrap_or("null"),
-                cursor.node().kind()
-            );
-
-            if !cursor.goto_first_child() {
-                if !cursor.goto_next_sibling() {
-                    loop {
-                        if !cursor.goto_parent() {
-                            return;
-                        }
-
-                        if cursor.goto_next_sibling() {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #[test]
-    fn test_id() {
-        let source = "A { id : window }";
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(tree_sitter_cmake::language()).unwrap();
-        let tree = parse.parse(source, None).unwrap();
-        let root = tree.root_node();
-        walk(&mut root.walk());
-
-        //let node = root.child_by_field_name("source_file");
-        //assert_eq!(node.unwrap().to_sexp(), "(source_file (ERROR))");
-    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use tree_sitter::TreeCursor;
+//    #[test]
+//    fn test_gamma() {
+//        let source = "import";
+//        let mut parse = tree_sitter::Parser::new();
+//        parse.set_language(tree_sitter_cmake::language()).unwrap();
+//        let tree = parse.parse(source, None).unwrap();
+//        assert_eq!(tree.root_node().to_sexp(), "(source_file (ERROR))");
+//    }
+//}

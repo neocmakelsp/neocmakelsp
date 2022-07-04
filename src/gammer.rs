@@ -1,5 +1,5 @@
 use lsp_types::{CompletionItem, CompletionItemKind};
-
+use crate::snippets::BUILD_COMMAND;
 use crate::CompletionResponse;
 pub fn checkerror(
     input: tree_sitter::Node,
@@ -72,80 +72,13 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
             _ => {}
         }
     }
+    if let Ok(messages) = &*BUILD_COMMAND {
+        complete.append(&mut messages.clone());
+    }
     if complete.is_empty() {
         None
     } else {
         Some(CompletionResponse::Array(complete))
     }
 }
-//    for child in input.children(&mut course) {
-//        match child.kind() {
-//            "winid" => {
-//                let h = child.start_position().row;
-//                let ids = child.child(2).unwrap();
-//                let x = ids.start_position().column;
-//                let y = ids.end_position().column;
-//                let name = &newsource[h][x..y];
-//                println!("name= {}", name);
-//                if name == id {
-//                    println!("test");
-//                    hasid = true;
-//                } else {
-//                    hasid = false;
-//                }
-//            }
-//            "widgetid" => {
-//                let h = child.start_position().row;
-//                let ids = child.child(0).unwrap();
-//                let x = ids.start_position().column;
-//                let y = ids.end_position().column;
-//                let name = &newsource[h][x..y];
-//                complete.push(CompletionItem {
-//                    label: name.to_string(),
-//                    kind: Some(CompletionItemKind::VALUE),
-//                    detail: Some("message".to_string()),
-//                    ..Default::default()
-//                });
-//            }
-//            "qml_function" => {
-//                let h = child.start_position().row;
-//                let ids = child.child(1).unwrap();
-//                let x = ids.start_position().column;
-//                let y = ids.end_position().column;
-//                let name = &newsource[h][x..y];
-//                complete.push(CompletionItem {
-//                    label: name.to_string(),
-//                    kind: Some(CompletionItemKind::FUNCTION),
-//                    detail: Some("message".to_string()),
-//                    ..Default::default()
-//                });
-//            }
-//            "qmlwidget" => {
-//                let output = getcoplete(child, source, id);
-//                if output.is_some() {
-//                    return output;
-//                }
-//            }
-//            _ => {}
-//        }
-//    }
-//    if hasid {
-//        Some(CompletionResponse::Array(complete))
-//    } else {
-//        None
-//    }
-//}
-//#[cfg(test)]
-//mod gammertests {
-//    #[test]
-//    fn test_complete() {
-//        let source = "A { id : window function a() {} name: beta  }";
-//        let mut parse = tree_sitter::Parser::new();
-//        parse.set_language(tree_sitter_qml::language()).unwrap();
-//        let tree = parse.parse(source, None).unwrap();
-//        let root = tree.root_node();
-//        println!("{}", root.to_sexp());
-//        let a = super::getcoplete(root, source, "window");
-//        println!("{:#?}", a);
-//    }
-//}
+

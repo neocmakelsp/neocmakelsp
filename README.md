@@ -1,3 +1,3 @@
-# Qml lsp based on Tower and treesitter
+# CMake lsp based on Tower and treesitter
 
 TODO
