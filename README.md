@@ -12,3 +12,7 @@ It is a CMake lsp based on tower-lsp and treesitter
 * GO TO Definitation
 * Undefined function check
 * On hover
+
+## Show 
+![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/demo.gif)
+
