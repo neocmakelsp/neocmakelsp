@@ -1,9 +1,9 @@
 // TODO get location
 //
 //
+use crate::snippets::MESSAGE_STORAGE;
 use lsp_types::Position;
 use tree_sitter::{Node, Point};
-use crate::snippets::MESSAGE_STORAGE;
 //#[inline]
 //pub fn point_to_position(input: Point) -> Position {
 //    Position {
@@ -23,7 +23,11 @@ pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<Str
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        if neolocation.row <= child.end_position().row && neolocation.row >= child.start_position().row {
+        if neolocation.row <= child.end_position().row
+            && neolocation.row >= child.start_position().row
+            && neolocation.column <= child.end_position().column
+            && neolocation.column >= child.start_position().column
+        {
             if child.child_count() != 0 {
                 let doc = get_cmake_doc(location, child, source);
                 if doc.is_some() {
