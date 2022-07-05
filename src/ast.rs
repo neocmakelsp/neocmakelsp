@@ -131,8 +131,14 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
     for child in input.children(&mut course) {
         match child.kind() {
             "function_def" => {
+                let h = child.start_position().row;
+                let ids = child.child(0).unwrap();
+                let ids = ids.child(2).unwrap();
+                let x = ids.start_position().column;
+                let y = ids.end_position().column;
+                let name = &newsource[h][x..y];
                 asts.push(DocumentSymbol {
-                    name: "Function".to_string(),
+                    name: name.to_string(),
                     detail: None,
                     kind: SymbolKind::FUNCTION,
                     tags: None,
@@ -201,9 +207,9 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                     let ids = child.child(2).unwrap();
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
-                    //let name = &newsource[h][x..y];
+                    let name = &newsource[h][x..y];
                     asts.push(DocumentSymbol {
-                        name: "variabel".to_string(),
+                        name: name.to_string(),
                         detail: None,
                         kind: SymbolKind::VARIABLE,
                         tags: None,

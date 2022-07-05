@@ -3,10 +3,62 @@ use lsp_types::{CompletionItem, CompletionItemKind};
 use once_cell::sync::Lazy;
 use std::iter::zip;
 use std::process::Command;
-pub static BUILD_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
         .arg("--help-commands")
+        .output()?
+        .stdout;
+    let temp = String::from_utf8_lossy(&output);
+    let key: Vec<_> = re
+        .find_iter(&temp)
+        .map(|message| {
+            let temp : Vec<&str> = message.as_str().split('\n').collect();
+            temp[0]
+        })
+        .collect();
+    let content: Vec<_> = re.split(&temp).into_iter().collect();
+    let context = &content[1..];
+    Ok(zip(key, context)
+        .into_iter()
+        .map(|(akey, message)| CompletionItem {
+            label: akey.to_string(),
+            kind: Some(CompletionItemKind::FUNCTION),
+            detail: Some(message.to_string()),
+            ..Default::default()
+        })
+        .collect())
+});
+pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let output = Command::new("cmake")
+        .arg("--help-variables")
+        .output()?
+        .stdout;
+    let temp = String::from_utf8_lossy(&output);
+    let key: Vec<_> = re
+        .find_iter(&temp)
+        .map(|message| {
+            let temp : Vec<&str> = message.as_str().split('\n').collect();
+            temp[0]
+        })
+        .collect();
+    let content: Vec<_> = re.split(&temp).into_iter().collect();
+    let context = &content[1..];
+    Ok(zip(key, context)
+        .into_iter()
+        .map(|(akey, message)| CompletionItem {
+            label: akey.to_string(),
+            kind: Some(CompletionItemKind::VARIABLE),
+            detail: Some(message.to_string()),
+            ..Default::default()
+        })
+        .collect())
+});
+pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let output = Command::new("cmake")
+        .arg("--help-modules")
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);

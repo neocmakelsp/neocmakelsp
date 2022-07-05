@@ -1,4 +1,4 @@
-use crate::snippets::BUILD_COMMAND;
+use crate::snippets::{BUILDIN_COMMAND,BUILDIN_VARIABLE,BUILDIN_MODULE};
 use crate::CompletionResponse;
 use lsp_types::{CompletionItem, CompletionItemKind};
 /// checkerror the gammer error
@@ -79,7 +79,13 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
             _ => {}
         }
     }
-    if let Ok(messages) = &*BUILD_COMMAND {
+    if let Ok(messages) = &*BUILDIN_COMMAND {
+        complete.append(&mut messages.clone());
+    }
+    if let Ok(messages) = &*BUILDIN_VARIABLE {
+        complete.append(&mut messages.clone());
+    }
+    if let Ok(messages) = &*BUILDIN_MODULE {
         complete.append(&mut messages.clone());
     }
     if complete.is_empty() {
