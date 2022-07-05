@@ -11,6 +11,7 @@ use std::collections::HashMap;
 mod ast;
 mod gammer;
 mod snippets;
+mod treehelper;
 use gammer::checkerror;
 #[allow(dead_code)]
 enum Type {
@@ -232,23 +233,34 @@ impl LanguageServer for Backend {
             active_parameter: None,
         }))
     }
-    async fn hover(&self, _params: HoverParams) -> Result<Option<Hover>> {
-        //params.text_document_position_params.position;
-        //notify_send("Hovered", Type::Info);
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let position = params.text_document_position_params.position;
+        let uri = params.text_document_position_params.text_document.uri;
+        let storemap = self.buffers.lock().await;
         self.client.log_message(MessageType::INFO, "Hovered!").await;
-        Ok(Some(Hover {
-            contents: HoverContents::Scalar(MarkedString::String("Test".to_string())),
-            range: Some(Range {
-                start: Position {
-                    line: 2,
-                    character: 2,
-                },
-                end: Position {
-                    line: 2,
-                    character: 5,
-                },
-            }),
-        }))
+        //notify_send("test", Type::Error);
+        match storemap.get(&uri) {
+            Some(context) => {
+                let mut parse = Parser::new();
+                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                let thetree = parse.parse(context.clone(), None);
+                let tree = thetree.unwrap();
+                let output = treehelper::get_cmake_doc(position, tree.root_node(), context);
+                match output {
+                    Some(context) => Ok(Some(Hover {
+                        contents: HoverContents::Scalar(MarkedString::String(context)),
+                        range: Some(Range {
+                            start: position, 
+                            end: position,
+                        }),
+                    })),
+                    None => Ok(None),
+                }
+                //notify_send(context, Type::Error);
+                //Ok(None)
+            }
+            None => Ok(None),
+        }
     }
     async fn did_close(&self, _: DidCloseTextDocumentParams) {
         self.client

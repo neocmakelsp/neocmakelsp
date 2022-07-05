@@ -65,6 +65,7 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
                 let name = &newsource[h][x..y];
                 if name == "set" || name == "SET" {
                     let ids = child.child(2).unwrap();
+                    let h = ids.start_position().row;
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
                     let name = &newsource[h][x..y];
