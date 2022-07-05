@@ -84,35 +84,37 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
                     let h = ids.start_position().row;
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
-                    let name = &newsource[h][x..y];
-                    asts.push(DocumentSymbol {
-                        name: name.to_string(),
-                        detail: None,
-                        kind: SymbolKind::VARIABLE,
-                        tags: None,
-                        deprecated: None,
-                        range: lsp_types::Range {
-                            start: lsp_types::Position {
-                                line: h as u32,
-                                character: x as u32,
+                    if y > x && &newsource[h][x..y] != "(" && &newsource[h][x..y] != ")" {
+                        let name = &newsource[h][x..y];
+                        asts.push(DocumentSymbol {
+                            name: name.to_string(),
+                            detail: None,
+                            kind: SymbolKind::VARIABLE,
+                            tags: None,
+                            deprecated: None,
+                            range: lsp_types::Range {
+                                start: lsp_types::Position {
+                                    line: h as u32,
+                                    character: x as u32,
+                                },
+                                end: lsp_types::Position {
+                                    line: h as u32,
+                                    character: y as u32,
+                                },
                             },
-                            end: lsp_types::Position {
-                                line: h as u32,
-                                character: y as u32,
+                            selection_range: lsp_types::Range {
+                                start: lsp_types::Position {
+                                    line: h as u32,
+                                    character: x as u32,
+                                },
+                                end: lsp_types::Position {
+                                    line: h as u32,
+                                    character: y as u32,
+                                },
                             },
-                        },
-                        selection_range: lsp_types::Range {
-                            start: lsp_types::Position {
-                                line: h as u32,
-                                character: x as u32,
-                            },
-                            end: lsp_types::Position {
-                                line: h as u32,
-                                character: y as u32,
-                            },
-                        },
-                        children: None,
-                    });
+                            children: None,
+                        });
+                    }
                 }
             }
             _ => {}
