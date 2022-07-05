@@ -80,23 +80,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "cmakelsp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "lsp-types",
- "once_cell",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "tower-lsp",
- "tracing-subscriber",
- "tree-sitter",
- "tree-sitter-cmake",
-]
-
-[[package]]
 name = "dashmap"
 version = "5.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -299,6 +282,23 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys",
+]
+
+[[package]]
+name = "neocmakelsp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lsp-types",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower-lsp",
+ "tracing-subscriber",
+ "tree-sitter",
+ "tree-sitter-cmake",
 ]
 
 [[package]]

@@ -44,7 +44,7 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
             }
             "if_condition" | "foreach_loop" => {
                 asts.push(DocumentSymbol {
-                    name: "Loop".to_string(),
+                    name: "Closure".to_string(),
                     detail: None,
                     kind: SymbolKind::NAMESPACE,
                     tags: None,
@@ -168,7 +168,7 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
             }
             "if_condition" | "foreach_loop" => {
                 asts.push(DocumentSymbol {
-                    name: "Loop".to_string(),
+                    name: "Closure".to_string(),
                     detail: None,
                     kind: SymbolKind::NAMESPACE,
                     tags: None,

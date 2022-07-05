@@ -1,4 +1,4 @@
-use crate::snippets::{BUILDIN_COMMAND,BUILDIN_VARIABLE,BUILDIN_MODULE};
+use crate::snippets::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use crate::CompletionResponse;
 use lsp_types::{CompletionItem, CompletionItemKind};
 /// checkerror the gammer error
