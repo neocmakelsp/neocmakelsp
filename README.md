@@ -6,13 +6,18 @@ It is a CMake lsp based on tower-lsp and treesitter
 
 * complete
 * symbol\_provider
+* On hover
 
 ## TODO
 
 * GO TO Definitation
 * Undefined function check
-* On hover
 
-## Show 
+## Show
+
+### Complete and symbol support
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/demo.gif)
+
+### OnHover
+![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/onhover.jpg)
 
