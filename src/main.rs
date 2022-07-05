@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::process::Command;
+//use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
@@ -27,13 +27,13 @@ impl ToString for Type {
         }
     }
 }
-fn notify_send(input: &str, typeinput: Type) {
-    Command::new("notify-send")
-        .arg(typeinput.to_string())
-        .arg(input)
-        .spawn()
-        .expect("Error");
-}
+//fn notify_send(input: &str, typeinput: Type) {
+//    Command::new("notify-send")
+//        .arg(typeinput.to_string())
+//        .arg(input)
+//        .spawn()
+//        .expect("Error");
+//}
 #[derive(Debug)]
 struct Backend {
     client: Client,
@@ -256,7 +256,7 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "file closed!")
             .await;
-        notify_send("file closed", Type::Info);
+        //notify_send("file closed", Type::Info);
     }
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
@@ -298,7 +298,7 @@ impl LanguageServer for Backend {
                 parse.set_language(tree_sitter_cmake::language()).unwrap();
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
-                notify_send(context, Type::Error);
+                //notify_send(context, Type::Error);
                 //Ok(None)
                 Ok(ast::getast(tree.root_node(), context))
             }
