@@ -50,3 +50,5 @@ end
 ### OnHover
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/onhover.jpg)
 
+### GoToDefinition
+![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/definition.png)
