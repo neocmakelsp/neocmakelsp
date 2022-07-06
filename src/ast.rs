@@ -1,3 +1,4 @@
+/// Get the tree of ast
 use crate::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
 #[allow(deprecated)]

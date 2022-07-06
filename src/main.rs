@@ -14,21 +14,21 @@ mod gotodef;
 mod snippets;
 mod treehelper;
 use gammer::checkerror;
-#[allow(dead_code)]
-enum Type {
-    Error,
-    Warning,
-    Info,
-}
-impl ToString for Type {
-    fn to_string(&self) -> String {
-        match self {
-            Type::Warning => "Warning".to_string(),
-            Type::Error => "Error".to_string(),
-            Type::Info => "Info".to_string(),
-        }
-    }
-}
+//#[allow(dead_code)]
+//enum Type {
+//    Error,
+//    Warning,
+//    Info,
+//}
+//impl ToString for Type {
+//    fn to_string(&self) -> String {
+//        match self {
+//            Type::Warning => "Warning".to_string(),
+//            Type::Error => "Error".to_string(),
+//            Type::Info => "Info".to_string(),
+//        }
+//    }
+//}
 //fn notify_send(input: &str, typeinput: Type) {
 //    Command::new("notify-send")
 //        .arg(typeinput.to_string())
@@ -36,11 +36,16 @@ impl ToString for Type {
 //        .spawn()
 //        .expect("Error");
 //}
+//
+
+
+/// Beckend
 #[derive(Debug)]
 struct Backend {
+    /// client 
     client: Client,
+    /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
-    //    tree: Arc<Mutex<Option<Tree>>>,
 }
 //impl From<tree_sitter::Point> for Position {
 //    fn from(input: tree_sitter::Point) -> Self {

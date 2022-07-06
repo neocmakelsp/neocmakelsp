@@ -1,6 +1,9 @@
+/// privide go to definition
 use crate::treehelper::{get_positon_string, point_to_position};
 use lsp_types::{Position, Range};
 use tree_sitter::Node;
+
+/// find the definition
 pub fn godef(location: Position, root: Node, source: &str) -> Option<Vec<Range>> {
     match get_positon_string(location, root, source) {
         Some(tofind) => {
@@ -13,8 +16,9 @@ pub fn godef(location: Position, root: Node, source: &str) -> Option<Vec<Range>>
         None => None,
     }
 }
-fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Vec<Range>> {
 
+/// sub get the def
+fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Vec<Range>> {
     let mut definitions : Vec<Range> = vec![];
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();

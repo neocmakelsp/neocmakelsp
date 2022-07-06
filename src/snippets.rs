@@ -1,9 +1,12 @@
+/// buildin Commands and vars
 use anyhow::Result;
 use lsp_types::{CompletionItem, CompletionItemKind};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
+
+/// CMake build in commands
 pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
@@ -30,6 +33,8 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         })
         .collect())
 });
+
+/// cmake buildin vars
 pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
@@ -56,6 +61,8 @@ pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         })
         .collect())
 });
+
+/// Cmake buildin modules
 pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake").arg("--help-modules").output()?.stdout;

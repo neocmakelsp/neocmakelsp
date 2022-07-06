@@ -1,3 +1,4 @@
+/// about the gammers
 use crate::snippets::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use crate::CompletionResponse;
 use lsp_types::{CompletionItem, CompletionItemKind};
@@ -29,6 +30,7 @@ pub fn checkerror(
         None
     }
 }
+/// get the complet messages
 pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionResponse> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();

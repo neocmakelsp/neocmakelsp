@@ -1,10 +1,10 @@
-// TODO get location
-//
-//
+/// Some tools for treesitter  to lsp_types
 use crate::snippets::MESSAGE_STORAGE;
 use lsp_types::Position;
 use lsp_types::Range;
 use tree_sitter::{Node, Point};
+/// convert Point to Positon 
+/// treesitter to lsp_types
 #[inline]
 pub fn point_to_position(input: Point) -> Position {
     Position {
@@ -12,6 +12,8 @@ pub fn point_to_position(input: Point) -> Position {
         character: input.column as u32,
     }
 }
+
+/// lsp_types to treesitter
 #[inline]
 fn position_to_point(input: Position) -> Point {
     Point {
@@ -19,12 +21,16 @@ fn position_to_point(input: Position) -> Point {
         column: input.character as usize,
     }
 }
+
+/// get the doc for on hover
 pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
     match get_positon_string(location, root, source) {
         Some(message) => MESSAGE_STORAGE.get(&message).map(|context| context.to_string()),
         None => None,
     }
 }
+
+/// get the positon of the string
 pub fn get_positon_string(location: Position, root: Node, source: &str) -> Option<String> {
     let neolocation = position_to_point(location);
     let newsource: Vec<&str> = source.lines().collect();
@@ -54,6 +60,8 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
     }
     None
 }
+
+/// from the position to get range
 pub fn get_positon_range(location: Position, root: Node, source: &str) -> Option<Range> {
     let neolocation = position_to_point(location);
     //let newsource: Vec<&str> = source.lines().collect();
