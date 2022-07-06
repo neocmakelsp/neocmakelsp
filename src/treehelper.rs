@@ -23,19 +23,18 @@ pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<Str
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
+        // if is inside same line
         if neolocation.row <= child.end_position().row
             && neolocation.row >= child.start_position().row
-            && neolocation.column <= child.end_position().column
-            && neolocation.column >= child.start_position().column
         {
             if child.child_count() != 0 {
-                let doc = get_cmake_doc(location, child, source);
-                if doc.is_some() {
-                    return doc;
-                } else {
-                    return None;
-                }
-            } else {
+                return get_cmake_doc(location, child, source);
+            }
+            // if is the same line
+            else if child.start_position().row == child.end_position().row
+                && neolocation.column <= child.end_position().column
+                && neolocation.column >= child.start_position().column
+            {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
