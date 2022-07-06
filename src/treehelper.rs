@@ -4,13 +4,13 @@
 use crate::snippets::MESSAGE_STORAGE;
 use lsp_types::Position;
 use tree_sitter::{Node, Point};
-//#[inline]
-//pub fn point_to_position(input: Point) -> Position {
-//    Position {
-//        line: input.row as u32,
-//        character: input.column as u32,
-//    }
-//}
+#[inline]
+pub fn point_to_position(input: Point) -> Position {
+    Position {
+        line: input.row as u32,
+        character: input.column as u32,
+    }
+}
 #[inline]
 fn position_to_point(input: Position) -> Point {
     Point {

@@ -1,3 +1,4 @@
+use crate::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
 #[allow(deprecated)]
 pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolResponse> {
@@ -73,6 +74,8 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
                 });
             }
             "normal_command" => {
+                let start = point_to_position(child.start_position());
+                let end = point_to_position(child.end_position());
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
                 //let ids = ids.child(2).unwrap();
@@ -92,16 +95,7 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
                             kind: SymbolKind::VARIABLE,
                             tags: None,
                             deprecated: None,
-                            range: lsp_types::Range {
-                                start: lsp_types::Position {
-                                    line: h as u32,
-                                    character: x as u32,
-                                },
-                                end: lsp_types::Position {
-                                    line: h as u32,
-                                    character: y as u32,
-                                },
-                            },
+                            range: lsp_types::Range { start, end },
                             selection_range: lsp_types::Range {
                                 start: lsp_types::Position {
                                     line: h as u32,
@@ -128,16 +122,7 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
                             kind: SymbolKind::PACKAGE,
                             tags: None,
                             deprecated: None,
-                            range: lsp_types::Range {
-                                start: lsp_types::Position {
-                                    line: h as u32,
-                                    character: x as u32,
-                                },
-                                end: lsp_types::Position {
-                                    line: h as u32,
-                                    character: y as u32,
-                                },
-                            },
+                            range: lsp_types::Range { start, end },
                             selection_range: lsp_types::Range {
                                 start: lsp_types::Position {
                                     line: h as u32,
@@ -236,6 +221,8 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                 });
             }
             "normal_command" => {
+                let start = point_to_position(child.start_position());
+                let end = point_to_position(child.end_position());
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
                 //let ids = ids.child(2).unwrap();
@@ -254,16 +241,7 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                         kind: SymbolKind::VARIABLE,
                         tags: None,
                         deprecated: None,
-                        range: lsp_types::Range {
-                            start: lsp_types::Position {
-                                line: h as u32,
-                                character: x as u32,
-                            },
-                            end: lsp_types::Position {
-                                line: h as u32,
-                                character: y as u32,
-                            },
-                        },
+                        range: lsp_types::Range { start, end },
                         selection_range: lsp_types::Range {
                             start: lsp_types::Position {
                                 line: h as u32,
@@ -276,12 +254,6 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                         },
                         children: None,
                     });
-                    //complete.push(CompletionItem {
-                    //    label: name.to_string(),
-                    //    kind: Some(CompletionItemKind::VALUE),
-                    //    detail: Some("defined variable".to_string()),
-                    //    ..Default::default()
-                    //});
                 }
             }
             _ => {}
