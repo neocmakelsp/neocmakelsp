@@ -6,7 +6,7 @@ It is a CMake lsp based on tower-lsp and treesitter
 
 ## Install
 
-```
+```bash
 cargo install neocmakelsp
 ```
 
