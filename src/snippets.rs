@@ -96,7 +96,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert(message.to_string());
+            storage.entry(akey.to_string()).or_insert_with(|| message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-variables").output() {
@@ -112,7 +112,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert(message.to_string());
+            storage.entry(akey.to_string()).or_insert_with(||message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-modules").output() {
@@ -128,7 +128,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert(message.to_string());
+            storage.entry(akey.to_string()).or_insert_with(||message.to_string());
         }
     }
     storage

@@ -1,5 +1,5 @@
 use serde_json::Value;
-//use std::process::Command;
+use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
@@ -10,6 +10,7 @@ use tree_sitter::Parser;
 use std::collections::HashMap;
 mod ast;
 mod gammer;
+mod gotodef;
 mod snippets;
 mod treehelper;
 use gammer::checkerror;
@@ -28,13 +29,13 @@ impl ToString for Type {
         }
     }
 }
-//fn notify_send(input: &str, typeinput: Type) {
-//    Command::new("notify-send")
-//        .arg(typeinput.to_string())
-//        .arg(input)
-//        .spawn()
-//        .expect("Error");
-//}
+fn notify_send(input: &str, typeinput: Type) {
+    Command::new("notify-send")
+        .arg(typeinput.to_string())
+        .arg(input)
+        .spawn()
+        .expect("Error");
+}
 #[derive(Debug)]
 struct Backend {
     client: Client,
@@ -250,7 +251,7 @@ impl LanguageServer for Backend {
                     Some(context) => Ok(Some(Hover {
                         contents: HoverContents::Scalar(MarkedString::String(context)),
                         range: Some(Range {
-                            start: position, 
+                            start: position,
                             end: position,
                         }),
                     })),
@@ -290,9 +291,38 @@ impl LanguageServer for Backend {
     }
     async fn goto_definition(
         &self,
-        _: GotoDefinitionParams,
+        input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
-        Ok(None)
+        let uri = input.text_document_position_params.text_document.uri;
+        let location = input.text_document_position_params.position;
+        let storemap = self.buffers.lock().await;
+        match storemap.get(&uri) {
+            Some(context) => {
+                let mut parse = Parser::new();
+                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                let thetree = parse.parse(context.clone(), None);
+                let tree = thetree.unwrap();
+                //notify_send(context, Type::Error);
+                //Ok(None)
+                match gotodef::godef(location, tree.root_node(), context) {
+                    Some(range) => Ok(Some(GotoDefinitionResponse::Link(vec![LocationLink {
+                        origin_selection_range: treehelper::get_positon_range(
+                            location,
+                            tree.root_node(),
+                            context,
+                        ),
+                        target_uri: uri,
+                        target_range: range,
+                        target_selection_range: range,
+                    }]))),
+                    None => Ok(None),
+                }
+
+                //Ok(None)
+            }
+            None => Ok(None),
+        }
+        //Ok(None)
     }
     // TODO ? Why cannot get it?
     async fn document_symbol(
