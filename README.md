@@ -23,6 +23,7 @@ if not configs.neocmake then
             root_dir = function(fname)
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
+            single_file_support = true,-- suggested
             on_attach = on_attach
         }
     }
