@@ -1,7 +1,7 @@
 use crate::treehelper::{get_positon_string, point_to_position};
 use lsp_types::{Position, Range};
 use tree_sitter::Node;
-pub fn godef(location: Position, root: Node, source: &str) -> Option<Range> {
+pub fn godef(location: Position, root: Node, source: &str) -> Option<Vec<Range>> {
     match get_positon_string(location, root, source) {
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {
@@ -13,15 +13,17 @@ pub fn godef(location: Position, root: Node, source: &str) -> Option<Range> {
         None => None,
     }
 }
-fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Range> {
+fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Vec<Range>> {
+
+    let mut definitions : Vec<Range> = vec![];
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
         // if is inside same line
         if child.child_count() != 0 {
-            let range = godefsub(child, source, tofind);
-            if range.is_some() {
-                return range;
+            //let range = godefsub(child, source, tofind);
+            if let Some(mut context) = godefsub(child, source, tofind) {
+                definitions.append(&mut context);
             }
         } else {
             let h = child.start_position().row;
@@ -30,12 +32,16 @@ fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Range> {
 
             let message = &newsource[h][x..y];
             if message == tofind {
-                return Some(Range {
+                definitions.push(Range {
                     start: point_to_position(child.start_position()),
                     end: point_to_position(child.end_position()),
                 });
             }
         }
     }
-    None
+    if definitions.is_empty() {
+        None
+    } else {
+        Some(definitions)
+    }
 }

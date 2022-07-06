@@ -23,6 +23,7 @@ function(SETUP_TESTS2)
            target_link_libraries(${_testname} Qt${QT_MAJOR_VERISION}::Test QWAMLib)
        endforeach()
 endfunction()
+
 SETUP_TESTS()
 SETUP_TESTS2()
 add_subdirectory(server)

@@ -37,10 +37,9 @@ end
 * complete
 * symbol\_provider
 * On hover
+* GO TO Definitation
 
 ## TODO
-
-* GO TO Definitation
 * Undefined function check
 
 ## Show

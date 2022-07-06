@@ -47,7 +47,7 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
                 let y = child.end_position().column;
 
                 let message = &newsource[h][x..y];
-                crate::notify_send(message, crate::Type::Info);
+                //crate::notify_send(message, crate::Type::Info);
                 return Some(message.to_string());
             }
         }
@@ -56,7 +56,7 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
 }
 pub fn get_positon_range(location: Position, root: Node, source: &str) -> Option<Range> {
     let neolocation = position_to_point(location);
-    let newsource: Vec<&str> = source.lines().collect();
+    //let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
         // if is inside same line
@@ -71,12 +71,12 @@ pub fn get_positon_range(location: Position, root: Node, source: &str) -> Option
                 && neolocation.column <= child.end_position().column
                 && neolocation.column >= child.start_position().column
             {
-                let h = child.start_position().row;
-                let x = child.start_position().column;
-                let y = child.end_position().column;
+                //let h = child.start_position().row;
+                //let x = child.start_position().column;
+                //let y = child.end_position().column;
 
-                let message = &newsource[h][x..y];
-                crate::notify_send(message, crate::Type::Info);
+                //let message = &newsource[h][x..y];
+                //crate::notify_send(message, crate::Type::Info);
                 return Some(Range {
                     start: point_to_position(child.start_position()),
                     end: point_to_position(child.end_position()),

@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::process::Command;
+//use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
@@ -29,13 +29,13 @@ impl ToString for Type {
         }
     }
 }
-fn notify_send(input: &str, typeinput: Type) {
-    Command::new("notify-send")
-        .arg(typeinput.to_string())
-        .arg(input)
-        .spawn()
-        .expect("Error");
-}
+//fn notify_send(input: &str, typeinput: Type) {
+//    Command::new("notify-send")
+//        .arg(typeinput.to_string())
+//        .arg(input)
+//        .spawn()
+//        .expect("Error");
+//}
 #[derive(Debug)]
 struct Backend {
     client: Client,
@@ -302,19 +302,27 @@ impl LanguageServer for Backend {
                 parse.set_language(tree_sitter_cmake::language()).unwrap();
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
+                let origin_selection_range =
+                    treehelper::get_positon_range(location, tree.root_node(), context);
+
                 //notify_send(context, Type::Error);
                 //Ok(None)
                 match gotodef::godef(location, tree.root_node(), context) {
-                    Some(range) => Ok(Some(GotoDefinitionResponse::Link(vec![LocationLink {
-                        origin_selection_range: treehelper::get_positon_range(
-                            location,
-                            tree.root_node(),
-                            context,
-                        ),
-                        target_uri: uri,
-                        target_range: range,
-                        target_selection_range: range,
-                    }]))),
+                    Some(range) => Ok(Some(GotoDefinitionResponse::Link({
+                        range.iter().filter(|input|{
+                            match origin_selection_range {
+                                Some(origin) => origin != **input,
+                                None => true,
+                            }
+                        })
+                        .map(|range| LocationLink {
+                            origin_selection_range,
+                            target_uri:uri.clone(),
+                            target_range: *range,
+                            target_selection_range: *range
+                        })
+                        .collect()
+                    }))),
                     None => Ok(None),
                 }
 
