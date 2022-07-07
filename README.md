@@ -45,7 +45,7 @@ end
 ## Show
 
 ### Complete and symbol support
-![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/demo.gif)
+![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/demo.mp4)
 
 ### OnHover
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/onhover.jpg)
