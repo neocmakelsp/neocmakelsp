@@ -41,7 +41,10 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
             && neolocation.row >= child.start_position().row
         {
             if child.child_count() != 0 {
-                return get_positon_string(location, child, source);
+                let mabepos = get_positon_string(location, child, source);
+                if mabepos.is_some() {
+                    return mabepos;
+                };
             }
             // if is the same line
             else if child.start_position().row == child.end_position().row
@@ -72,19 +75,16 @@ pub fn get_positon_range(location: Position, root: Node, source: &str) -> Option
             && neolocation.row >= child.start_position().row
         {
             if child.child_count() != 0 {
-                return get_positon_range(location, child, source);
+                let mabepos = get_positon_range(location, child, source);
+                if mabepos.is_some() {
+                    return mabepos;
+                }
             }
             // if is the same line
             else if child.start_position().row == child.end_position().row
                 && neolocation.column <= child.end_position().column
                 && neolocation.column >= child.start_position().column
             {
-                //let h = child.start_position().row;
-                //let x = child.start_position().column;
-                //let y = child.end_position().column;
-
-                //let message = &newsource[h][x..y];
-                //crate::notify_send(message, crate::Type::Info);
                 return Some(Range {
                     start: point_to_position(child.start_position()),
                     end: point_to_position(child.end_position()),
