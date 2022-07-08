@@ -8,9 +8,7 @@ fn main() {
         .flag_if_supported("-Wno-unused-but-set-variable")
         .flag_if_supported("-Wno-trigraphs");
     let parser_path = src_dir.join("parser.c");
-    //let scanner_path = src_dir.join("scanner.cc");
     c_config.file(&parser_path);
-    //c_config.file(&scanner_path);
 
     // If your language uses an external scanner written in C,
     // then include this block of code:
@@ -27,7 +25,6 @@ fn main() {
     // If your language uses an external scanner written in C++,
     // then include this block of code:
 
-    
     let mut cpp_config = cc::Build::new();
     cpp_config.cpp(true);
     cpp_config.include(&src_dir);
@@ -38,5 +35,4 @@ fn main() {
     cpp_config.file(&scanner_path);
     cpp_config.compile("scanner");
     println!("cargo:rerun-if-changed={}", scanner_path.to_str().unwrap());
-    
 }
