@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "neocmakelsp"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "lsp-types",
@@ -750,9 +750,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-cmake"
-version = "0.0.2"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14461aa94d0867babbf039ac4b6a4b1bf37f665a3ebbdd8e60ba62f5c6d5cdf7"
+checksum = "edf705038764346eedc85badcd4f569b661b6a114cdc0faf3becbad16e8552e7"
 dependencies = [
  "cc",
  "tree-sitter",
