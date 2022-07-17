@@ -29,11 +29,10 @@ fn godefsub(root: Node, source: &str, tofind: &str) -> Option<Vec<Range>> {
             if let Some(mut context) = godefsub(child, source, tofind) {
                 definitions.append(&mut context);
             }
-        } else {
+        } else if child.start_position().row == child.end_position().row{
             let h = child.start_position().row;
             let x = child.start_position().column;
             let y = child.end_position().column;
-
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(Range {

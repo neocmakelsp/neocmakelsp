@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "neocmakelsp"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "lsp-types",

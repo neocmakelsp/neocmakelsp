@@ -65,18 +65,20 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
-                if name == "set" || name == "SET" {
+                if name == "set" || name == "SET" || name == "option" {
                     let ids = child.child(2).unwrap();
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let name = &newsource[h][x..y];
-                    complete.push(CompletionItem {
-                        label: name.to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        detail: Some("defined variable".to_string()),
-                        ..Default::default()
-                    });
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &newsource[h][x..y];
+                        complete.push(CompletionItem {
+                            label: name.to_string(),
+                            kind: Some(CompletionItemKind::VALUE),
+                            detail: Some("defined variable".to_string()),
+                            ..Default::default()
+                        });
+                    }
                 }
             }
             _ => {}
@@ -132,18 +134,20 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
-                if name == "set" || name == "SET" {
+                if name == "set" || name == "SET" || name == "option" {
                     let ids = child.child(2).unwrap();
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let name = &newsource[h][x..y];
-                    complete.push(CompletionItem {
-                        label: name.to_string(),
-                        kind: Some(CompletionItemKind::VALUE),
-                        detail: Some("defined variable".to_string()),
-                        ..Default::default()
-                    });
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &newsource[h][x..y];
+                        complete.push(CompletionItem {
+                            label: name.to_string(),
+                            kind: Some(CompletionItemKind::VALUE),
+                            detail: Some("defined variable".to_string()),
+                            ..Default::default()
+                        });
+                    }
                 }
             }
             _ => {}
