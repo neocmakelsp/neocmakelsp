@@ -232,31 +232,33 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
-                if name == "set" || name == "SET" {
+                if name == "set" || name == "SET" || name == "option" {
                     let ids = child.child(2).unwrap();
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let name = &newsource[h][x..y];
-                    asts.push(DocumentSymbol {
-                        name: name.to_string(),
-                        detail: None,
-                        kind: SymbolKind::VARIABLE,
-                        tags: None,
-                        deprecated: None,
-                        range: lsp_types::Range { start, end },
-                        selection_range: lsp_types::Range {
-                            start: lsp_types::Position {
-                                line: h as u32,
-                                character: x as u32,
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &newsource[h][x..y];
+                        asts.push(DocumentSymbol {
+                            name: name.to_string(),
+                            detail: None,
+                            kind: SymbolKind::VARIABLE,
+                            tags: None,
+                            deprecated: None,
+                            range: lsp_types::Range { start, end },
+                            selection_range: lsp_types::Range {
+                                start: lsp_types::Position {
+                                    line: h as u32,
+                                    character: x as u32,
+                                },
+                                end: lsp_types::Position {
+                                    line: h as u32,
+                                    character: y as u32,
+                                },
                             },
-                            end: lsp_types::Position {
-                                line: h as u32,
-                                character: y as u32,
-                            },
-                        },
-                        children: None,
-                    });
+                            children: None,
+                        });
+                    }
                 }
             }
             _ => {}
