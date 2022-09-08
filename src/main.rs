@@ -11,11 +11,12 @@ use std::collections::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 
 mod ast;
-mod gammer;
+mod gammar;
 mod gotodef;
 mod snippets;
 mod treehelper;
-use gammer::checkerror;
+mod complete;
+use gammar::checkerror;
 
 /// Beckend
 #[derive(Debug)]
@@ -258,7 +259,7 @@ impl LanguageServer for Backend {
                     parse.set_language(tree_sitter_cmake::language()).unwrap();
                     let thetree = parse.parse(context.clone(), None);
                     let tree = thetree.unwrap();
-                    Ok(gammer::getcoplete(tree.root_node(), context))
+                    Ok(complete::getcoplete(tree.root_node(), context))
                 }
                 None => Ok(None),
             }
@@ -271,6 +272,7 @@ impl LanguageServer for Backend {
         input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
+        println!("{:?}",uri);
         let location = input.text_document_position_params.position;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
