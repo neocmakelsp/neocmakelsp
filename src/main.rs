@@ -8,36 +8,14 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::Parser;
 //use tree_sitter::Point;
 use std::collections::HashMap;
+use tokio::net::{TcpListener, TcpStream};
+
 mod ast;
 mod gammer;
 mod gotodef;
 mod snippets;
 mod treehelper;
 use gammer::checkerror;
-//#[allow(dead_code)]
-//enum Type {
-//    Error,
-//    Warning,
-//    Info,
-//}
-//impl ToString for Type {
-//    fn to_string(&self) -> String {
-//        match self {
-//            Type::Warning => "Warning".to_string(),
-//            Type::Error => "Error".to_string(),
-//            Type::Info => "Info".to_string(),
-//        }
-//    }
-//}
-//fn notify_send(input: &str, typeinput: Type) {
-//    Command::new("notify-send")
-//        .arg(typeinput.to_string())
-//        .arg(input)
-//        .spawn()
-//        .expect("Error");
-//}
-
-
 
 /// Beckend
 #[derive(Debug)]
@@ -47,12 +25,6 @@ struct Backend {
     /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
 }
-//impl From<tree_sitter::Point> for Position {
-//    fn from(input: tree_sitter::Point) -> Self {
-//        Position { line: input.row as u32, character: input.column as u32 }
-//    }
-//}
-// it should return Option<Vec<Point,Point>>
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
@@ -362,13 +334,50 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt().init();
+    if cfg!(feature = "tcp") {
+        #[cfg(feature = "runtime-agnostic")]
+        use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+        tracing_subscriber::fmt().init();
 
-    let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+        let mut args = std::env::args();
+        let stream = match args.nth(1).as_deref() {
+            None => {
+                // If no argument is supplied (args is just the program name), then
+                // we presume that the client has opened the TCP port and is waiting
+                // for us to connect. This is the connection pattern used by clients
+                // built with vscode-langaugeclient.
+                TcpStream::connect("127.0.0.1:9257").await.unwrap()
+            }
+            Some("--listen") => {
+                // If the `--listen` argument is supplied, then the roles are
+                // reversed: we need to start a server and wait for the client to
+                // connect.
+                let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
+                let (stream, _) = listener.accept().await.unwrap();
+                stream
+            }
+            Some(arg) => panic!(
+                "Unrecognized argument: {}. Use --listen to listen for connections.",
+                arg
+            ),
+        };
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        buffers: Arc::new(Mutex::new(HashMap::new())),
-    });
-    Server::new(stdin, stdout, socket).serve(service).await;
+        let (read, write) = tokio::io::split(stream);
+        #[cfg(feature = "runtime-agnostic")]
+        let (read, write) = (read.compat(), write.compat_write());
+
+        let (service, socket) = LspService::new(|client| Backend {
+            client,
+            buffers: Arc::new(Mutex::new(HashMap::new())),
+        });
+        Server::new(read, write, socket).serve(service).await;
+    } else {
+        tracing_subscriber::fmt().init();
+        let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+        let (service, socket) = LspService::new(|client| Backend {
+            client,
+            buffers: Arc::new(Mutex::new(HashMap::new())),
+        });
+        Server::new(stdin, stdout, socket).serve(service).await;
+    }
 }

@@ -4,7 +4,7 @@ if not configs.neocmake then
     configs.neocmake = {
         default_config = {
             --cmd = { "./target/debug/qmllsp" },
-            cmd = { "./target/debug/neocmakelsp" },
+            cmd = { 'nc', 'localhost', '9257' },
             filetypes = { "cmake" },
             root_dir = function(fname)
                 return nvim_lsp.util.find_git_ancestor(fname)

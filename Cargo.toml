@@ -8,7 +8,8 @@ homepage = "https://github.com/Decodetalkers/neocmakelsp"
 authors = ["Decodertalkers <aakari@tutanota.com>"]
 keywords = ["lsp"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+[features]
+tcp = []
 [dependencies]
 tower-lsp = "0.17.0"
 lsp-types = "0.93.0"
