@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 pub enum FileType {
@@ -37,4 +38,28 @@ pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
             }
         })
         .collect())
+});
+#[allow(unused)]
+pub static CMAKE_PACKAGES_WITHKEY: Lazy<Result<HashMap<String, CMakePackage>>> = Lazy::new(|| {
+    let mut storage: HashMap<String, CMakePackage> = HashMap::new();
+    let paths = std::fs::read_dir("/usr/lib/cmake/")?;
+    for apath in paths.into_iter() {
+        let message_unit = apath.unwrap();
+
+        let mut filename = message_unit.file_name().to_str().unwrap().to_string();
+        let filetype = if message_unit.metadata().unwrap().is_dir() {
+            FileType::Dir
+        } else {
+            filename = filename.split(".").collect::<Vec<&str>>()[0].to_string();
+            FileType::File
+        };
+
+        storage
+            .entry(filename.clone())
+            .or_insert_with(|| CMakePackage {
+                name: filename,
+                filetype,
+            });
+    }
+    Ok(storage)
 });
