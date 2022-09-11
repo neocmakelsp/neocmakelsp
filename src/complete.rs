@@ -20,6 +20,9 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
     if let Ok(messages) = &*BUILDIN_MODULE {
         complete.append(&mut messages.clone());
     }
+    if let Ok(package) = &*findpackage::CMAKE_SOURCE {
+        complete.append(&mut package.clone());
+    }
     if complete.is_empty() {
         None
     } else {

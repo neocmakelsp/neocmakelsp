@@ -7,21 +7,22 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::Parser;
 //use tree_sitter::Point;
+use clap::{Arg, Command};
 use std::collections::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 
 mod ast;
+mod complete;
 mod gammar;
 mod gotodef;
 mod snippets;
 mod treehelper;
-mod complete;
 use gammar::checkerror;
 
 /// Beckend
 #[derive(Debug)]
 struct Backend {
-    /// client 
+    /// client
     client: Client,
     /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
@@ -272,7 +273,7 @@ impl LanguageServer for Backend {
         input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
-        println!("{:?}",uri);
+        println!("{:?}", uri);
         let location = input.text_document_position_params.position;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
@@ -288,19 +289,19 @@ impl LanguageServer for Backend {
                 //Ok(None)
                 match gotodef::godef(location, tree.root_node(), context) {
                     Some(range) => Ok(Some(GotoDefinitionResponse::Link({
-                        range.iter().filter(|input|{
-                            match origin_selection_range {
+                        range
+                            .iter()
+                            .filter(|input| match origin_selection_range {
                                 Some(origin) => origin != **input,
                                 None => true,
-                            }
-                        })
-                        .map(|range| LocationLink {
-                            origin_selection_range,
-                            target_uri:uri.clone(),
-                            target_range: *range,
-                            target_selection_range: *range
-                        })
-                        .collect()
+                            })
+                            .map(|range| LocationLink {
+                                origin_selection_range,
+                                target_uri: uri.clone(),
+                                target_range: *range,
+                                target_selection_range: *range,
+                            })
+                            .collect()
                     }))),
                     None => Ok(None),
                 }
@@ -336,50 +337,62 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
-    if cfg!(feature = "tcp") {
-        #[cfg(feature = "runtime-agnostic")]
-        use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-        tracing_subscriber::fmt().init();
+    let matches = Command::new("neocmakelsp")
+        .about("neo lsp for cmake")
+        .version("0.4")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .author("Cris")
+        .subcommand(
+            Command::new("stdio")
+                .long_flag("stdio")
+                .about("run with stdio"),
+        )
+        .subcommand(
+            Command::new("tcp")
+                .long_flag("tcp")
+                .about("run with tcp")
+                .arg(
+                    Arg::new("listen")
+                        .long("listen")
+                        .help("listen to port"),
+                ),
+        )
+        .get_matches();
+    match matches.subcommand() {
+        Some(("stdio", _)) => {
+            tracing_subscriber::fmt().init();
+            let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+            let (service, socket) = LspService::new(|client| Backend {
+                client,
+                buffers: Arc::new(Mutex::new(HashMap::new())),
+            });
+            Server::new(stdin, stdout, socket).serve(service).await;
+        }
+        Some(("tcp", sync_matches)) => {
+            #[cfg(feature = "runtime-agnostic")]
+            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+            tracing_subscriber::fmt().init();
+            let stream = {
+                if sync_matches.contains_id("listen") {
+                    let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
+                    let (stream, _) = listener.accept().await.unwrap();
+                    stream
+                } else {
+                    TcpStream::connect("127.0.0.1:9257").await.unwrap()
+                }
+            };
 
-        let mut args = std::env::args();
-        let stream = match args.nth(1).as_deref() {
-            None => {
-                // If no argument is supplied (args is just the program name), then
-                // we presume that the client has opened the TCP port and is waiting
-                // for us to connect. This is the connection pattern used by clients
-                // built with vscode-langaugeclient.
-                TcpStream::connect("127.0.0.1:9257").await.unwrap()
-            }
-            Some("--listen") => {
-                // If the `--listen` argument is supplied, then the roles are
-                // reversed: we need to start a server and wait for the client to
-                // connect.
-                let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
-                let (stream, _) = listener.accept().await.unwrap();
-                stream
-            }
-            Some(arg) => panic!(
-                "Unrecognized argument: {}. Use --listen to listen for connections.",
-                arg
-            ),
-        };
+            let (read, write) = tokio::io::split(stream);
+            #[cfg(feature = "runtime-agnostic")]
+            let (read, write) = (read.compat(), write.compat_write());
 
-        let (read, write) = tokio::io::split(stream);
-        #[cfg(feature = "runtime-agnostic")]
-        let (read, write) = (read.compat(), write.compat_write());
-
-        let (service, socket) = LspService::new(|client| Backend {
-            client,
-            buffers: Arc::new(Mutex::new(HashMap::new())),
-        });
-        Server::new(read, write, socket).serve(service).await;
-    } else {
-        tracing_subscriber::fmt().init();
-        let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-        let (service, socket) = LspService::new(|client| Backend {
-            client,
-            buffers: Arc::new(Mutex::new(HashMap::new())),
-        });
-        Server::new(stdin, stdout, socket).serve(service).await;
+            let (service, socket) = LspService::new(|client| Backend {
+                client,
+                buffers: Arc::new(Mutex::new(HashMap::new())),
+            });
+            Server::new(read, write, socket).serve(service).await;
+        }
+        _ => unimplemented!(),
     }
 }
