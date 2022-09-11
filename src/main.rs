@@ -14,7 +14,8 @@ use tokio::net::{TcpListener, TcpStream};
 mod ast;
 mod complete;
 mod gammar;
-mod gotodef;
+mod jump;
+mod utils;
 mod snippets;
 mod treehelper;
 use gammar::checkerror;
@@ -287,7 +288,7 @@ impl LanguageServer for Backend {
 
                 //notify_send(context, Type::Error);
                 //Ok(None)
-                match gotodef::godef(location, tree.root_node(), context) {
+                match jump::godef(location, tree.root_node(), context) {
                     Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                         range
                             .iter()
