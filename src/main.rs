@@ -337,9 +337,10 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
     let matches = Command::new("neocmakelsp")
         .about("neo lsp for cmake")
-        .version("0.4")
+        .version(VERSION)
         .subcommand_required(true)
         .arg_required_else_help(true)
         .author("Cris")

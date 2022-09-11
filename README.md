@@ -12,13 +12,15 @@ cargo install neocmakelsp
 
 ## Setup
 
+### Stdio
+
 ```lua
 local configs = require("lspconfig.configs")
 local nvim_lsp = require("lspconfig")
 if not configs.neocmake then
     configs.neocmake = {
         default_config = {
-            cmd = { "neocmakelsp" },
+            cmd = { "neocmakelsp", "--stdio" },
             filetypes = { "cmake" },
             root_dir = function(fname)
                 return nvim_lsp.util.find_git_ancestor(fname)
@@ -29,6 +31,25 @@ if not configs.neocmake then
     }
     nvim_lsp.neocmake.setup({})
 end
+```
+### Tcp
+
+```lua
+if not configs.neocmake then
+    configs.neocmake = {
+        default_config = {
+            cmd = { 'nc', 'localhost', '9257' },
+            filetypes = { "cmake" },
+            root_dir = function(fname)
+                return nvim_lsp.util.find_git_ancestor(fname)
+            end,
+            single_file_support = true,-- suggested
+            on_attach = on_attach
+        }
+    }
+    nvim_lsp.neocmake.setup({})
+end
+
 ```
 
 
