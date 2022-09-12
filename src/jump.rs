@@ -14,15 +14,9 @@ pub fn godef(
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {
                 match get_jump_type(location, root, source, JumpType::Variable) {
-                    JumpType::Variable => {
-                        println!("Variable");
-                        godefsub(root, source, &tofind, originuri)
-                    }
+                    JumpType::Variable => godefsub(root, source, &tofind, originuri),
                     JumpType::FindPackage => findpackage::cmpfindpackage(tofind),
-                    JumpType::NotFind => {
-                        println!("not find");
-                        None
-                    }
+                    JumpType::NotFind => None,
                 }
             } else {
                 None
@@ -58,18 +52,11 @@ fn get_jump_type(location: Position, root: Node, source: &str, jumptype: JumpTyp
                         //println!("name = {}", name);
                         name == "find_package"
                     }
-                    "argument" => {
-                        if let JumpType::FindPackage = jumptype {
-                            true
-                        } else {
-                            false
-                        }
-                    }
+                    "argument" => matches!(jumptype, JumpType::FindPackage),
                     _ => false,
                 };
 
                 if isfindpackage {
-                    println!("findpacage");
                     return get_jump_type(location, child, source, JumpType::FindPackage);
                 } else {
                     let currenttype = get_jump_type(location, child, source, JumpType::Variable);

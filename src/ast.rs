@@ -3,11 +3,11 @@ use crate::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
 #[allow(deprecated)]
 pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolResponse> {
-    match getsubast(input, source) {
-        Some(asts) => Some(DocumentSymbolResponse::Nested(asts)),
-        None => None,
-    }
-    //getsubast(input, source).map(DocumentSymbolResponse::Nested)
+    //match getsubast(input, source) {
+    //    Some(asts) => Some(DocumentSymbolResponse::Nested(asts)),
+    //    None => None,
+    //}
+    getsubast(input, source).map(DocumentSymbolResponse::Nested)
 }
 #[allow(deprecated)]
 fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbol>> {

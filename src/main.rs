@@ -274,7 +274,7 @@ impl LanguageServer for Backend {
         input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
-        println!("{:?}", uri);
+        //println!("{:?}", uri);
         let location = input.text_document_position_params.position;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
@@ -298,7 +298,7 @@ impl LanguageServer for Backend {
                             })
                             .map(|range| LocationLink {
                                 origin_selection_range,
-                                target_uri: Url::parse(&format!("file://{}",range.uri)).unwrap(),
+                                target_uri: Url::parse(&range.uri).unwrap(),
                                 target_range: range.range,
                                 target_selection_range: range.range,
                             })

@@ -29,7 +29,7 @@ pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
             let filetype = if message_unit.metadata().unwrap().is_dir() {
                 FileType::Dir
             } else {
-                filename = filename.split(".").collect::<Vec<&str>>()[0].to_string();
+                filename = filename.split('.').collect::<Vec<&str>>()[0].to_string();
                 FileType::File
             };
             let filepath = message_unit.path().to_str().unwrap().to_string();
@@ -46,14 +46,14 @@ pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
 pub static CMAKE_PACKAGES_WITHKEY: Lazy<Result<HashMap<String, CMakePackage>>> = Lazy::new(|| {
     let mut storage: HashMap<String, CMakePackage> = HashMap::new();
     let paths = std::fs::read_dir("/usr/lib/cmake/")?;
-    for apath in paths.into_iter() {
+    for apath in paths {
         let message_unit = apath.unwrap();
 
         let mut filename = message_unit.file_name().to_str().unwrap().to_string();
         let filetype = if message_unit.metadata().unwrap().is_dir() {
             FileType::Dir
         } else {
-            filename = filename.split(".").collect::<Vec<&str>>()[0].to_string();
+            filename = filename.split('.').collect::<Vec<&str>>()[0].to_string();
             FileType::File
         };
 

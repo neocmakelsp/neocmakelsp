@@ -16,7 +16,7 @@ pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
                         character: 0,
                     },
                 },
-                uri: context.filepath.clone(),
+                uri: format!("file://{}", context.filepath.clone()),
             }],
             utils::FileType::Dir => std::fs::read_dir(&context.filepath)
                 .unwrap()
@@ -32,7 +32,10 @@ pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
                             character: 0,
                         },
                     },
-                    uri: apath.unwrap().path().to_str().unwrap().to_string(),
+                    uri: format!(
+                        "file://{}",
+                        apath.unwrap().path().to_str().unwrap().to_string()
+                    ),
                 })
                 .collect(),
         }),
