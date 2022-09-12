@@ -7,6 +7,7 @@ pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolRe
         Some(asts) => Some(DocumentSymbolResponse::Nested(asts)),
         None => None,
     }
+    //getsubast(input, source).map(DocumentSymbolResponse::Nested)
 }
 #[allow(deprecated)]
 fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbol>> {

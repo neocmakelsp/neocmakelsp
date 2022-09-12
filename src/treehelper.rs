@@ -15,7 +15,7 @@ pub fn point_to_position(input: Point) -> Position {
 
 /// lsp_types to treesitter
 #[inline]
-fn position_to_point(input: Position) -> Point {
+pub fn position_to_point(input: Position) -> Point {
     Point {
         row: input.line as usize,
         column: input.character as usize,
