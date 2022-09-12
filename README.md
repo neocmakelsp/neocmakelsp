@@ -59,9 +59,11 @@ end
 * symbol\_provider
 * On hover
 * GO TO Definitation
+	* find\_package
 
 ## TODO
 * Undefined function check
+* add\_subdirectory
 
 ## Show
 
