@@ -60,6 +60,7 @@ end
 * On hover
 * GO TO Definitation
 	* find\_package
+	* include
 
 ## TODO
 * Undefined function check
