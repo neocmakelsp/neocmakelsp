@@ -1,8 +1,9 @@
 /// privide go to definition
 use crate::treehelper::{get_positon_string, point_to_position, position_to_point};
-use lsp_types::{Position, Range};
+use lsp_types::{Position, Range, Url};
 use tree_sitter::Node;
 mod findpackage;
+mod subdirectory;
 /// find the definition
 pub fn godef(
     location: Position,
@@ -102,7 +103,7 @@ fn godefsub(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(JumpLocation {
-                    uri: originuri.clone(),
+                    uri: Url::parse(&format!("file://{}",originuri)).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),
@@ -121,5 +122,5 @@ fn godefsub(
 // TODO jump to file
 pub struct JumpLocation {
     pub range: Range,
-    pub uri: String,
+    pub uri: Url,
 }

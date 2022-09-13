@@ -288,7 +288,7 @@ impl LanguageServer for Backend {
 
                 //notify_send(context, Type::Error);
                 //Ok(None)
-                match jump::godef(location, tree.root_node(), context, uri.to_string()) {
+                match jump::godef(location, tree.root_node(), context, uri.path().to_string()) {
                     Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                         range
                             .iter()
@@ -298,7 +298,7 @@ impl LanguageServer for Backend {
                             })
                             .map(|range| LocationLink {
                                 origin_selection_range,
-                                target_uri: Url::parse(&range.uri).unwrap(),
+                                target_uri: range.uri.clone(),
                                 target_range: range.range,
                                 target_selection_range: range.range,
                             })
