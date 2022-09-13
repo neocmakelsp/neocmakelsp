@@ -34,7 +34,7 @@ pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
                     },
                     uri: Url::parse(&format!(
                         "file://{}",
-                        apath.unwrap().path().to_str().unwrap().to_string()
+                        apath.unwrap().path().to_str().unwrap()
                     ))
                     .unwrap(),
                 })
