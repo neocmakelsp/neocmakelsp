@@ -3,6 +3,7 @@ use crate::treehelper::{get_positon_string, point_to_position, position_to_point
 use lsp_types::{Position, Range, Url};
 use tree_sitter::Node;
 mod findpackage;
+mod include;
 mod subdirectory;
 /// find the definition
 pub fn godef(
@@ -18,6 +19,8 @@ pub fn godef(
                     JumpType::Variable => godefsub(root, source, &tofind, originuri),
                     JumpType::FindPackage => findpackage::cmpfindpackage(tofind),
                     JumpType::NotFind => None,
+                    JumpType::Include => include::cmpinclude(originuri, &tofind),
+                    JumpType::SubDir => subdirectory::cmpsubdirectory(originuri, &tofind),
                 }
             } else {
                 None
@@ -26,9 +29,12 @@ pub fn godef(
         None => None,
     }
 }
+#[derive(Clone, Copy)]
 enum JumpType {
     Variable,
     FindPackage,
+    SubDir,
+    Include,
     NotFind,
 }
 
@@ -42,7 +48,7 @@ fn get_jump_type(location: Position, root: Node, source: &str, jumptype: JumpTyp
             && neolocation.row >= child.start_position().row
         {
             if child.child_count() != 0 {
-                let isfindpackage = match child.kind() {
+                let jumptype = match child.kind() {
                     "normal_command" => {
                         let h = child.start_position().row;
                         let ids = child.child(0).unwrap();
@@ -51,20 +57,36 @@ fn get_jump_type(location: Position, root: Node, source: &str, jumptype: JumpTyp
                         let y = ids.end_position().column;
                         let name = &newsource[h][x..y];
                         //println!("name = {}", name);
-                        name == "find_package"
+                        //name == "find_package"
+                        match name {
+                            "find_package" => JumpType::FindPackage,
+                            "include" => JumpType::Include,
+                            "add_subdirectory" => JumpType::SubDir,
+                            _ => JumpType::Variable,
+                        }
                     }
-                    "argument" => matches!(jumptype, JumpType::FindPackage),
-                    _ => false,
+                    "argument" => match jumptype {
+                        JumpType::FindPackage | JumpType::SubDir | JumpType::Include => jumptype,
+                        _ => JumpType::Variable,
+                    },
+                    _ => JumpType::Variable,
                 };
 
-                if isfindpackage {
-                    return get_jump_type(location, child, source, JumpType::FindPackage);
-                } else {
-                    let currenttype = get_jump_type(location, child, source, JumpType::Variable);
-                    match currenttype {
-                        JumpType::NotFind => {}
-                        _ => return currenttype,
-                    };
+                match jumptype {
+                    JumpType::FindPackage | JumpType::SubDir | JumpType::Include => {
+                        return get_jump_type(location, child, source, jumptype);
+                    }
+
+                    JumpType::Variable => {
+                        //} else {
+                        let currenttype =
+                            get_jump_type(location, child, source, JumpType::Variable);
+                        match currenttype {
+                            JumpType::NotFind => {}
+                            _ => return currenttype,
+                        };
+                    }
+                    JumpType::NotFind => {}
                 }
             }
             // if is the same line
@@ -103,7 +125,7 @@ fn godefsub(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(JumpLocation {
-                    uri: Url::parse(&format!("file://{}",originuri)).unwrap(),
+                    uri: Url::parse(&format!("file://{}", originuri)).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),

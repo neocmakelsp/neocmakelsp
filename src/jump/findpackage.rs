@@ -1,7 +1,7 @@
 //use lsp_types::CompletionItem;
-use lsp_types::Url;
 use super::JumpLocation;
 use crate::utils;
+use lsp_types::Url;
 pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
     match &*utils::CMAKE_PACKAGES_WITHKEY {
         Ok(keys) => keys.get(&input).map(|context| match context.filetype {
@@ -16,7 +16,7 @@ pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
                         character: 0,
                     },
                 },
-                uri:Url::parse(&format!("file://{}", context.filepath.clone())).unwrap(),
+                uri: Url::parse(&format!("file://{}", context.filepath.clone())).unwrap(),
             }],
             utils::FileType::Dir => std::fs::read_dir(&context.filepath)
                 .unwrap()
@@ -35,7 +35,8 @@ pub(super) fn cmpfindpackage(input: String) -> Option<Vec<JumpLocation>> {
                     uri: Url::parse(&format!(
                         "file://{}",
                         apath.unwrap().path().to_str().unwrap().to_string()
-                    )).unwrap(),
+                    ))
+                    .unwrap(),
                 })
                 .collect(),
         }),
