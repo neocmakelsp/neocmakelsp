@@ -1,13 +1,17 @@
 mod findpackage;
 use crate::snippets::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use crate::CompletionResponse;
-use lsp_types::{CompletionItem, CompletionItemKind};
+use lsp_types::{CompletionItem, CompletionItemKind, MessageType};
 /// get the complet messages
-pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionResponse> {
+pub async fn getcoplete(source: &str, client: &tower_lsp::Client) -> Option<CompletionResponse> {
     //let mut course2 = course.clone();
     //let mut hasid = false;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let thetree = parse.parse(source, None);
+    let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    if let Some(mut message) = getsubcoplete(input, source) {
+    if let Some(mut message) = getsubcoplete(tree.root_node(), source) {
         complete.append(&mut message);
     }
 
@@ -24,6 +28,7 @@ pub fn getcoplete(input: tree_sitter::Node, source: &str) -> Option<CompletionRe
         complete.append(&mut package.clone());
     }
     if complete.is_empty() {
+        client.log_message(MessageType::INFO, "Empty").await;
         None
     } else {
         Some(CompletionResponse::Array(complete))

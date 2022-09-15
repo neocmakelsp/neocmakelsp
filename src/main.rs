@@ -15,9 +15,9 @@ mod ast;
 mod complete;
 mod gammar;
 mod jump;
-mod utils;
 mod snippets;
 mod treehelper;
+mod utils;
 use gammar::checkerror;
 
 /// Beckend
@@ -256,13 +256,7 @@ impl LanguageServer for Backend {
             let storemap = self.buffers.lock().await;
             //notify_send("test", Type::Error);
             match storemap.get(&uri) {
-                Some(context) => {
-                    let mut parse = Parser::new();
-                    parse.set_language(tree_sitter_cmake::language()).unwrap();
-                    let thetree = parse.parse(context.clone(), None);
-                    let tree = thetree.unwrap();
-                    Ok(complete::getcoplete(tree.root_node(), context))
-                }
+                Some(context) => Ok(complete::getcoplete(context, &self.client).await),
                 None => Ok(None),
             }
         } else {
@@ -287,8 +281,7 @@ impl LanguageServer for Backend {
                     treehelper::get_positon_range(location, tree.root_node(), context);
 
                 //notify_send(context, Type::Error);
-                //Ok(None)
-                match jump::godef(location, tree.root_node(), context, uri.path().to_string()) {
+                match jump::godef(location, context, uri.path().to_string(), &self.client).await {
                     Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                         range
                             .iter()
@@ -354,11 +347,7 @@ async fn main() {
             Command::new("tcp")
                 .long_flag("tcp")
                 .about("run with tcp")
-                .arg(
-                    Arg::new("listen")
-                        .long("listen")
-                        .help("listen to port"),
-                ),
+                .arg(Arg::new("listen").long("listen").help("listen to port")),
         )
         .get_matches();
     match matches.subcommand() {

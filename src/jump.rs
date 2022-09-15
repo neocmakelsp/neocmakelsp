@@ -1,28 +1,35 @@
 /// privide go to definition
 use crate::treehelper::{get_positon_string, point_to_position, position_to_point};
-use lsp_types::{Position, Range, Url};
+use lsp_types::{MessageType, Position, Range, Url};
 use tree_sitter::Node;
 mod findpackage;
 mod include;
 mod subdirectory;
 /// find the definition
-pub fn godef(
+pub async fn godef(
     location: Position,
-    root: Node,
     source: &str,
     originuri: String,
+    client: &tower_lsp::Client,
 ) -> Option<Vec<JumpLocation>> {
-    match get_positon_string(location, root, source) {
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let thetree = parse.parse(source, None);
+    let tree = thetree.unwrap();
+    let positionstring = get_positon_string(location, tree.root_node(), source);
+    match positionstring {
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {
-                match get_jump_type(location, root, source, JumpType::Variable) {
-                    JumpType::Variable => godefsub(root, source, &tofind, originuri),
-                    JumpType::FindPackage => findpackage::cmpfindpackage(tofind),
+                let jumptype = get_jump_type(location, tree.root_node(), source, JumpType::Variable);
+                match jumptype {
+                    JumpType::Variable => godefsub(tree.root_node(), source, &tofind, originuri),
+                    JumpType::FindPackage => findpackage::cmpfindpackage(tofind,client).await,
                     JumpType::NotFind => None,
                     JumpType::Include => include::cmpinclude(originuri, &tofind),
                     JumpType::SubDir => subdirectory::cmpsubdirectory(originuri, &tofind),
                 }
             } else {
+                client.log_message(MessageType::INFO, "Empty").await;
                 None
             }
         }
