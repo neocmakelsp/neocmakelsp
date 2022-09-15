@@ -42,7 +42,7 @@ pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
         })
         .collect())
 });
-#[allow(unused)]
+
 pub static CMAKE_PACKAGES_WITHKEY: Lazy<Result<HashMap<String, CMakePackage>>> = Lazy::new(|| {
     let mut storage: HashMap<String, CMakePackage> = HashMap::new();
     let paths = std::fs::read_dir("/usr/lib/cmake/")?;
