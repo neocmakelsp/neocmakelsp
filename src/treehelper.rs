@@ -3,7 +3,7 @@ use crate::snippets::MESSAGE_STORAGE;
 use lsp_types::Position;
 use lsp_types::Range;
 use tree_sitter::{Node, Point};
-/// convert Point to Positon 
+/// convert Point to Positon
 /// treesitter to lsp_types
 #[inline]
 pub fn point_to_position(input: Point) -> Position {
@@ -25,7 +25,9 @@ pub fn position_to_point(input: Position) -> Point {
 /// get the doc for on hover
 pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
     match get_positon_string(location, root, source) {
-        Some(message) => MESSAGE_STORAGE.get(&message).map(|context| context.to_string()),
+        Some(message) => MESSAGE_STORAGE
+            .get(&message)
+            .map(|context| context.to_string()),
         None => None,
     }
 }

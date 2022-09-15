@@ -88,7 +88,7 @@ pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
 });
 #[allow(unused)]
 pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    let mut storage : HashMap<String, String> = HashMap::new();
+    let mut storage: HashMap<String, String> = HashMap::new();
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     if let Ok(output) = Command::new("cmake").arg("--help-commands").output() {
         let output = output.stdout;
@@ -103,7 +103,9 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert_with(|| message.to_string());
+            storage
+                .entry(akey.to_string())
+                .or_insert_with(|| message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-variables").output() {
@@ -119,7 +121,9 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert_with(||message.to_string());
+            storage
+                .entry(akey.to_string())
+                .or_insert_with(|| message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-modules").output() {
@@ -135,7 +139,9 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
         let content: Vec<_> = re.split(&temp).into_iter().collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage.entry(akey.to_string()).or_insert_with(||message.to_string());
+            storage
+                .entry(akey.to_string())
+                .or_insert_with(|| message.to_string());
         }
     }
     storage

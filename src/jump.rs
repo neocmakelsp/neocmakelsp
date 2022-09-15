@@ -20,13 +20,16 @@ pub async fn godef(
     match positionstring {
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {
-                let jumptype = get_jump_type(location, tree.root_node(), source, JumpType::Variable);
+                let jumptype =
+                    get_jump_type(location, tree.root_node(), source, JumpType::Variable);
                 match jumptype {
                     JumpType::Variable => godefsub(tree.root_node(), source, &tofind, originuri),
-                    JumpType::FindPackage => findpackage::cmpfindpackage(tofind,client).await,
+                    JumpType::FindPackage => findpackage::cmpfindpackage(tofind, client).await,
                     JumpType::NotFind => None,
-                    JumpType::Include => include::cmpinclude(originuri, &tofind),
-                    JumpType::SubDir => subdirectory::cmpsubdirectory(originuri, &tofind),
+                    JumpType::Include => include::cmpinclude(originuri, &tofind, client).await,
+                    JumpType::SubDir => {
+                        subdirectory::cmpsubdirectory(originuri, &tofind, client).await
+                    }
                 }
             } else {
                 client.log_message(MessageType::INFO, "Empty").await;

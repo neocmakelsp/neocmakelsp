@@ -1,10 +1,14 @@
 use super::JumpLocation;
-use lsp_types::Url;
+use lsp_types::{MessageType, Url};
 use std::path::{Path, PathBuf};
 fn ismodule(tojump: &str) -> bool {
     tojump.split(".").collect::<Vec<&str>>().len() == 1
 }
-pub(super) fn cmpinclude(localpath: String, subpath: &str) -> Option<Vec<JumpLocation>> {
+pub(super) async fn cmpinclude(
+    localpath: String,
+    subpath: &str,
+    client: &tower_lsp::Client,
+) -> Option<Vec<JumpLocation>> {
     let path = PathBuf::from(localpath);
     let target = if !ismodule(subpath) {
         let dir = path.parent().unwrap();
@@ -12,6 +16,9 @@ pub(super) fn cmpinclude(localpath: String, subpath: &str) -> Option<Vec<JumpLoc
     } else {
         format!("/usr/share/cmake/Modules/{}.cmake", subpath)
     };
+    client
+        .log_message(MessageType::INFO, format!("Jump Path is {}", target))
+        .await;
     if Path::new(&target).exists() {
         Some(vec![JumpLocation {
             range: lsp_types::Range {
