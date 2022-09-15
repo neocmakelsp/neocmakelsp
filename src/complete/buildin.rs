@@ -2,7 +2,6 @@
 use anyhow::Result;
 use lsp_types::{CompletionItem, CompletionItemKind};
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
 
@@ -85,66 +84,6 @@ pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
             ..Default::default()
         })
         .collect())
-});
-#[allow(unused)]
-pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    let mut storage: HashMap<String, String> = HashMap::new();
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
-    if let Ok(output) = Command::new("cmake").arg("--help-commands").output() {
-        let output = output.stdout;
-        let temp = String::from_utf8_lossy(&output);
-        let key: Vec<_> = re
-            .find_iter(&temp)
-            .map(|message| {
-                let temp: Vec<&str> = message.as_str().split('\n').collect();
-                temp[0]
-            })
-            .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
-        let context = &content[1..];
-        for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
-        }
-    }
-    if let Ok(output) = Command::new("cmake").arg("--help-variables").output() {
-        let output = output.stdout;
-        let temp = String::from_utf8_lossy(&output);
-        let key: Vec<_> = re
-            .find_iter(&temp)
-            .map(|message| {
-                let temp: Vec<&str> = message.as_str().split('\n').collect();
-                temp[0]
-            })
-            .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
-        let context = &content[1..];
-        for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
-        }
-    }
-    if let Ok(output) = Command::new("cmake").arg("--help-modules").output() {
-        let output = output.stdout;
-        let temp = String::from_utf8_lossy(&output);
-        let key: Vec<_> = re
-            .find_iter(&temp)
-            .map(|message| {
-                let temp: Vec<&str> = message.as_str().split('\n').collect();
-                temp[0]
-            })
-            .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
-        let context = &content[1..];
-        for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
-        }
-    }
-    storage
 });
 #[cfg(test)]
 mod tests {

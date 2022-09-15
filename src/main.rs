@@ -15,7 +15,6 @@ mod ast;
 mod complete;
 mod gammar;
 mod jump;
-mod snippets;
 mod treehelper;
 mod utils;
 use gammar::checkerror;

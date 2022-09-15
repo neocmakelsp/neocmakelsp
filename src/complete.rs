@@ -1,6 +1,7 @@
+mod buildin;
 mod findpackage;
-use crate::snippets::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use crate::CompletionResponse;
+use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType};
 /// get the complet messages
 pub async fn getcoplete(source: &str, client: &tower_lsp::Client) -> Option<CompletionResponse> {
