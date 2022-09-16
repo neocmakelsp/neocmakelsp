@@ -58,6 +58,7 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
+                references_provider: None,
                 ..ServerCapabilities::default()
             },
         })
