@@ -15,9 +15,9 @@ mod ast;
 mod complete;
 mod gammar;
 mod jump;
-mod treehelper;
 mod utils;
 use gammar::checkerror;
+use utils::treehelper;
 
 /// Beckend
 #[derive(Debug)]
@@ -251,12 +251,13 @@ impl LanguageServer for Backend {
     }
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
+        let location = input.text_document_position.position;
         if input.context.is_some() {
             let uri = input.text_document_position.text_document.uri;
             let storemap = self.buffers.lock().await;
             //notify_send("test", Type::Error);
             match storemap.get(&uri) {
-                Some(context) => Ok(complete::getcoplete(context, &self.client).await),
+                Some(context) => Ok(complete::getcoplete(context, location, &self.client).await),
                 None => Ok(None),
             }
         } else {

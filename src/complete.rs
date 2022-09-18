@@ -1,10 +1,16 @@
+// todo compelete type
 mod buildin;
 mod findpackage;
+use crate::utils::types::*;
 use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
-use lsp_types::{CompletionItem, CompletionItemKind, MessageType};
+use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 /// get the complet messages
-pub async fn getcoplete(source: &str, client: &tower_lsp::Client) -> Option<CompletionResponse> {
+pub async fn getcoplete(
+    source: &str,
+    location: Position,
+    client: &tower_lsp::Client,
+) -> Option<CompletionResponse> {
     //let mut course2 = course.clone();
     //let mut hasid = false;
     let mut parse = tree_sitter::Parser::new();
@@ -12,22 +18,32 @@ pub async fn getcoplete(source: &str, client: &tower_lsp::Client) -> Option<Comp
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    if let Some(mut message) = getsubcoplete(tree.root_node(), source) {
-        complete.append(&mut message);
+    match get_input_type(location, tree.root_node(), source, InputType::Variable) {
+        InputType::Variable => {
+            if let Some(mut message) = getsubcoplete(tree.root_node(), source) {
+                complete.append(&mut message);
+            }
+
+            if let Ok(messages) = &*BUILDIN_COMMAND {
+                complete.append(&mut messages.clone());
+            }
+            if let Ok(messages) = &*BUILDIN_VARIABLE {
+                complete.append(&mut messages.clone());
+            }
+        }
+        InputType::FindPackage => {
+            if let Ok(package) = &*findpackage::CMAKE_SOURCE {
+                complete.append(&mut package.clone());
+            }
+        }
+        InputType::Include => {
+            if let Ok(messages) = &*BUILDIN_MODULE {
+                complete.append(&mut messages.clone());
+            }
+        }
+        _ => {}
     }
 
-    if let Ok(messages) = &*BUILDIN_COMMAND {
-        complete.append(&mut messages.clone());
-    }
-    if let Ok(messages) = &*BUILDIN_VARIABLE {
-        complete.append(&mut messages.clone());
-    }
-    if let Ok(messages) = &*BUILDIN_MODULE {
-        complete.append(&mut messages.clone());
-    }
-    if let Ok(package) = &*findpackage::CMAKE_SOURCE {
-        complete.append(&mut package.clone());
-    }
     if complete.is_empty() {
         client.log_message(MessageType::INFO, "Empty").await;
         None
