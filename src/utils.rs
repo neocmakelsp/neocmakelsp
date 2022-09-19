@@ -1,5 +1,6 @@
 pub mod treehelper;
 pub mod types;
+mod findpackage;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -20,6 +21,10 @@ pub struct CMakePackage {
     pub filetype: FileType,
     pub filepath: String,
 }
+
+// cmake prefix 
+// include /usr/ /usr/local 
+// search path include
 pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
     let paths = std::fs::read_dir("/usr/lib/cmake/")?;
     Ok(paths
