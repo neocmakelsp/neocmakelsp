@@ -43,9 +43,12 @@ pub fn get_input_type(
                         }
                     }
                     "argument" => match inputtype {
-                        InputType::FindPackage | InputType::SubDir | InputType::Include => inputtype,
+                        InputType::FindPackage | InputType::SubDir | InputType::Include => {
+                            inputtype
+                        }
                         _ => InputType::Variable,
                     },
+                    "line_comment" => InputType::NotFind,
                     _ => InputType::Variable,
                 };
 

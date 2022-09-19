@@ -18,7 +18,7 @@ pub async fn getcoplete(
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    match get_input_type(location, tree.root_node(), source, InputType::Variable) {
+    match get_input_type(location, tree.root_node(), source, InputType::NotFind) {
         InputType::Variable => {
             if let Some(mut message) = getsubcoplete(tree.root_node(), source) {
                 complete.append(&mut message);

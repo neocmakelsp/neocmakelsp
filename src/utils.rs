@@ -1,5 +1,5 @@
-pub mod types;
 pub mod treehelper;
+pub mod types;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
