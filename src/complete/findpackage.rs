@@ -9,10 +9,13 @@ pub static CMAKE_SOURCE: Lazy<Result<Vec<CompletionItem>>> =
             .map(|package| CompletionItem {
                 label: package.name.clone(),
                 kind: Some(CompletionItemKind::MODULE),
-                detail: Some(format!(
-                    "name:{}\nFiletype:{}",
-                    package.name, package.filetype
-                )),
+                detail: Some(match &package.version {
+                    None => format!("name:{}\nFiletype:{}\n", package.name, package.filetype),
+                    Some(version) => format!(
+                        "name:{}\nFiletype:{}\nversion:{}",
+                        package.name, package.filetype, version
+                    ),
+                }),
                 ..Default::default()
             })
             .collect()),

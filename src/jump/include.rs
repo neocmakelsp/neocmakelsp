@@ -2,7 +2,7 @@ use super::JumpLocation;
 use lsp_types::{MessageType, Url};
 use std::path::{Path, PathBuf};
 fn ismodule(tojump: &str) -> bool {
-    tojump.split(".").collect::<Vec<&str>>().len() == 1
+    tojump.split('.').count() == 1
 }
 pub(super) async fn cmpinclude(
     localpath: String,

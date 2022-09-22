@@ -11,18 +11,20 @@ mod packagemac;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
 
-use crate::utils::treehelper::point_to_position;
 pub use cmakepackage::PREFIX;
 use once_cell::sync::Lazy;
 // match file xx.cmake and CMakeLists.txt
-const CMAKEREGEX: Lazy<regex::Regex> =
+static CMAKEREGEX: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
 
 // config file
-const CMAKECONFIG: Lazy<regex::Regex> =
-    Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake").unwrap());
-
-fn get_version(source: &str) -> Option<&str> {
+#[allow(dead_code)]
+static CMAKECONFIG: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
+// config version file
+static CMAKECONFIGVERSION: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
+fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(tree_sitter_cmake::language()).unwrap();
@@ -32,8 +34,6 @@ fn get_version(source: &str) -> Option<&str> {
     let mut course = input.walk();
     for child in input.children(&mut course) {
         if child.kind() == "normal_command" {
-            let start = point_to_position(child.start_position());
-            let end = point_to_position(child.end_position());
             let h = child.start_position().row;
             let ids = child.child(0).unwrap();
             //let ids = ids.child(2).unwrap();
@@ -52,7 +52,7 @@ fn get_version(source: &str) -> Option<&str> {
                                 let h = version.start_position().row;
                                 let x = version.start_position().column;
                                 let y = version.end_position().column;
-                                return Some(&newsource[h][x..y]);
+                                return Some(newsource[h][x..y].to_string());
                             }
                         }
                     }
@@ -63,6 +63,7 @@ fn get_version(source: &str) -> Option<&str> {
 
     None
 }
+pub use cmakepackage::*;
 #[test]
 fn regextest() {
     assert!(CMAKEREGEX.is_match("CMakeLists.txt"));
@@ -79,9 +80,9 @@ fn configtest() {
 #[test]
 fn tst_version() {
     let projectversion = "set(PACKAGE_VERSION 5.11)";
-    assert_eq!(get_version(projectversion), Some("5.11"));
+    assert_eq!(get_version(projectversion), Some("5.11".to_string()));
     let projectversion = "SET(PACKAGE_VERSION 5.11)";
-    assert_eq!(get_version(projectversion), Some("5.11"));
+    assert_eq!(get_version(projectversion), Some("5.11".to_string()));
     let qmlversion = include_str!("../../assert/Qt5QmlConfigVersion.cmake");
-    assert_eq!(get_version(qmlversion), Some("5.15.6"));
+    assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
 }
