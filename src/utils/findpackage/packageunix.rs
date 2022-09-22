@@ -10,7 +10,9 @@ fn temp() {
             if let Ok(paths) = std::fs::read_dir(format!("{}/{}", prefix, lib)) {
                 for path in paths {
                     if let Ok(pathunit) = path {
-                        if pathunit.metadata().unwrap().is_dir() {}
+                        if pathunit.metadata().unwrap().is_dir() {
+
+                        }
                     }
                 }
             }
