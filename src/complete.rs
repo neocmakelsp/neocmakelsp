@@ -32,9 +32,7 @@ pub async fn getcoplete(
             }
         }
         InputType::FindPackage => {
-            if let Ok(package) = &*findpackage::CMAKE_SOURCE {
-                complete.append(&mut package.clone());
-            }
+            complete.append(&mut findpackage::CMAKE_SOURCE.clone());
         }
         InputType::Include => {
             if let Ok(messages) = &*BUILDIN_MODULE {

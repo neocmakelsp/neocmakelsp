@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs};
 
-use anyhow::Result;
 use once_cell::sync::Lazy;
 
 use crate::utils::{CMakePackage, FileType};
@@ -11,7 +10,7 @@ use super::{get_version, CMAKECONFIGVERSION, CMAKEREGEX};
 //
 pub const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
 pub const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
-pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
+pub static CMAKE_PACKAGES: Lazy<Vec<CMakePackage>> = Lazy::new(|| {
     let mut packages = vec![];
     for prefix in PREFIX {
         for lib in LIBS {
@@ -60,9 +59,9 @@ pub static CMAKE_PACKAGES: Lazy<Result<Vec<CMakePackage>>> = Lazy::new(|| {
             }
         }
     }
-    Ok(packages)
+    packages
 });
-pub static CMAKE_PACKAGES_WITHKEY: Lazy<Result<HashMap<String, CMakePackage>>> = Lazy::new(|| {
+pub static CMAKE_PACKAGES_WITHKEY: Lazy<HashMap<String, CMakePackage>> = Lazy::new(|| {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
 
     for prefix in PREFIX {
@@ -114,5 +113,5 @@ pub static CMAKE_PACKAGES_WITHKEY: Lazy<Result<HashMap<String, CMakePackage>>> =
             }
         }
     }
-    Ok(packages)
+    packages
 });

@@ -7,26 +7,23 @@ pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec
     client
         .log_message(MessageType::LOG, "Go to Find Package")
         .await;
-    match &*utils::CMAKE_PACKAGES_WITHKEY {
-        Ok(keys) => keys.get(&input).map(|context| {
-            context
-                .tojump
-                .iter()
-                .map(|apath| JumpLocation {
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: 0,
-                            character: 0,
-                        },
-                        end: lsp_types::Position {
-                            line: 0,
-                            character: 0,
-                        },
+    utils::CMAKE_PACKAGES_WITHKEY.get(&input).map(|context| {
+        context
+            .tojump
+            .iter()
+            .map(|apath| JumpLocation {
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 0,
+                        character: 0,
                     },
-                    uri: Url::parse(apath).unwrap(),
-                })
-                .collect()
-        }),
-        Err(_) => None,
-    }
+                    end: lsp_types::Position {
+                        line: 0,
+                        character: 0,
+                    },
+                },
+                uri: Url::parse(apath).unwrap(),
+            })
+            .collect()
+    })
 }
