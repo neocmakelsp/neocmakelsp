@@ -11,14 +11,15 @@ mod packagemac;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
 
-use anyhow::Result;
 pub use cmakepackage::PREFIX;
 use once_cell::sync::Lazy;
 // match file xx.cmake and CMakeLists.txt
-const CMAKEREGEX: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
+const CMAKEREGEX: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
 
 // config file
-const CMAKECONFIG: Lazy<regex::Regex> = Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake").unwrap());
+const CMAKECONFIG: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake").unwrap());
 #[test]
 fn regextest() {
     assert!(CMAKEREGEX.is_match("CMakeLists.txt"));

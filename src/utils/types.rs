@@ -42,6 +42,9 @@ pub fn get_input_type(
                             _ => InputType::Variable,
                         }
                     }
+                    "normal_var" | "unquoted_argument" | "variable_def" | "variable" => {
+                        InputType::Variable
+                    }
                     "argument" => match inputtype {
                         InputType::FindPackage | InputType::SubDir | InputType::Include => {
                             inputtype

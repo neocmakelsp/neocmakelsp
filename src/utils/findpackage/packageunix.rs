@@ -7,11 +7,10 @@ pub const LIBS: [&str; 3] = ["lib", "lib32", "lib64"];
 fn temp() {
     for prefix in PREFIX {
         for lib in LIBS {
-            if let Ok(paths) = std::fs::read_dir(format!("{}/{}",prefix, lib)) {
+            if let Ok(paths) = std::fs::read_dir(format!("{}/{}", prefix, lib)) {
                 for path in paths {
                     if let Ok(pathunit) = path {
-                        if pathunit.metadata().unwrap().is_dir() {
-                        }
+                        if pathunit.metadata().unwrap().is_dir() {}
                     }
                 }
             }
