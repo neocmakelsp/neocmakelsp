@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::Parser;
 //use tree_sitter::Point;
-use clap::{Arg, Command};
+use clap::{arg, Arg, Command};
 use std::collections::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 
@@ -16,6 +16,7 @@ mod complete;
 mod gammar;
 mod jump;
 mod utils;
+mod search;
 use gammar::checkerror;
 use utils::treehelper;
 
@@ -350,8 +351,21 @@ async fn main() {
                 .about("run with tcp")
                 .arg(Arg::new("listen").long("listen").help("listen to port")),
         )
+        .subcommand(
+            Command::new("search")
+                .long_flag("search")
+                .short_flag('S')
+                .about("Search packages")
+                .arg(arg!(<Package> ... "Packages")),
+        )
         .get_matches();
     match matches.subcommand() {
+        Some(("search", sub_matches)) => {
+            let packagename = sub_matches
+                .get_one::<String>("Package")
+                .expect("required one pacakge");
+            println!("{}",search::search_result(packagename));
+        }
         Some(("stdio", _)) => {
             tracing_subscriber::fmt().init();
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
