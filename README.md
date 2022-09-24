@@ -61,6 +61,7 @@ end
 * GO TO Definitation
 	* find\_package
 	* include
+* Search cli
 
 ## TODO
 * Undefined function check
@@ -68,11 +69,19 @@ end
 
 ## Show
 
+### Search 
+![Search](./images/search.png)
+
+### symbol
+![Symbol](./images/ast.png)
+
 ### Complete and symbol support
-![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/demo.gif)
+![Complete](./images/findpackage.png)
+![CompleteFindpackage](./images/complete.png)
 
 ### OnHover
-![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/onhover.jpg)
+![onHover](./images/onhover.png)
 
 ### GoToDefinition
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/definition.png)
+![JumpToFile](./images/Jump.png)
