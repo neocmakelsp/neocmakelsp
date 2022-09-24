@@ -1,7 +1,7 @@
 use crate::utils::CMAKE_PACKAGES;
 use cli_table::{format::Justify, Cell, CellStruct, Style, Table};
 pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
-    let tofind = regex::Regex::new(&tosearch).unwrap();
+    let tofind = regex::Regex::new(tosearch).unwrap();
     CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name))

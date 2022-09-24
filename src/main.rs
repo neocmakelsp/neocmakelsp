@@ -15,8 +15,8 @@ mod ast;
 mod complete;
 mod gammar;
 mod jump;
-mod utils;
 mod search;
+mod utils;
 use gammar::checkerror;
 use utils::treehelper;
 
@@ -364,7 +364,7 @@ async fn main() {
             let packagename = sub_matches
                 .get_one::<String>("Package")
                 .expect("required one pacakge");
-            println!("{}",search::search_result(packagename));
+            println!("{}", search::search_result(packagename));
         }
         Some(("stdio", _)) => {
             tracing_subscriber::fmt().init();
