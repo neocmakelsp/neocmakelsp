@@ -52,6 +52,10 @@ end
 
 ```
 
+## Help needed 
+
+new version will not work on mac and windows, so I need your help
+
 
 ## Features
 
