@@ -1,10 +1,10 @@
 use crate::utils::CMAKE_PACKAGES;
 use cli_table::{format::Justify, Cell, CellStruct, Style, Table};
 pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
-    let tofind = regex::Regex::new(tosearch).unwrap();
+    let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
     CMAKE_PACKAGES
         .iter()
-        .filter(|source| tofind.is_match(&source.name))
+        .filter(|source| tofind.is_match(&source.name.to_lowercase()))
         .map(|source| match &source.version {
             Some(version) => vec![
                 source.name.clone().cell(),
