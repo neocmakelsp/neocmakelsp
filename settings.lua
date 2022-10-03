@@ -5,8 +5,7 @@ return {
     lsp = {
         neocmake = {
             default_config = {
-                --cmd = { "./target/debug/qmllsp" },
-                cmd = { 'nc', 'localhost', '9257' },
+                cmd = vim.lsp.rpc.connect('127.0.0.1', 9257),
                 filetypes = { "cmake" },
                 root_dir = function(fname)
                     return nvim_lsp.util.find_git_ancestor(fname)

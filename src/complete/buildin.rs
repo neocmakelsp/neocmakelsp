@@ -110,15 +110,15 @@ mod tests {
             .unwrap()
             .stdout;
         let temp = String::from_utf8_lossy(&output);
-        let key: Vec<_> = re.find_iter(&temp).collect();
+        let _key: Vec<_> = re.find_iter(&temp).collect();
         let splits: Vec<_> = re.split(&temp).into_iter().collect();
 
-        for akey in key {
-            println!("{}", akey.as_str());
-        }
-        let newsplit = &splits[1..];
-        for split in newsplit.iter() {
-            println!("{split}");
-        }
+        //for akey in key {
+        //    println!("{}", akey.as_str());
+        //}
+        let _newsplit = &splits[1..];
+        //for split in newsplit.iter() {
+        //    println!("{split}");
+        //}
     }
 }

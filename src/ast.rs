@@ -47,6 +47,42 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                     children: getsubast(child, source),
                 });
             }
+            "macro_def" => {
+                let h = child.start_position().row;
+                let ids = child.child(0).unwrap();
+                let ids = ids.child(2).unwrap();
+                let x = ids.start_position().column;
+                let y = ids.end_position().column;
+                let name = &newsource[h][x..y];
+                asts.push(DocumentSymbol {
+                    name: name.to_string(),
+                    detail: None,
+                    kind: SymbolKind::FUNCTION,
+                    tags: None,
+                    deprecated: None,
+                    range: lsp_types::Range {
+                        start: lsp_types::Position {
+                            line: child.start_position().row as u32,
+                            character: child.start_position().column as u32,
+                        },
+                        end: lsp_types::Position {
+                            line: child.end_position().row as u32,
+                            character: child.end_position().column as u32,
+                        },
+                    },
+                    selection_range: lsp_types::Range {
+                        start: lsp_types::Position {
+                            line: child.start_position().row as u32,
+                            character: child.start_position().column as u32,
+                        },
+                        end: lsp_types::Position {
+                            line: child.end_position().row as u32,
+                            character: child.end_position().column as u32,
+                        },
+                    },
+                    children: getsubast(child, source),
+                });
+            }
             "if_condition" | "foreach_loop" => {
                 asts.push(DocumentSymbol {
                     name: "Closure".to_string(),

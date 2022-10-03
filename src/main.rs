@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::net::{Ipv4Addr, SocketAddr};
 //use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -9,10 +10,10 @@ use tree_sitter::Parser;
 //use tree_sitter::Point;
 use clap::{arg, Arg, Command};
 use std::collections::HashMap;
-use tokio::net::{TcpListener, TcpStream};
-
+use tokio::net::TcpListener;
 mod ast;
 mod complete;
+mod format;
 mod gammar;
 mod jump;
 mod search;
@@ -51,6 +52,7 @@ impl LanguageServer for Backend {
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 // TODO
+                document_formatting_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
@@ -244,6 +246,17 @@ impl LanguageServer for Backend {
             None => Ok(None),
         }
     }
+
+    async fn formatting(&self, input: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        self.client.log_message(MessageType::INFO, "formanting").await;
+        let uri = input.text_document.uri;
+        let storemap = self.buffers.lock().await;
+        match storemap.get(&uri) {
+            Some(context) => Ok(None),
+            None => Ok(None)
+        }
+    }
+
     async fn did_close(&self, _: DidCloseTextDocumentParams) {
         self.client
             .log_message(MessageType::INFO, "file closed!")
@@ -349,7 +362,12 @@ async fn main() {
             Command::new("tcp")
                 .long_flag("tcp")
                 .about("run with tcp")
-                .arg(Arg::new("listen").long("listen").help("listen to port")),
+                .arg(
+                    Arg::new("port")
+                        .long("port")
+                        .short('P')
+                        .help("listen to port"),
+                ),
         )
         .subcommand(
             Command::new("search")
@@ -380,12 +398,26 @@ async fn main() {
             use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
             tracing_subscriber::fmt().init();
             let stream = {
-                if sync_matches.contains_id("listen") {
-                    let listener = TcpListener::bind("127.0.0.1:9257").await.unwrap();
+                if sync_matches.contains_id("port") {
+                    let port = sync_matches.get_one::<String>("port").expect("error");
+                    let port: u16 = port.parse().unwrap();
+                    let listener = TcpListener::bind(SocketAddr::new(
+                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                        port,
+                    ))
+                    .await
+                    .unwrap();
                     let (stream, _) = listener.accept().await.unwrap();
                     stream
                 } else {
-                    TcpStream::connect("127.0.0.1:9257").await.unwrap()
+                    let listener = TcpListener::bind(SocketAddr::new(
+                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                        9257,
+                    ))
+                    .await
+                    .unwrap();
+                    let (stream, _) = listener.accept().await.unwrap();
+                    stream
                 }
             };
 

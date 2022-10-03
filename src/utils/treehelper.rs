@@ -100,7 +100,7 @@ pub fn get_positon_range(location: Position, root: Node, source: &str) -> Option
     None
 }
 
-#[allow(unused)]
+//#[allow(unused)]
 pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     let mut storage: HashMap<String, String> = HashMap::new();
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();

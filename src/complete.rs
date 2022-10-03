@@ -72,6 +72,20 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                     ..Default::default()
                 });
             }
+            "macro_def" => {
+                let h = child.start_position().row;
+                let ids = child.child(0).unwrap();
+                let ids = ids.child(2).unwrap();
+                let x = ids.start_position().column;
+                let y = ids.end_position().column;
+                let name = &newsource[h][x..y];
+                complete.push(CompletionItem {
+                    label: format!("{}()", name),
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some("defined function".to_string()),
+                    ..Default::default()
+                });
+            }
             "if_condition" | "foreach_loop" => {
                 if let Some(mut message) = getsubcoplete(child, source) {
                     complete.append(&mut message);
