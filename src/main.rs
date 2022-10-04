@@ -1,3 +1,4 @@
+use formatting::getformat;
 use serde_json::Value;
 use std::net::{Ipv4Addr, SocketAddr};
 //use std::process::Command;
@@ -13,7 +14,7 @@ use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
 mod complete;
-mod format;
+mod formatting;
 mod gammar;
 mod jump;
 mod search;
@@ -248,12 +249,20 @@ impl LanguageServer for Backend {
     }
 
     async fn formatting(&self, input: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
-        self.client.log_message(MessageType::INFO, "formanting").await;
+        self.client
+            .log_message(MessageType::INFO, "formating")
+            .await;
         let uri = input.text_document.uri;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
-            Some(context) => Ok(None),
-            None => Ok(None)
+            Some(context) => Ok(getformat(&context, &self.client).await),
+            //Some(context) => Ok(Some(vec![TextEdit{
+            //    range: Range { start: Position { line: 0, character: 0 }, end: Position { line: 3, character: 0 },
+            //    
+            //    },
+            //    new_text: "test".to_string()
+            //}])),
+            None => Ok(None),
         }
     }
 

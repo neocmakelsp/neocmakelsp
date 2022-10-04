@@ -1,0 +1,5 @@
+project ( Mime VERSION SS ) 
+set(Dtk 1)
+project ( Mime VERSION SS ) 
+find_package(Dtk)
+for()
