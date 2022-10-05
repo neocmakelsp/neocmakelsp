@@ -255,13 +255,7 @@ impl LanguageServer for Backend {
         let uri = input.text_document.uri;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
-            Some(context) => Ok(getformat(&context, &self.client).await),
-            //Some(context) => Ok(Some(vec![TextEdit{
-            //    range: Range { start: Position { line: 0, character: 0 }, end: Position { line: 3, character: 0 },
-            //    
-            //    },
-            //    new_text: "test".to_string()
-            //}])),
+            Some(context) => Ok(getformat(context, &self.client).await),
             None => Ok(None),
         }
     }

@@ -1,6 +1,10 @@
 use lsp_types::{MessageType, Position, TextEdit};
 //use tree_sitter::Node;
 mod findpackage;
+mod ifcondition;
+mod loopdef;
+mod macrodef;
+mod othercommand;
 mod project;
 mod set;
 //use crate::utils::treehelper::point_to_position;
@@ -25,7 +29,7 @@ pub fn get_format_from_root_node(input: tree_sitter::Node, source: &str) -> Opti
         let mut new_text = String::new();
         let mut course = input.walk();
         for child in input.children(&mut course) {
-            let (reformat, _) = get_format_from_node(child, source);
+            let reformat = get_format_from_node(child, source);
             //down += downpoint;
             new_text.push_str(&format!("{}\n", reformat));
         }
@@ -48,16 +52,16 @@ pub fn get_format_from_root_node(input: tree_sitter::Node, source: &str) -> Opti
     }
 }
 
-fn get_format_from_node(input: tree_sitter::Node, source: &str) -> (String, usize) {
-    // first one is the textedit, second one is down move
-    //let newsource: Vec<&str> = source.lines().collect();
-    //let mut output = String::new();
-    let output = match CommandType::from_node(input.clone(), source) {
+fn get_format_from_node(input: tree_sitter::Node, source: &str) -> String {
+    match CommandType::from_node(input, source) {
         CommandType::Project => project::format_project(input, source),
+        CommandType::Set => set::format_set(input, source),
+        CommandType::OtherCommand => othercommand::format_othercommand(input, source),
+        CommandType::IfCondition => ifcondition::format_ifcondition(input, source),
+        CommandType::Loop => loopdef::format_loopdef(input, source),
+        CommandType::MacroDef => macrodef::format_macrodef(input, source),
         _ => default_format(input, source),
-    };
-    let count = output.lines().count();
-    (output, count)
+    }
 }
 
 fn default_format(input: tree_sitter::Node, source: &str) -> String {
@@ -72,15 +76,13 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
         newsource[start_y][start_x..end_x].to_string()
     } else {
         let mut output = String::new();
-        output.push_str(&format!("{}\n",&newsource[start_y][start_x..]));
-        for i in start_y+1..end_y {
-            output.push_str(&format!("{}\n",newsource[i]));
+        output.push_str(&format!("{}\n", &newsource[start_y][start_x..]));
+        for item in newsource.iter().take(end_y).skip(start_y + 1) {
+            output.push_str(&format!("{}\n", item));
         }
-        output.push_str(&format!("{}\n",&newsource[end_y][0..end_x]));
+        output.push_str(&format!("{}\n", &newsource[end_y][0..end_x]));
         output
     }
-    //let mut cursor = input.walk();
-    //for child in input.children(&mut cursor) {}
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,16 +91,20 @@ enum CommandType {
     Option,
     Project,
     FindPackage,
-    Closure,
+    IfCondition,
+    MacroDef,
+    Loop,
     LineComment,
-    UnKnown,
+    OtherCommand,
 }
 
 impl CommandType {
     fn from_node(node: tree_sitter::Node, source: &str) -> Self {
         let newsource: Vec<&str> = source.lines().collect();
         match node.kind() {
-            "if_condition" | "foreach_loop" => Self::Closure,
+            "if_condition" => Self::IfCondition,
+            "foreach_loop" => Self::Loop,
+            "macro_def" => Self::MacroDef,
             "normal_command" => {
                 let h = node.start_position().row;
                 let ids = node.child(0).unwrap();
@@ -112,11 +118,11 @@ impl CommandType {
                     "option" => CommandType::Option,
                     "project" => CommandType::Project,
                     "find_package" => CommandType::FindPackage,
-                    _ => Self::UnKnown,
+                    _ => Self::OtherCommand,
                 }
             }
             "line_comment" => Self::LineComment,
-            _ => Self::UnKnown,
+            _ => Self::OtherCommand,
         }
     }
 }
@@ -134,19 +140,3 @@ fn tst_type() {
         CommandType::from_node(node, "project(Mime)")
     );
 }
-//#[test]
-//fn tst_format() {
-//    let mut parse = tree_sitter::Parser::new();
-//    parse.set_language(tree_sitter_cmake::language()).unwrap();
-//    let source = r#"
-//    project(
-//    Dtk
-//    )
-//    "#;
-//    let tree = parse.parse(source, None).unwrap();
-//    let node = tree.root_node().child(0).unwrap();
-//    let (afformat, _) = format_project(node, source, 0, 0);
-//    for unit in afformat {
-//        println!(" {:?} ", unit);
-//    }
-//}

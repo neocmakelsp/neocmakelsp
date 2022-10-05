@@ -66,4 +66,4 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
 pub static CMAKE_PACKAGES: Lazy<Vec<CMakePackage>> =
     Lazy::new(|| get_cmake_message().into_values().collect());
 pub static CMAKE_PACKAGES_WITHKEY: Lazy<HashMap<String, CMakePackage>> =
-    Lazy::new(|| get_cmake_message());
+    Lazy::new(get_cmake_message);
