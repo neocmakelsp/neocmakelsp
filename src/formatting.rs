@@ -1,6 +1,4 @@
 use lsp_types::{MessageType, Position, TextEdit};
-//use tree_sitter::Node;
-//mod findpackage;
 mod functiondef;
 mod ifcondition;
 mod loopdef;
@@ -29,10 +27,16 @@ pub fn get_format_from_root_node(input: tree_sitter::Node, source: &str) -> Opti
     } else {
         let mut new_text = String::new();
         let mut course = input.walk();
+        let mut startline = 0;
         for child in input.children(&mut course) {
+            let childstartline = child.start_position().row;
             let reformat = get_format_from_node(child, source);
             //down += downpoint;
-            new_text.push_str(&format!("{}\n", reformat));
+            for _ in startline..childstartline {
+                new_text.push('\n');
+            }
+            new_text.push_str(&reformat);
+            startline = child.end_position().row;
         }
         let len_ot = new_text.lines().count();
         let len_origin = source.lines().count();
@@ -58,10 +62,16 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
     } else {
         let mut new_text = String::new();
         let mut course = input.walk();
+        let mut startline = 0;
         for child in input.children(&mut course) {
+            let childstartline = child.start_position().row;
             let reformat = get_format_from_node(child, source);
             //down += downpoint;
-            new_text.push_str(&format!("{}\n", reformat));
+            for _ in startline..childstartline {
+                new_text.push('\n');
+            }
+            new_text.push_str(&reformat);
+            startline = child.end_position().row;
         }
         Some(new_text)
     }
