@@ -1,6 +1,8 @@
 use formatting::getformat;
 use serde_json::Value;
+use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 //use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -379,6 +381,13 @@ async fn main() {
                 .about("Search packages")
                 .arg(arg!(<Package> ... "Packages")),
         )
+        .subcommand(
+            Command::new("format")
+                .long_flag("format")
+                .short_flag('F')
+                .about("format the file")
+                .arg(arg!(<PATH> ... "path to format").value_parser(clap::value_parser!(PathBuf))),
+        )
         .get_matches();
     match matches.subcommand() {
         Some(("search", sub_matches)) => {
@@ -386,6 +395,21 @@ async fn main() {
                 .get_one::<String>("Package")
                 .expect("required one pacakge");
             println!("{}", search::search_result(packagename));
+        }
+        Some(("format", sub_matches)) => {
+            let path = sub_matches
+                .get_one::<PathBuf>("PATH")
+                .expect("Cannot get path");
+            let mut file = std::fs::File::open(path).unwrap();
+            let mut buf = String::new();
+            file.read_to_string(&mut buf).unwrap();
+            let mut parse = tree_sitter::Parser::new();
+            parse.set_language(tree_sitter_cmake::language()).unwrap();
+            let tree = parse.parse(&buf, None).unwrap();
+            match formatting::get_format_cli(tree.root_node(), &buf) {
+                Some(context) => println!("{context}"),
+                None => println!("There is error in File"),
+            }
         }
         Some(("stdio", _)) => {
             tracing_subscriber::fmt().init();

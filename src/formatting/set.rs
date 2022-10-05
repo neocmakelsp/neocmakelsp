@@ -2,22 +2,34 @@ pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
     let count = input.child_count();
     let mut keytype = KeyType::Start;
     let newsource: Vec<&str> = source.lines().collect();
-    if count < 7 {
-        let mut output = String::new();
-        let mut cursor = input.walk();
-        for child in input.children(&mut cursor) {
-            let childy = child.start_position().row;
+    let mut cursor = input.walk();
+    let mut units: Vec<String> = vec![];
+    let mut mutiline = false;
+    for child in input.children(&mut cursor) {
+        let starty = child.start_position().row;
+        let endy = child.end_position().row;
+        if starty != endy {
+            mutiline = true;
+            let format_result = super::node_to_string(child, source);
+            units.push(format_result);
+        } else {
             let startx = child.start_position().column;
             let endx = child.end_position().column;
-            let new_text = &newsource[childy][startx..endx];
-            let current_keytype = KeyType::match_it(new_text);
+            let new_text = &newsource[starty][startx..endx];
+            units.push(new_text.to_string());
+        }
+    }
+    if count < 7 && !mutiline {
+        let mut output = String::new();
+        for new_text in units {
+            let current_keytype = KeyType::match_it(&new_text);
             match (current_keytype, keytype) {
                 (KeyType::Var, KeyType::Start) => {
-                    output.push_str(new_text);
+                    output.push_str(&new_text);
                     keytype = KeyType::Var;
                 }
                 (_, KeyType::Start) => {
-                    output.push_str(new_text);
+                    output.push_str(&new_text);
                 }
                 (KeyType::RightBracket, _) => {
                     output.push(')');
@@ -31,16 +43,11 @@ pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
         output
     } else {
         let mut output = String::new();
-        let mut cursor = input.walk();
-        for child in input.children(&mut cursor) {
-            let childy = child.start_position().row;
-            let startx = child.start_position().column;
-            let endx = child.end_position().column;
-            let new_text = &newsource[childy][startx..endx];
-            let current_keytype = KeyType::match_it(new_text);
+        for new_text in units {
+            let current_keytype = KeyType::match_it(&new_text);
             match (current_keytype, keytype) {
                 (KeyType::Var, KeyType::Start) => {
-                    output.push_str(new_text);
+                    output.push_str(&new_text);
                     keytype = KeyType::Var;
                 }
                 (KeyType::Var, KeyType::Keywords) => {
@@ -48,7 +55,7 @@ pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
                     keytype = KeyType::Var;
                 }
                 (_, KeyType::Start) => {
-                    output.push_str(new_text);
+                    output.push_str(&new_text);
                 }
                 (KeyType::RightBracket, _) => {
                     output.push_str("\n)");
@@ -58,7 +65,11 @@ pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
                     keytype = KeyType::Keywords;
                 }
                 (_, KeyType::Var) => {
-                    output.push_str(&format!("\n  {}", new_text));
+                    if new_text.lines().count() == 1 {
+                        output.push_str(&format!("\n  {}", new_text));
+                    } else {
+                        output.push_str(&format!("\n{}", new_text));
+                    }
                 }
                 (_, _) => {}
             }

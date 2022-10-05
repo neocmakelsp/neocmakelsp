@@ -1,6 +1,7 @@
 use lsp_types::{MessageType, Position, TextEdit};
 //use tree_sitter::Node;
-mod findpackage;
+//mod findpackage;
+mod functiondef;
 mod ifcondition;
 mod loopdef;
 mod macrodef;
@@ -13,7 +14,7 @@ pub async fn getformat(source: &str, client: &tower_lsp::Client) -> Option<Vec<T
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(source, None).unwrap();
     let formatresult = get_format_from_root_node(tree.root_node(), source);
-    println!("{:?}", formatresult);
+    //println!("{:?}", formatresult);
     if formatresult.is_none() {
         client
             .log_message(MessageType::WARNING, "Error source")
@@ -51,7 +52,20 @@ pub fn get_format_from_root_node(input: tree_sitter::Node, source: &str) -> Opti
         }])
     }
 }
-
+pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> {
+    if input.has_error() {
+        None
+    } else {
+        let mut new_text = String::new();
+        let mut course = input.walk();
+        for child in input.children(&mut course) {
+            let reformat = get_format_from_node(child, source);
+            //down += downpoint;
+            new_text.push_str(&format!("{}\n", reformat));
+        }
+        Some(new_text)
+    }
+}
 fn get_format_from_node(input: tree_sitter::Node, source: &str) -> String {
     match CommandType::from_node(input, source) {
         CommandType::Project => project::format_project(input, source),
@@ -60,6 +74,7 @@ fn get_format_from_node(input: tree_sitter::Node, source: &str) -> String {
         CommandType::IfCondition => ifcondition::format_ifcondition(input, source),
         CommandType::Loop => loopdef::format_loopdef(input, source),
         CommandType::MacroDef => macrodef::format_macrodef(input, source),
+        CommandType::FunctionDef => functiondef::format_functiondef(input, source),
         _ => default_format(input, source),
     }
 }
@@ -88,11 +103,12 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
 #[derive(Debug, PartialEq)]
 enum CommandType {
     Set,
-    Option,
+    //Option,
     Project,
-    FindPackage,
+    //FindPackage,
     IfCondition,
     MacroDef,
+    FunctionDef,
     Loop,
     LineComment,
     OtherCommand,
@@ -105,6 +121,7 @@ impl CommandType {
             "if_condition" => Self::IfCondition,
             "foreach_loop" => Self::Loop,
             "macro_def" => Self::MacroDef,
+            "function_def" => Self::FunctionDef,
             "normal_command" => {
                 let h = node.start_position().row;
                 let ids = node.child(0).unwrap();
@@ -115,9 +132,9 @@ impl CommandType {
                 let name = name.as_str();
                 match name {
                     "set" => CommandType::Set,
-                    "option" => CommandType::Option,
+                    //"option" => CommandType::Option,
                     "project" => CommandType::Project,
-                    "find_package" => CommandType::FindPackage,
+                    //"find_package" => CommandType::FindPackage,
                     _ => Self::OtherCommand,
                 }
             }
@@ -139,4 +156,42 @@ fn tst_type() {
         CommandType::Project,
         CommandType::from_node(node, "project(Mime)")
     );
+}
+fn node_to_string(node: tree_sitter::Node, source: &str) -> String {
+    let newsource: Vec<&str> = source.lines().collect();
+    let startx = node.start_position().column;
+    let starty = node.start_position().row;
+    let endx = node.end_position().column;
+    let endy = node.end_position().row;
+    let mut output = String::new();
+    output.push_str(&newsource[starty][startx..]);
+    output.push('\n');
+    for item in newsource.iter().take(endy).skip(starty + 1) {
+        output.push_str(item);
+        output.push('\n');
+    }
+    output.push_str(&newsource[endy][0..endx]);
+    output
+}
+#[test]
+fn tst_node_to_str() {
+    let a = r#"
+set(
+  CMAKE_CXX_FLAGS
+  "${CMAKE_CXX_FLAGS} \
+  -Wall \
+  -Wextra \
+  -pipe \
+  -pedantic \
+  -fsized-deallocation \
+  -fdiagnostics-color=always \
+  -Wunreachable-code \
+  -Wno-attributes"
+)
+    "#;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(a, None).unwrap();
+    let e = node_to_string(tree.root_node(), a);
+    assert_eq!(a, e);
 }

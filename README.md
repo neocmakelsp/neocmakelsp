@@ -62,6 +62,7 @@ new version will not work on mac and windows, so I need your help
 * complete
 * symbol\_provider
 * On hover
+* Format
 * GO TO Definitation
 	* find\_package
 	* include

@@ -3,6 +3,7 @@ pub fn format_project(input: tree_sitter::Node, source: &str) -> String {
     let newsource: Vec<&str> = source.lines().collect();
     let mut keytype = KeyType::Start;
     let mut cursor = input.walk();
+    let nodecount = input.child_count();
     for child in input.children(&mut cursor) {
         let childy = child.start_position().row;
         let startx = child.start_position().column;
@@ -15,7 +16,11 @@ pub fn format_project(input: tree_sitter::Node, source: &str) -> String {
                 keytype = current_keytype;
             }
             (KeyType::RightBracket, _) => {
-                output.push_str("\n)");
+                if nodecount > 4 {
+                    output.push_str("\n)");
+                } else {
+                    output.push(')');
+                }
             }
             (_, KeyType::Start) => {
                 output.push_str(new_text);
