@@ -48,8 +48,8 @@ set(CMAKE_AUTOMOC ON)
 option(HUNTER_ENABLED "Enable Hunter package manager" OFF)
 include("cmake/HunterGate.cmake")
 HunterGate(
-  URL "https://github.com/cpp-pm/hunter/archive/v0.23.305.tar.gz" 
-  SHA1 "fc8d7a6dac2fa23681847b3872d88d3839b657b0" 
+  URL "https://github.com/cpp-pm/hunter/archive/v0.23.305.tar.gz"
+  SHA1 "fc8d7a6dac2fa23681847b3872d88d3839b657b0"
   LOCAL)
 macro( hunter_add_package_safe )
   set(pkg_temp_backup_libdir "$ENV{PKG_CONFIG_LIBDIR}")
@@ -77,7 +77,7 @@ option(USE_BUNDLED_MTXCLIENT "Use the bundled version of the Matrix Client libra
 option(USE_BUNDLED_LMDB "Use the bundled version of lmdb." ${HUNTER_ENABLED})
 option(USE_BUNDLED_LMDBXX "Use the bundled version of lmdb++." ${HUNTER_ENABLED})
 option(USE_BUNDLED_QTKEYCHAIN "Use the bundled version of Qt5Keychain." ${HUNTER_ENABLED})
-option(USE_BUNDLED_COEURL "Use a bundled version of the Curl wrapper" 
+option(USE_BUNDLED_COEURL "Use a bundled version of the Curl wrapper"
   ${HUNTER_ENABLED})
 option(USE_BUNDLED_LIBEVENT "Use the bundled version of spdlog." ${HUNTER_ENABLED})
 option(USE_BUNDLED_LIBCURL "Use the bundled version of spdlog." ${HUNTER_ENABLED})
@@ -104,7 +104,7 @@ if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
         # to ensure the content exists, such as to provide content at
         # a known location.
         if(EXISTS ${${contentNameLower}_SOURCE_DIR}/CMakeLists.txt)
-          add_subdirectory(${${contentNameLower}_SOURCE_DIR} 
+          add_subdirectory(${${contentNameLower}_SOURCE_DIR}
             ${${contentNameLower}_BINARY_DIR})
         endif()
       endif()
@@ -141,10 +141,10 @@ if (BUILD_DOCS)
     set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Doxyfile.in)
     set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT})
-    add_custom_target(docs ALL 
-      COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT} 
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} 
-      COMMENT "Generating API documentation with Doxygen" 
+    add_custom_target(docs ALL
+      COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMENT "Generating API documentation with Doxygen"
       VERBATIM)
   else (DOXYGEN_FOUND)
     message("Doxygen need to be installed to generate the doxygen documentation")
@@ -163,7 +163,7 @@ else()
   if (WIN32)
     pkg_check_modules(libevent_windows REQUIRED IMPORTED_TARGET libevent_windows)
   else()
-    pkg_check_modules(libevent_pthreads REQUIRED IMPORTED_TARGET 
+    pkg_check_modules(libevent_pthreads REQUIRED IMPORTED_TARGET
       libevent_pthreads)
   endif()
 endif()
@@ -183,8 +183,8 @@ find_package(spdlog 1.0.0 CONFIG REQUIRED)
 if(USE_BUNDLED_COEURL)
   include(FetchContent)
   FetchContent_Declare(
-    coeurl 
-    GIT_REPOSITORY https://nheko.im/Nheko-Reborn/coeurl.git 
+    coeurl
+    GIT_REPOSITORY https://nheko.im/Nheko-Reborn/coeurl.git
     GIT_TAG v0.1.2)
   FetchContent_MakeAvailable(coeurl)
   set(COEURL_TARGET_NAME coeurl::coeurl)
@@ -211,7 +211,7 @@ endif()
 if(USE_BUNDLED_LMDB)
   hunter_add_package_safe(lmdb)
   find_package(liblmdb CONFIG REQUIRED)
-  target_include_directories(liblmdb::lmdb INTERFACE 
+  target_include_directories(liblmdb::lmdb INTERFACE
     "${HUNTER_INSTALL_PREFIX}/include/lmdb")
 else()
   find_package(LMDB REQUIRED)
@@ -225,8 +225,8 @@ find_package(Qt5DBus)
 if (USE_BUNDLED_QTKEYCHAIN)
   include(FetchContent)
   FetchContent_Declare(
-    qt5keychain 
-    GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git 
+    qt5keychain
+    GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git
     GIT_TAG v0.13.1)
   if (BUILD_SHARED_LIBS)
     set(QTKEYCHAIN_STATIC
@@ -262,15 +262,15 @@ endif(Qt5Widgets_FOUND)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS
-  "${CMAKE_CXX_FLAGS} \
-     -Wall \
-     -Wextra \
-     -pipe \
-     -pedantic \
-     -fsized-deallocation \
-     -fdiagnostics-color=always \
-     -Wunreachable-code \
-     -Wno-attributes"
+    "${CMAKE_CXX_FLAGS} \
+    -Wall \
+    -Wextra \
+    -pipe \
+    -pedantic \
+    -fsized-deallocation \
+    -fdiagnostics-color=always \
+    -Wunreachable-code \
+    -Wno-attributes"
   )
   if (NOT CMAKE_COMPILER_IS_GNUCXX)
     # -Wshadow is buggy and broken in GCC, so do not enable it.
@@ -304,8 +304,8 @@ endif()
 find_program(GIT git)
 if(GIT)
   execute_process(
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} 
-    COMMAND ${GIT} rev-parse --short HEAD 
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMAND ${GIT} rev-parse --short HEAD
     OUTPUT_VARIABLE GIT_OUT OUTPUT_STRIP_TRAILING_WHITESPACE)
   if(GIT_OUT)
     set(CPACK_PACKAGE_VERSION_PATCH "${CPACK_PACKAGE_VERSION_PATCH}-${GIT_OUT}")
@@ -475,8 +475,8 @@ find_package(OpenSSL 1.1.0 REQUIRED)
 if(USE_BUNDLED_OLM)
   include(FetchContent)
   FetchContent_Declare(
-    Olm 
-    GIT_REPOSITORY https://gitlab.matrix.org/matrix-org/olm.git 
+    Olm
+    GIT_REPOSITORY https://gitlab.matrix.org/matrix-org/olm.git
     GIT_TAG 3.2.8)
   set(OLM_TESTS
     OFF
@@ -486,9 +486,9 @@ if(USE_BUNDLED_OLM)
   FetchContent_MakeAvailable(Olm)
 else()
   find_package(Olm 3.2.7 REQUIRED)
-  set_package_properties(Olm PROPERTIES 
-    DESCRIPTION "An implementation of the Double Ratchet cryptographic ratchet" 
-    URL "https://git.matrix.org/git/olm/about/" 
+  set_package_properties(Olm PROPERTIES
+    DESCRIPTION "An implementation of the Double Ratchet cryptographic ratchet"
+    URL "https://git.matrix.org/git/olm/about/"
     TYPE REQUIRED)
 endif()
 if(USE_BUNDLED_SPDLOG)
@@ -498,9 +498,9 @@ find_package(spdlog 1.0.0 CONFIG REQUIRED)
 if(USE_BUNDLED_CMARK)
   include(FetchContent)
   FetchContent_Declare(
-    cmark 
-    GIT_REPOSITORY https://github.com/commonmark/cmark.git 
-    GIT_TAG 0.30.2 
+    cmark
+    GIT_REPOSITORY https://github.com/commonmark/cmark.git
+    GIT_TAG 0.30.2
     CMAKE_ARGS "CMARK_STATIC=ON CMARK_SHARED=OFF CMARK_TESTS=OFF CMARK_TESTS=OFF")
   FetchContent_MakeAvailable(cmark)
   if (MSVC)
@@ -515,17 +515,17 @@ if(USE_BUNDLED_JSON)
   hunter_add_package_safe(nlohmann_json)
 endif()
 find_package(nlohmann_json 3.2.0)
-set_package_properties(nlohmann_json PROPERTIES 
-  DESCRIPTION "JSON for Modern C++, a C++11 header-only JSON class" 
-  URL "https://nlohmann.github.io/json/" 
+set_package_properties(nlohmann_json PROPERTIES
+  DESCRIPTION "JSON for Modern C++, a C++11 header-only JSON class"
+  URL "https://nlohmann.github.io/json/"
   TYPE REQUIRED)
 if(USE_BUNDLED_LMDBXX)
   include(FetchContent)
   FetchContent_Declare(
-    lmdbxx 
-    URL "https://raw.githubusercontent.com/hoytech/lmdbxx/1.0.0/lmdb++.h" 
-    DOWNLOAD_NO_EXTRACT TRUE 
-    CONFIGURE_COMMAND "" 
+    lmdbxx
+    URL "https://raw.githubusercontent.com/hoytech/lmdbxx/1.0.0/lmdb++.h"
+    DOWNLOAD_NO_EXTRACT TRUE
+    CONFIGURE_COMMAND ""
     BUILD_COMMAND "")
   FetchContent_Populate(lmdbxx)
   add_library(lmdbxx INTERFACE)
@@ -533,11 +533,11 @@ if(USE_BUNDLED_LMDBXX)
   add_library(lmdbxx::lmdbxx ALIAS lmdbxx)
 else()
   if(NOT LMDBXX_INCLUDE_DIR)
-    find_path(LMDBXX_INCLUDE_DIR 
-      NAMES lmdb++.h 
-      PATHS /usr/include 
-      /usr/local/include 
-      $ENV{LIB_DIR}/include 
+    find_path(LMDBXX_INCLUDE_DIR
+      NAMES lmdb++.h
+      PATHS /usr/include
+      /usr/local/include
+      $ENV{LIB_DIR}/include
       $ENV{LIB_DIR}/include/lmdbxx)
   endif()
   add_library(lmdbxx INTERFACE)
@@ -547,8 +547,8 @@ endif()
 if(USE_BUNDLED_MTXCLIENT)
   include(FetchContent)
   FetchContent_Declare(
-    MatrixClient 
-    GIT_REPOSITORY https://github.com/Nheko-Reborn/mtxclient.git 
+    MatrixClient
+    GIT_REPOSITORY https://github.com/Nheko-Reborn/mtxclient.git
     GIT_TAG 1f42cb0c8560a92b2640306b32cb6a330c564a31)
   set(BUILD_LIB_EXAMPLES
     OFF
@@ -605,13 +605,13 @@ if (APPLE)
     set_source_files_properties(src/notifications/ManagerMac.mm src/emoji/MacHelper.mm src/emoji/MacHelper.h PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
   endif()
 elseif (WIN32)
-  file(DOWNLOAD 
-    "https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.cpp" 
-    ${PROJECT_SOURCE_DIR}/src/wintoastlib.cpp 
+  file(DOWNLOAD
+    "https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.cpp"
+    ${PROJECT_SOURCE_DIR}/src/wintoastlib.cpp
     EXPECTED_HASH SHA256=1A1A7CE41C1052B12946798F4A6C67CE1FAD209C967F5ED4D720B173527E2073)
-  file(DOWNLOAD 
-    "https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.h" 
-    ${PROJECT_SOURCE_DIR}/src/wintoastlib.h 
+  file(DOWNLOAD
+    "https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.h"
+    ${PROJECT_SOURCE_DIR}/src/wintoastlib.h
     EXPECTED_HASH SHA256=b4481023c5782733795838be22bf1a75f45d87458cd4d9a5a75f664a146eea11)
   set(SRC_FILES
     ${SRC_FILES}
@@ -672,31 +672,31 @@ if (USE_BUNDLED_QTKEYCHAIN)
   target_include_directories(nheko PRIVATE ${qt5keychain_SOURCE_DIR} ${qt5keychain_BINARY_DIR})
 endif()
 if (NOT JSON_ImplicitConversions)
-  set_target_properties(nlohmann_json::nlohmann_json PROPERTIES 
+  set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
     INTERFACE_COMPILE_DEFINITIONS "JSON_USE_IMPLICIT_CONVERSIONS=\$<BOOL:OFF>;JSON_DIAGNOSTICS=\$<BOOL:OFF>")
   target_compile_definitions(nheko PUBLIC JSON_USE_IMPLICIT_CONVERSIONS=0)
 endif()
-target_link_libraries(nheko PRIVATE 
-  ${COEURL_TARGET_NAME} 
-  MatrixClient::MatrixClient 
-  cmark::cmark 
-  spdlog::spdlog 
-  Qt5::Widgets 
-  Qt5::Svg 
-  Qt5::Concurrent 
-  Qt5::Multimedia 
-  Qt5::Qml 
-  Qt5::QuickControls2 
-  Qt5::QuickWidgets 
-  qt5keychain 
-  nlohmann_json::nlohmann_json 
-  lmdbxx::lmdbxx 
-  liblmdb::lmdb 
+target_link_libraries(nheko PRIVATE
+  ${COEURL_TARGET_NAME}
+  MatrixClient::MatrixClient
+  cmark::cmark
+  spdlog::spdlog
+  Qt5::Widgets
+  Qt5::Svg
+  Qt5::Concurrent
+  Qt5::Multimedia
+  Qt5::Qml
+  Qt5::QuickControls2
+  Qt5::QuickWidgets
+  qt5keychain
+  nlohmann_json::nlohmann_json
+  lmdbxx::lmdbxx
+  liblmdb::lmdb
   SingleApplication::SingleApplication)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
-  target_precompile_headers(nheko 
-    PRIVATE 
-    <string> 
+  target_precompile_headers(nheko
+    PRIVATE
+    <string>
     <algorithm>)
 endif()
 if (TARGET PkgConfig::GSTREAMER)
@@ -745,10 +745,10 @@ if(UNIX AND NOT APPLE)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/nheko.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" RENAME "${APPID}.appdata.xml")
   if(NOT TARGET uninstall)
     configure_file(
-      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in" 
-      "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake" 
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
       IMMEDIATE @ONLY)
-    add_custom_target(uninstall 
+    add_custom_target(uninstall
       COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
   endif()
 endif()

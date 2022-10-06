@@ -24,7 +24,7 @@ pub fn format_othercommand(input: tree_sitter::Node, source: &str) -> String {
             if nodecount > 3 {
                 output.pop();
             }
-            output.push_str(")");
+            output.push(')');
         } else if starty > localline {
             if !beforeisleftblank {
                 output.pop();
