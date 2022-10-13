@@ -1,4 +1,5 @@
 use lsp_types::{MessageType, Position, TextEdit};
+mod adddefinitions;
 mod functiondef;
 mod ifcondition;
 mod loopdef;
@@ -80,6 +81,7 @@ fn get_format_from_node(input: tree_sitter::Node, source: &str) -> String {
     match CommandType::from_node(input, source) {
         CommandType::Project => project::format_project(input, source),
         CommandType::Set => set::format_set(input, source),
+        CommandType::AddDefinitions => adddefinitions::format_definition(input, source),
         CommandType::OtherCommand => othercommand::format_othercommand(input, source),
         CommandType::IfCondition => ifcondition::format_ifcondition(input, source),
         CommandType::Loop => loopdef::format_loopdef(input, source),
@@ -115,6 +117,7 @@ enum CommandType {
     Set,
     //Option,
     Project,
+    AddDefinitions,
     //FindPackage,
     IfCondition,
     MacroDef,
@@ -142,6 +145,7 @@ impl CommandType {
                 let name = name.as_str();
                 match name {
                     "set" => CommandType::Set,
+                    "add_definitions" => CommandType::AddDefinitions,
                     //"option" => CommandType::Option,
                     "project" => CommandType::Project,
                     //"find_package" => CommandType::FindPackage,
