@@ -145,7 +145,7 @@ impl CommandType {
                 let name = name.as_str();
                 match name {
                     "set" => CommandType::Set,
-                    "add_definitions" => CommandType::AddDefinitions,
+                    "add_definitions" | "add_compile_definitions" => CommandType::AddDefinitions,
                     //"option" => CommandType::Option,
                     "project" => CommandType::Project,
                     //"find_package" => CommandType::FindPackage,

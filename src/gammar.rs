@@ -17,7 +17,7 @@ pub fn checkerror(
                 }
                 if output.is_empty() {
                     None
-                } else  {
+                } else {
                     Some(output)
                 }
             }
