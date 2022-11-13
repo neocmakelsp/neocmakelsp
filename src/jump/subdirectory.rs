@@ -1,6 +1,6 @@
 use super::JumpLocation;
 use lsp_types::{MessageType, Url};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tower_lsp::Client;
 pub(super) async fn cmpsubdirectory(
     localpath: String,
@@ -9,8 +9,8 @@ pub(super) async fn cmpsubdirectory(
 ) -> Option<Vec<JumpLocation>> {
     let path = PathBuf::from(localpath);
     let dir = path.parent().unwrap();
-    let target = format!("{}/{}/CMakeLists.txt", dir.to_str().unwrap(), subpath);
-    if Path::new(&target).exists() {
+    let target = dir.join(subpath).join("CMakeLists.txt");
+    if target.exists() {
         Some(vec![JumpLocation {
             range: lsp_types::Range {
                 start: lsp_types::Position {
@@ -22,7 +22,7 @@ pub(super) async fn cmpsubdirectory(
                     character: 0,
                 },
             },
-            uri: Url::parse(&format!("file://{}", target)).unwrap(),
+            uri: Url::parse(&format!("file://{}", target.to_str().unwrap())).unwrap(),
         }])
     } else {
         client

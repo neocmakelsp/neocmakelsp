@@ -12,15 +12,17 @@ pub(super) async fn cmpinclude(
 ) -> Option<Vec<JumpLocation>> {
     let path = PathBuf::from(localpath);
     let target = if !ismodule(subpath) {
-        let dir = path.parent().unwrap();
-        format!("{}/{}", dir.to_str().unwrap(), subpath)
+        let root_dir = path.parent().unwrap();
+        root_dir.join(subpath)
     } else {
-        format!("/usr/share/cmake/Modules/{}.cmake", subpath)
+        Path::new(&format!("/usr/share/cmake/Modules/{}.cmake", subpath)).to_path_buf()
     };
-    client
-        .log_message(MessageType::INFO, format!("Jump Path is {}", target))
-        .await;
-    if Path::new(&target).exists() {
+
+    if target.exists() {
+        let target = target.to_str().unwrap();
+        client
+            .log_message(MessageType::INFO, format!("Jump Path is {}", target))
+            .await;
         Some(vec![JumpLocation {
             range: lsp_types::Range {
                 start: lsp_types::Position {
