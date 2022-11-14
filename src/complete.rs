@@ -131,19 +131,21 @@ fn getsubcoplete(
                         });
                     }
                 } else if name == "include" {
-                    let ids = child.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &newsource[h][x..y];
-                        if name.split('.').count() != 1 {
-                            let subpath = local_path.parent().unwrap().join(name);
-                            if let Ok(true) = cmake_try_exists(&subpath) {
-                                if let Some(mut comps) =
-                                    includescanner::scanner_include_coplete(&subpath)
-                                {
-                                    complete.append(&mut comps);
+                    if child.child_count() >= 3 {
+                        let ids = child.child(2).unwrap();
+                        if ids.start_position().row == ids.end_position().row {
+                            let h = ids.start_position().row;
+                            let x = ids.start_position().column;
+                            let y = ids.end_position().column;
+                            let name = &newsource[h][x..y];
+                            if name.split('.').count() != 1 {
+                                let subpath = local_path.parent().unwrap().join(name);
+                                if let Ok(true) = cmake_try_exists(&subpath) {
+                                    if let Some(mut comps) =
+                                        includescanner::scanner_include_coplete(&subpath)
+                                    {
+                                        complete.append(&mut comps);
+                                    }
                                 }
                             }
                         }

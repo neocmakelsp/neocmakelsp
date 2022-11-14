@@ -2,7 +2,7 @@ use formatting::getformat;
 use serde_json::Value;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 //use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -118,13 +118,14 @@ impl LanguageServer for Backend {
         let uri = input.text_document.uri.clone();
         let context = input.text_document.text.clone();
         let mut storemap = self.buffers.lock().await;
-        storemap.entry(uri).or_insert(context);
-        let thetree = parse.parse(input.text_document.text.clone(), None);
+        storemap.entry(uri.clone()).or_insert(context);
+        let source = input.text_document.text.clone();
+        let thetree = parse.parse(source.clone(), None);
         if let Some(tree) = thetree {
-            let gammererror = checkerror(tree.root_node());
+            let gammererror = checkerror(&Path::new(uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
-                for (start, end) in diagnoses {
+                for (start, end, message) in diagnoses {
                     let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
                     let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
                     let range = Range {
@@ -137,7 +138,7 @@ impl LanguageServer for Backend {
                         code: None,
                         code_description: None,
                         source: None,
-                        message: "gammererror".to_string(),
+                        message,
                         related_information: None,
                         tags: None,
                         data: None,
@@ -160,14 +161,16 @@ impl LanguageServer for Backend {
         let uri = input.text_document.uri.clone();
         let context = input.content_changes[0].text.clone();
         let mut storemap = self.buffers.lock().await;
-        storemap.insert(uri, context);
+        storemap.insert(uri.clone(), context);
         parse.set_language(tree_sitter_cmake::language()).unwrap();
-        let thetree = parse.parse(input.content_changes[0].text.clone(), None);
+
+        let source = input.content_changes[0].text.clone();
+        let thetree = parse.parse(source.clone(), None);
         if let Some(tree) = thetree {
-            let gammererror = checkerror(tree.root_node());
+            let gammererror = checkerror(&Path::new(&uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
-                for (start, end) in diagnoses {
+                for (start, end, message) in diagnoses {
                     let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
                     let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
 
@@ -181,7 +184,7 @@ impl LanguageServer for Backend {
                         code: None,
                         code_description: None,
                         source: None,
-                        message: "gammererror".to_string(),
+                        message,
                         related_information: None,
                         tags: None,
                         data: None,
