@@ -122,7 +122,7 @@ impl LanguageServer for Backend {
         let source = input.text_document.text.clone();
         let thetree = parse.parse(source.clone(), None);
         if let Some(tree) = thetree {
-            let gammererror = checkerror(&Path::new(uri.path()), &source, tree.root_node());
+            let gammererror = checkerror(Path::new(uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
                 for (start, end, message) in diagnoses {
@@ -167,7 +167,7 @@ impl LanguageServer for Backend {
         let source = input.content_changes[0].text.clone();
         let thetree = parse.parse(source.clone(), None);
         if let Some(tree) = thetree {
-            let gammererror = checkerror(&Path::new(&uri.path()), &source, tree.root_node());
+            let gammererror = checkerror(Path::new(&uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
                 for (start, end, message) in diagnoses {
@@ -303,7 +303,7 @@ impl LanguageServer for Backend {
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
                 let origin_selection_range =
-                    treehelper::get_positon_range(location, tree.root_node(), context);
+                    treehelper::get_positon_range(location, tree.root_node());
 
                 //notify_send(context, Type::Error);
                 match jump::godef(location, context, uri.path().to_string(), &self.client).await {

@@ -9,7 +9,11 @@ pub fn checkerror(
 ) -> Option<Vec<(tree_sitter::Point, tree_sitter::Point, String)>> {
     let newsource: Vec<&str> = source.lines().collect();
     if input.is_error() {
-        Some(vec![(input.start_position(), input.end_position(), "Gammer Error".to_string())])
+        Some(vec![(
+            input.start_position(),
+            input.end_position(),
+            "Gammer Error".to_string(),
+        )])
     } else {
         let mut course = input.walk();
         {
@@ -25,30 +29,32 @@ pub fn checkerror(
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
                     let name = &newsource[h][x..y];
-                    if name == "include" {
-                        if node.child_count() >= 4 {
-                            let ids = node.child(2).unwrap();
-                            if ids.start_position().row == ids.end_position().row {
-                                let h = ids.start_position().row;
-                                let x = ids.start_position().column;
-                                let y = ids.end_position().column;
-                                let name = &newsource[h][x..y];
-                                if name.split('.').count() != 1 {
-                                    let subpath = local_path.parent().unwrap().join(name);
-                                    match cmake_try_exists(&subpath) {
-                                        Ok(true) => {
-                                            if scanner_include_error(&subpath) {
-                                                output.push((
-                                                    node.start_position(),
-                                                    node.end_position(),
-                                                    "Contain Error in include file".to_string()
-                                                ));
-                                            }
+                    if name == "include" && node.child_count() >= 4 {
+                        let ids = node.child(2).unwrap();
+                        if ids.start_position().row == ids.end_position().row {
+                            let h = ids.start_position().row;
+                            let x = ids.start_position().column;
+                            let y = ids.end_position().column;
+                            let name = &newsource[h][x..y];
+                            if name.split('.').count() != 1 {
+                                let subpath = local_path.parent().unwrap().join(name);
+                                match cmake_try_exists(&subpath) {
+                                    Ok(true) => {
+                                        if scanner_include_error(&subpath) {
+                                            output.push((
+                                                node.start_position(),
+                                                node.end_position(),
+                                                "Contain Error in include file".to_string(),
+                                            ));
                                         }
-                                        _ => {
-                                            output
-                                                .push((node.start_position(), node.end_position(),"include file is not exist or cannot access".to_string()));
-                                        }
+                                    }
+                                    _ => {
+                                        output.push((
+                                            node.start_position(),
+                                            node.end_position(),
+                                            "include file is not exist or cannot access"
+                                                .to_string(),
+                                        ));
                                     }
                                 }
                             }
@@ -77,7 +83,7 @@ fn scanner_include_error(path: &PathBuf) -> bool {
         Ok(content) => {
             let mut parse = tree_sitter::Parser::new();
             parse.set_language(tree_sitter_cmake::language()).unwrap();
-            let thetree = parse.parse(content.clone(), None);
+            let thetree = parse.parse(content, None);
             let tree = thetree.unwrap();
             tree.root_node().has_error()
         }
