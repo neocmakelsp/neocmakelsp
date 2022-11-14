@@ -1,15 +1,18 @@
 // todo compelete type
 mod buildin;
 mod findpackage;
+mod includescanner;
 use crate::utils::types::*;
 use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
+use std::path::{Path, PathBuf};
 /// get the complet messages
 pub async fn getcoplete(
     source: &str,
     location: Position,
     client: &tower_lsp::Client,
+    local_path: &str,
 ) -> Option<CompletionResponse> {
     //let mut course2 = course.clone();
     //let mut hasid = false;
@@ -20,7 +23,9 @@ pub async fn getcoplete(
     let mut complete: Vec<CompletionItem> = vec![];
     match get_input_type(location, tree.root_node(), source, InputType::NotFind) {
         InputType::Variable => {
-            if let Some(mut message) = getsubcoplete(tree.root_node(), source) {
+            if let Some(mut message) =
+                getsubcoplete(tree.root_node(), source, Path::new(local_path))
+            {
                 complete.append(&mut message);
             }
 
@@ -50,7 +55,11 @@ pub async fn getcoplete(
     }
 }
 /// get the variable from the loop
-fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<CompletionItem>> {
+fn getsubcoplete(
+    input: tree_sitter::Node,
+    source: &str,
+    local_path: &Path,
+) -> Option<Vec<CompletionItem>> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
     //let mut course2 = course.clone();
@@ -68,7 +77,10 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                 complete.push(CompletionItem {
                     label: format!("{}()", name),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("defined function".to_string()),
+                    detail: Some(format!(
+                        "defined function\nfrom: {}",
+                        local_path.file_name().unwrap().to_str().unwrap()
+                    )),
                     ..Default::default()
                 });
             }
@@ -82,12 +94,15 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                 complete.push(CompletionItem {
                     label: format!("{}()", name),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("defined function".to_string()),
+                    detail: Some(format!(
+                        "defined function\nfrom: {}",
+                        local_path.file_name().unwrap().to_str().unwrap()
+                    )),
                     ..Default::default()
                 });
             }
             "if_condition" | "foreach_loop" => {
-                if let Some(mut message) = getsubcoplete(child, source) {
+                if let Some(mut message) = getsubcoplete(child, source, local_path) {
                     complete.append(&mut message);
                 }
             }
@@ -108,9 +123,30 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
                         complete.push(CompletionItem {
                             label: name.to_string(),
                             kind: Some(CompletionItemKind::VALUE),
-                            detail: Some("defined variable".to_string()),
+                            detail: Some(format!(
+                                "defined variable\nfrom: {}",
+                                local_path.file_name().unwrap().to_str().unwrap()
+                            )),
                             ..Default::default()
                         });
+                    }
+                } else if name == "include" {
+                    let ids = child.child(2).unwrap();
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &newsource[h][x..y];
+                        if name.split('.').count() != 1 {
+                            let subpath = local_path.parent().unwrap().join(name);
+                            if let Ok(true) = cmake_try_exists(&subpath) {
+                                if let Some(mut comps) =
+                                    includescanner::scanner_include_coplete(&subpath)
+                                {
+                                    complete.append(&mut comps);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -121,5 +157,13 @@ fn getsubcoplete(input: tree_sitter::Node, source: &str) -> Option<Vec<Completio
         None
     } else {
         Some(complete)
+    }
+}
+
+fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
+    match std::fs::metadata(input) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error),
     }
 }

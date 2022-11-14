@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(states
   LANGUAGES CXX
 )
+set(Acc 1)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

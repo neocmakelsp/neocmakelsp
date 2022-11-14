@@ -276,7 +276,9 @@ impl LanguageServer for Backend {
             let storemap = self.buffers.lock().await;
             //notify_send("test", Type::Error);
             match storemap.get(&uri) {
-                Some(context) => Ok(complete::getcoplete(context, location, &self.client).await),
+                Some(context) => {
+                    Ok(complete::getcoplete(context, location, &self.client, uri.path()).await)
+                }
                 None => Ok(None),
             }
         } else {
