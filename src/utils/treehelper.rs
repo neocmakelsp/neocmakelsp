@@ -28,9 +28,13 @@ pub fn position_to_point(input: Position) -> Point {
 /// get the doc for on hover
 pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
     match get_positon_string(location, root, source) {
-        Some(message) => MESSAGE_STORAGE
-            .get(&message)
-            .map(|context| context.to_string()),
+        Some(message) => {
+            let mut value = MESSAGE_STORAGE.get(&message);
+            if value.is_none() {
+                value = MESSAGE_STORAGE.get(&message.to_lowercase());
+            }
+            value.map(|context| context.to_string())
+        }
         None => None,
     }
 }
