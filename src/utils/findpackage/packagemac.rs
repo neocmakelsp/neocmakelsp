@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, path::Path};
 
 use once_cell::sync::Lazy;
 
@@ -8,11 +8,19 @@ use super::{get_version, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
-pub const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
+pub const PREFIX: [&str; 2] = ["/usr", "/usr/local", "/opt/homebrew"];
+
+pub fn get_available_prefix() -> Vec<String> {
+    PREFIX
+        .iter()
+        .filter(|prefix| Path::new(prefix).exists())
+        .map(|prefix| prefix.to_string())
+        .collect()
+}
 pub const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for prefix in PREFIX {
+    for prefix in get_available_prefix {
         for lib in LIBS {
             if let Ok(paths) = std::fs::read_dir(format!("{}/{}/cmake", prefix, lib)) {
                 for path in paths.flatten() {
