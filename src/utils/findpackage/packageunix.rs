@@ -22,7 +22,7 @@ fn get_available_libs() -> Vec<PathBuf> {
         for lib in LIBS {
             let p = Path::new(prefix).join(lib).join("cmake");
             if p.exists() {
-                ava.push(p.into());
+                ava.push(p);
             }
         }
     }
