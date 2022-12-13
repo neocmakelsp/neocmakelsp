@@ -388,6 +388,7 @@ async fn main() {
                 .arg(
                     Arg::new("tojson")
                         .long("tojson")
+                        .short('j')
                         .action(ArgAction::SetTrue)
                         .help("tojson"),
                 ),
