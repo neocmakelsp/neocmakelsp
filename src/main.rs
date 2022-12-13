@@ -11,7 +11,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::Parser;
 //use tree_sitter::Point;
-use clap::{arg, Arg, Command};
+use clap::{arg, Arg, ArgAction, Command};
 use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
@@ -384,7 +384,13 @@ async fn main() {
                 .long_flag("search")
                 .short_flag('S')
                 .about("Search packages")
-                .arg(arg!(<Package> ... "Packages")),
+                .arg(arg!(<Package> ... "Packages"))
+                .arg(
+                    Arg::new("tojson")
+                        .long("tojson")
+                        .action(ArgAction::SetTrue)
+                        .help("tojson"),
+                ),
         )
         .subcommand(
             Command::new("format")
@@ -399,7 +405,11 @@ async fn main() {
             let packagename = sub_matches
                 .get_one::<String>("Package")
                 .expect("required one pacakge");
-            println!("{}", search::search_result(packagename));
+            if sub_matches.get_flag("tojson") {
+                println!("{}", search::search_result_tojson(packagename));
+            } else {
+                println!("{}", search::search_result(packagename));
+            }
         }
         Some(("format", sub_matches)) => {
             let path = sub_matches

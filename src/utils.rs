@@ -4,6 +4,9 @@ pub mod types;
 //use anyhow::Result;
 //use once_cell::sync::Lazy;
 //use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub enum FileType {
     Dir,
     File,
@@ -16,6 +19,8 @@ impl std::fmt::Display for FileType {
         }
     }
 }
+
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CMakePackage {
     pub name: String,
     pub filetype: FileType,

@@ -1,4 +1,4 @@
-use crate::utils::CMAKE_PACKAGES;
+use crate::utils::{CMakePackage, CMAKE_PACKAGES};
 use cli_table::{format::Justify, Cell, CellStruct, Style, Table};
 pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
     let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
@@ -27,4 +27,14 @@ pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
         .bold(true)
         .display()
         .unwrap()
+}
+
+pub fn search_result_tojson(tosearch: &str) -> String {
+    let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
+    let output: Vec<CMakePackage> = CMAKE_PACKAGES
+        .iter()
+        .filter(|source| tofind.is_match(&source.name.to_lowercase()))
+        .map(|unit| unit.clone())
+        .collect();
+    serde_json::to_string(&output).unwrap()
 }
