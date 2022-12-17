@@ -19,6 +19,7 @@ mod complete;
 mod formatting;
 mod gammar;
 mod jump;
+mod scansubs;
 mod search;
 mod utils;
 use gammar::checkerror;
@@ -54,7 +55,6 @@ impl LanguageServer for Backend {
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
-                // TODO
                 document_formatting_provider: Some(OneOf::Left(true)),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 workspace: Some(WorkspaceServerCapabilities {
@@ -400,6 +400,20 @@ async fn main() {
                 .about("format the file")
                 .arg(arg!(<PATH> ... "path to format").value_parser(clap::value_parser!(PathBuf))),
         )
+        .subcommand(
+            Command::new("tree")
+                .long_flag("tree")
+                .short_flag('T')
+                .about("Tree the file")
+                .arg(arg!(<PATH> ... "tree").value_parser(clap::value_parser!(PathBuf)))
+                .arg(
+                    Arg::new("tojson")
+                        .long("tojson")
+                        .short('j')
+                        .action(ArgAction::SetTrue)
+                        .help("tojson"),
+                ),
+        )
         .get_matches();
     match matches.subcommand() {
         Some(("search", sub_matches)) => {
@@ -426,6 +440,21 @@ async fn main() {
                 Some(context) => println!("{context}"),
                 None => println!("There is error in File"),
             }
+        }
+        Some(("tree", sub_matches)) => {
+            let path = sub_matches
+                .get_one::<PathBuf>("PATH")
+                .expect("Cannot get path");
+            match scansubs::get_treedir(path) {
+                Some(tree) => {
+                    if sub_matches.get_flag("tojson") {
+                        println!("{}", serde_json::to_string(&tree).unwrap())
+                    } else {
+                        println!("{}", tree)
+                    }
+                }
+                None => println!("Nothing find"),
+            };
         }
         Some(("stdio", _)) => {
             tracing_subscriber::fmt().init();
