@@ -39,7 +39,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(tree_sitter_cmake::language()).unwrap();
         let tree = parse.parse(&content, None).unwrap();
-        let subdirs = get_subdir_from_tree(&content, tree.root_node(), &path);
+        let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
         if !subdirs.is_empty() {
             let mut sub_dirs: Vec<TreeDir> = vec![];
             for dir in subdirs {
@@ -65,7 +65,7 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
         let mut course = tree.walk();
         let mut output = vec![];
         for node in tree.children(&mut course) {
-            let mut innodepath = get_subdir_from_tree(source, node.clone(), parent);
+            let mut innodepath = get_subdir_from_tree(source, node, parent);
             if !innodepath.is_empty() {
                 output.append(&mut innodepath);
             }

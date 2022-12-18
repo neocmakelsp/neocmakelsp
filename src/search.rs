@@ -34,7 +34,7 @@ pub fn search_result_tojson(tosearch: &str) -> String {
     let output: Vec<CMakePackage> = CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name.to_lowercase()))
-        .map(|unit| unit.clone())
+        .cloned()
         .collect();
     serde_json::to_string(&output).unwrap()
 }
