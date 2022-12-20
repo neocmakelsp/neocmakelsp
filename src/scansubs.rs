@@ -83,6 +83,7 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &newsource[h][x..y];
+                        let name = remove_quotation(name);
                         let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
                         if subpath.exists() {
                             output.push(subpath);
@@ -93,4 +94,23 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
         }
         output
     }
+}
+
+fn remove_quotation(input: &str) -> &str {
+    if input.split('"').count() == 3 {
+        input.split('"').collect::<Vec<&str>>()[1]
+    } else {
+        input
+    }
+}
+
+#[test]
+fn tst_quotantion() {
+    let a = r#"
+    "aa"
+    "#;
+    assert_eq!("aa", remove_quotation(a));
+
+    let b = "sdfds";
+    assert_eq!(b, "sdfds");
 }
