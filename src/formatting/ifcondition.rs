@@ -1,5 +1,6 @@
-pub fn format_ifcondition(input: tree_sitter::Node, source: &str) -> String {
+pub fn format_ifcondition(input: tree_sitter::Node, source: &str, spacelen: u32) -> String {
     let newsource: Vec<&str> = source.lines().collect();
+    let space = super::get_space(spacelen);
     let mut output = String::new();
     let mut cursor = input.walk();
     for child in input.children(&mut cursor) {
@@ -20,10 +21,10 @@ pub fn format_ifcondition(input: tree_sitter::Node, source: &str) -> String {
                 output.push_str(new_text);
             }
             _ => {
-                let node_format = super::get_format_from_node(child, source);
+                let node_format = super::get_format_from_node(child, source, spacelen);
                 let node_format: Vec<&str> = node_format.lines().collect();
                 for unit in node_format {
-                    output.push_str(&format!("\n  {}", unit));
+                    output.push_str(&format!("\n{}{}", space, unit));
                 }
             }
         }
