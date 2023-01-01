@@ -71,6 +71,7 @@ new version will not work on mac and windows, so I need your help
 	* find\_package
 	* include
 * Search cli
+* Get the project struct
 
 ## TODO
 * Undefined function check
@@ -94,3 +95,6 @@ new version will not work on mac and windows, so I need your help
 ### GoToDefinition
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/definition.png)
 ![JumpToFile](./images/Jump.png)
+
+### Tree
+![TreeShow](images/tree.png)
