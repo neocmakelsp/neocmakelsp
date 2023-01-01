@@ -12,6 +12,10 @@ cargo install neocmakelsp
 
 ## Setup
 
+The config of neocmakelsp is in `nvim-lsp-config`, so just follow `nvim-lsp-config` to setup it
+
+neocmakelsp has two start ways: `stdio` and `Tcp`. `Tcp` is for debug. If you want to help me and debug is , you should start it with `Tcp` way.
+
 ### Stdio
 
 ```lua
@@ -26,7 +30,7 @@ if not configs.neocmake then
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
             single_file_support = true,-- suggested
-            on_attach = on_attach
+            on_attach = on_attach -- on_attach is the on_attach function you defined
         }
     }
     nvim_lsp.neocmake.setup({})
@@ -44,7 +48,7 @@ if not configs.neocmake then
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
             single_file_support = true,-- suggested
-            on_attach = on_attach
+            on_attach = on_attach -- on_attach is the on_attach function you defined
         }
     }
     nvim_lsp.neocmake.setup({})
