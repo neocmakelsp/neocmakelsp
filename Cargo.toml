@@ -11,7 +11,7 @@ keywords = ["lsp"]
 #[features]
 #tcp = []
 [dependencies]
-clap = "4.0.32"
+clap = "4.1.1"
 tower-lsp = "0.17.0"
 lsp-types = "0.93.2"
 tokio = { version = "1.24.1", features = ["full"] }
