@@ -125,7 +125,7 @@ impl LanguageServer for Backend {
             let gammererror = checkerror(Path::new(uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
-                for (start, end, message) in diagnoses {
+                for (start, end, message, severity) in diagnoses.inner {
                     let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
                     let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
                     let range = Range {
@@ -134,7 +134,7 @@ impl LanguageServer for Backend {
                     };
                     let diagnose = Diagnostic {
                         range,
-                        severity: None,
+                        severity,
                         code: None,
                         code_description: None,
                         source: None,
@@ -170,7 +170,7 @@ impl LanguageServer for Backend {
             let gammererror = checkerror(Path::new(&uri.path()), &source, tree.root_node());
             if let Some(diagnoses) = gammererror {
                 let mut pusheddiagnoses = vec![];
-                for (start, end, message) in diagnoses {
+                for (start, end, message, severity) in diagnoses.inner {
                     let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
                     let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
 
@@ -180,7 +180,7 @@ impl LanguageServer for Backend {
                     };
                     let diagnose = Diagnostic {
                         range,
-                        severity: None,
+                        severity,
                         code: None,
                         code_description: None,
                         source: None,

@@ -1,26 +1,34 @@
+use lsp_types::DiagnosticSeverity;
 use std::fs;
+use std::path::{Path, PathBuf};
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
-use std::path::{Path, PathBuf};
-pub fn checkerror(
-    local_path: &Path,
-    source: &str,
-    input: tree_sitter::Node,
-) -> Option<Vec<(tree_sitter::Point, tree_sitter::Point, String)>> {
+pub struct ErrorInfo {
+    pub inner: Vec<(
+        tree_sitter::Point,
+        tree_sitter::Point,
+        String,
+        Option<DiagnosticSeverity>,
+    )>,
+}
+pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> Option<ErrorInfo> {
     let newsource: Vec<&str> = source.lines().collect();
     if input.is_error() {
-        Some(vec![(
-            input.start_position(),
-            input.end_position(),
-            "Gammer Error".to_string(),
-        )])
+        Some(ErrorInfo {
+            inner: vec![(
+                input.start_position(),
+                input.end_position(),
+                "Gammer Error".to_string(),
+                None,
+            )],
+        })
     } else {
         let mut course = input.walk();
         {
             let mut output = vec![];
             for node in input.children(&mut course) {
                 if let Some(mut tran) = checkerror(local_path, source, node) {
-                    output.append(&mut tran);
+                    output.append(&mut tran.inner);
                 }
                 if node.kind() == "normal_command" {
                     let h = node.start_position().row;
@@ -35,7 +43,11 @@ pub fn checkerror(
                             let h = ids.start_position().row;
                             let x = ids.start_position().column;
                             let y = ids.end_position().column;
-                            let name = &newsource[h][x..y];
+                            let mut name = &newsource[h][x..y];
+                            if name.split('"').count() != 1 {
+                                let namesplit: Vec<&str> = name.split('"').collect();
+                                name = namesplit[1];
+                            }
                             if name.split('.').count() != 1 {
                                 let subpath = local_path.parent().unwrap().join(name);
                                 match cmake_try_exists(&subpath) {
@@ -45,6 +57,7 @@ pub fn checkerror(
                                                 node.start_position(),
                                                 node.end_position(),
                                                 "Contain Error in include file".to_string(),
+                                                Some(DiagnosticSeverity::ERROR),
                                             ));
                                         }
                                     }
@@ -54,6 +67,7 @@ pub fn checkerror(
                                             node.end_position(),
                                             "include file is not exist or cannot access"
                                                 .to_string(),
+                                            Some(DiagnosticSeverity::WARNING),
                                         ));
                                     }
                                 }
@@ -65,7 +79,7 @@ pub fn checkerror(
             if output.is_empty() {
                 None
             } else {
-                Some(output)
+                Some(ErrorInfo { inner: output })
             }
         }
     }
