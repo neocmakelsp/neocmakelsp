@@ -1,4 +1,5 @@
-pub fn format_othercommand(input: tree_sitter::Node, source: &str) -> String {
+pub fn format_othercommand(input: tree_sitter::Node, source: &str, usespace: bool) -> String {
+    let unit = if usespace { ' ' } else { '\t' };
     let mut localline = input.start_position().row;
     let newsource: Vec<&str> = source.lines().collect();
     let mut output = String::new();
@@ -31,7 +32,7 @@ pub fn format_othercommand(input: tree_sitter::Node, source: &str) -> String {
             }
             beforeisleftblank = false;
             localline = starty;
-            output.push_str(&format!("\n  {} ", new_text));
+            output.push_str(&format!("\n{unit}{} ", new_text));
         } else {
             beforeisleftblank = false;
             output.push_str(&format!("{} ", new_text));

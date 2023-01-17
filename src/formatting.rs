@@ -8,10 +8,11 @@ mod othercommand;
 mod project;
 mod set;
 
-fn get_space(spacelen: u32) -> String {
+fn get_space(spacelen: u32, usespace: bool) -> String {
+    let unit = if usespace { ' ' } else { '\t' };
     let mut space = String::new();
     for _ in 0..spacelen {
-        space.push(' ');
+        space.push(unit);
     }
     space
 }
@@ -21,12 +22,12 @@ pub async fn getformat(
     source: &str,
     client: &tower_lsp::Client,
     spacelen: u32,
+    usespace: bool,
 ) -> Option<Vec<TextEdit>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(source, None).unwrap();
-    let formatresult = get_format_from_root_node(tree.root_node(), source, spacelen);
-    //println!("{:?}", formatresult);
+    let formatresult = get_format_from_root_node(tree.root_node(), source, spacelen, usespace);
     if formatresult.is_none() {
         client
             .log_message(MessageType::WARNING, "Error source")
@@ -39,6 +40,7 @@ pub fn get_format_from_root_node(
     input: tree_sitter::Node,
     source: &str,
     spacelen: u32,
+    usespace: bool,
 ) -> Option<Vec<TextEdit>> {
     if input.has_error() {
         None
@@ -48,7 +50,7 @@ pub fn get_format_from_root_node(
         let mut startline = 0;
         for child in input.children(&mut course) {
             let childstartline = child.start_position().row;
-            let reformat = get_format_from_node(child, source, spacelen);
+            let reformat = get_format_from_node(child, source, spacelen, usespace);
             //down += downpoint;
             for _ in startline..childstartline {
                 new_text.push('\n');
@@ -83,7 +85,7 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
         let mut startline = 0;
         for child in input.children(&mut course) {
             let childstartline = child.start_position().row;
-            let reformat = get_format_from_node(child, source, 2);
+            let reformat = get_format_from_node(child, source, 2, false);
             //down += downpoint;
             for _ in startline..childstartline {
                 new_text.push('\n');
@@ -94,16 +96,25 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
         Some(new_text)
     }
 }
-fn get_format_from_node(input: tree_sitter::Node, source: &str, spacelen: u32) -> String {
+fn get_format_from_node(
+    input: tree_sitter::Node,
+    source: &str,
+    spacelen: u32,
+    usespace: bool,
+) -> String {
     match CommandType::from_node(input, source) {
-        CommandType::Project => project::format_project(input, source),
-        CommandType::Set => set::format_set(input, source),
+        CommandType::Project => project::format_project(input, source,spacelen,usespace),
+        CommandType::Set => set::format_set(input, source, spacelen, usespace),
         CommandType::AddDefinitions => adddefinitions::format_definition(input, source),
-        CommandType::OtherCommand => othercommand::format_othercommand(input, source),
-        CommandType::IfCondition => ifcondition::format_ifcondition(input, source, spacelen),
-        CommandType::Loop => loopdef::format_loopdef(input, source, spacelen),
-        CommandType::MacroDef => macrodef::format_macrodef(input, source, spacelen),
-        CommandType::FunctionDef => functiondef::format_functiondef(input, source, spacelen),
+        CommandType::OtherCommand => othercommand::format_othercommand(input, source, usespace),
+        CommandType::IfCondition => {
+            ifcondition::format_ifcondition(input, source, spacelen, usespace)
+        }
+        CommandType::Loop => loopdef::format_loopdef(input, source, spacelen, usespace),
+        CommandType::MacroDef => macrodef::format_macrodef(input, source, spacelen, usespace),
+        CommandType::FunctionDef => {
+            functiondef::format_functiondef(input, source, spacelen, usespace)
+        }
         _ => default_format(input, source),
     }
 }

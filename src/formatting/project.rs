@@ -1,4 +1,10 @@
-pub fn format_project(input: tree_sitter::Node, source: &str) -> String {
+pub fn format_project(
+    input: tree_sitter::Node,
+    source: &str,
+    spacelen: u32,
+    usespace: bool,
+) -> String {
+    let unit = super::get_space(spacelen, usespace);
     let mut output = String::new();
     let newsource: Vec<&str> = source.lines().collect();
     let mut keytype = KeyType::Start;
@@ -12,7 +18,7 @@ pub fn format_project(input: tree_sitter::Node, source: &str) -> String {
         let current_keytype = KeyType::match_it(new_text);
         match (current_keytype, keytype) {
             (KeyType::KeyWords, _) => {
-                output.push_str(&format!("\n  {}", new_text));
+                output.push_str(&format!("\n{unit}{}", new_text));
                 keytype = current_keytype;
             }
             (KeyType::RightBracket, _) => {

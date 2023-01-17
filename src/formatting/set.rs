@@ -1,4 +1,5 @@
-pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
+pub fn format_set(input: tree_sitter::Node, source: &str, spacelen: u32, usespace: bool) -> String {
+    let unit = super::get_space(spacelen, usespace);
     let count = input.child_count();
     let mut keytype = KeyType::Start;
     let newsource: Vec<&str> = source.lines().collect();
@@ -61,12 +62,12 @@ pub fn format_set(input: tree_sitter::Node, source: &str) -> String {
                     output.push_str("\n)");
                 }
                 (KeyType::Keywords, _) => {
-                    output.push_str(&format!("\n  {}", new_text));
+                    output.push_str(&format!("\n{unit}{}", new_text));
                     keytype = KeyType::Keywords;
                 }
                 (_, KeyType::Var) => {
                     if new_text.lines().count() == 1 {
-                        output.push_str(&format!("\n  {}", new_text));
+                        output.push_str(&format!("\n{unit}{}", new_text));
                     } else {
                         output.push_str(&format!("\n{}", new_text));
                     }

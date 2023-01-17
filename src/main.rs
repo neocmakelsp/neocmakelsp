@@ -257,11 +257,22 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "formating")
             .await;
-        let space_line = input.options.tab_size;
         let uri = input.text_document.uri;
         let storemap = self.buffers.lock().await;
+        tracing::info!(input.options.insert_spaces);
+        let space_line = if input.options.insert_spaces {
+            input.options.tab_size
+        } else {
+            1
+        };
         match storemap.get(&uri) {
-            Some(context) => Ok(getformat(context, &self.client, space_line).await),
+            Some(context) => Ok(getformat(
+                context,
+                &self.client,
+                space_line,
+                input.options.insert_spaces,
+            )
+            .await),
             None => Ok(None),
         }
     }
