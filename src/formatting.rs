@@ -103,10 +103,12 @@ fn get_format_from_node(
     usespace: bool,
 ) -> String {
     match CommandType::from_node(input, source) {
-        CommandType::Project => project::format_project(input, source,spacelen,usespace),
+        CommandType::Project => project::format_project(input, source, spacelen, usespace),
         CommandType::Set => set::format_set(input, source, spacelen, usespace),
         CommandType::AddDefinitions => adddefinitions::format_definition(input, source),
-        CommandType::OtherCommand => othercommand::format_othercommand(input, source, usespace),
+        CommandType::OtherCommand => {
+            othercommand::format_othercommand(input, source, spacelen, usespace)
+        }
         CommandType::IfCondition => {
             ifcondition::format_ifcondition(input, source, spacelen, usespace)
         }

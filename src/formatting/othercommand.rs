@@ -1,5 +1,10 @@
-pub fn format_othercommand(input: tree_sitter::Node, source: &str, usespace: bool) -> String {
-    let unit = if usespace { ' ' } else { '\t' };
+pub fn format_othercommand(
+    input: tree_sitter::Node,
+    source: &str,
+    spacelen: u32,
+    usespace: bool,
+) -> String {
+    let unit = super::get_space(spacelen, usespace);
     let mut localline = input.start_position().row;
     let newsource: Vec<&str> = source.lines().collect();
     let mut output = String::new();
