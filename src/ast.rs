@@ -122,7 +122,12 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
-                if name == "set" || name == "SET" || name == "option" {
+                if name == "set"
+                    || name == "SET"
+                    || name == "option"
+                    || name == "project"
+                    || name == "PROJECT"
+                {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
