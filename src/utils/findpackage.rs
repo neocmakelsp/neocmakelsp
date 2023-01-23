@@ -18,7 +18,6 @@ static CMAKEREGEX: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
 
 // config file
-#[allow(dead_code)]
 static CMAKECONFIG: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
 // config version file
@@ -75,6 +74,7 @@ fn regextest() {
 fn configtest() {
     assert!(CMAKECONFIG.is_match("DtkCoreConfig.cmake"));
     assert!(CMAKECONFIG.is_match("DtkCore-config.cmake"));
+    assert!(CMAKECONFIG.is_match("/usr/share/ECM/cmake/ECMConfig.cmake"));
     assert!(!CMAKECONFIG.is_match("DtkCoreconfig.cmake"));
 }
 #[test]
@@ -86,3 +86,4 @@ fn tst_version() {
     let qmlversion = include_str!("../../assert/Qt5QmlConfigVersion.cmake");
     assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
 }
+

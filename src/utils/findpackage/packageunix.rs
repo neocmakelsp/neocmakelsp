@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use crate::utils::{CMakePackage, FileType};
 
-use super::{get_version, CMAKECONFIGVERSION, CMAKEREGEX};
+use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
@@ -31,6 +31,50 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
+    for lib in PREFIX {
+        let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
+            continue;
+        };
+        for path in paths.flatten() {
+            let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
+                continue;
+            };
+            let mut tojump: Vec<String> = vec![];
+            let mut version: Option<String> = None;
+            let mut ispackage = false;
+            for f in files.flatten() {
+                tojump.push(f.to_str().unwrap().to_string());
+                if CMAKECONFIG.is_match(f.to_str().unwrap()) {
+                    ispackage = true;
+                }
+                if CMAKECONFIGVERSION.is_match(f.to_str().unwrap()) {
+                    if let Ok(context) = fs::read_to_string(&f) {
+                        version = get_version(&context);
+                    }
+                }
+            }
+            if ispackage {
+                let packagename = path
+                    .parent()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap();
+                packages
+                    .entry(packagename.to_string())
+                    .or_insert_with(|| CMakePackage {
+                        name: packagename.to_string(),
+                        filetype: FileType::Dir,
+                        filepath: path.to_str().unwrap().to_string(),
+                        version,
+                        tojump,
+                    });
+
+                //ava.push(path);
+            }
+        }
+    }
     for lib in get_available_libs() {
         if let Ok(paths) = std::fs::read_dir(lib) {
             for path in paths.flatten() {
