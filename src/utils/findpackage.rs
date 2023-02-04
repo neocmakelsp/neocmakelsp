@@ -86,4 +86,3 @@ fn tst_version() {
     let qmlversion = include_str!("../../assert/Qt5QmlConfigVersion.cmake");
     assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
 }
-

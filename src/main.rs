@@ -71,6 +71,25 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
+        let filechangeparms = DidChangeWatchedFilesRegistrationOptions {
+            watchers: vec![FileSystemWatcher {
+                glob_pattern: "build/CMakeCache.txt".to_string(),
+                kind: Some(lsp_types::WatchKind::all()),
+            }],
+        };
+        let registion = Registration {
+            id: "workspace/didChangeWatchedFiles".to_string(),
+            method: "workspace/didChangeWatchedFiles".to_string(),
+            register_options: Some(serde_json::to_value(filechangeparms).unwrap()),
+        };
+
+        self.client
+            .register_capability(vec![registion])
+            .await
+            .unwrap();
+
+        tracing::info!("initialized init");
+        //self.client.register_capabilities(vec![registration]).await.unwrap();
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
@@ -93,6 +112,7 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
+        println!("changed");
         self.client
             .log_message(MessageType::INFO, "watched files have changed!")
             .await;
