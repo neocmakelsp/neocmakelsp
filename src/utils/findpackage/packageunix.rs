@@ -43,7 +43,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let mut version: Option<String> = None;
             let mut ispackage = false;
             for f in files.flatten() {
-                tojump.push(f.to_str().unwrap().to_string());
+                tojump.push(format!("file://{}", f.to_str().unwrap()));
                 if CMAKECONFIG.is_match(f.to_str().unwrap()) {
                     ispackage = true;
                 }

@@ -5,7 +5,7 @@ use tree_sitter::Node;
 mod findpackage;
 mod include;
 mod subdirectory;
-use crate::utils::types::*;
+use crate::utils::treehelper::{get_pos_type, PositionType};
 /// find the definition
 pub async fn godef(
     location: Position,
@@ -22,13 +22,13 @@ pub async fn godef(
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {
                 let jumptype =
-                    get_input_type(location, tree.root_node(), source, InputType::Variable);
+                    get_pos_type(location, tree.root_node(), source, PositionType::Variable);
                 match jumptype {
-                    InputType::Variable => godefsub(tree.root_node(), source, &tofind, originuri),
-                    InputType::FindPackage => findpackage::cmpfindpackage(tofind, client).await,
-                    InputType::NotFind => None,
-                    InputType::Include => include::cmpinclude(originuri, &tofind, client).await,
-                    InputType::SubDir => {
+                    PositionType::Variable => godefsub(tree.root_node(), source, &tofind, originuri),
+                    PositionType::FindPackage => findpackage::cmpfindpackage(tofind, client).await,
+                    PositionType::NotFind => None,
+                    PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
+                    PositionType::SubDir => {
                         subdirectory::cmpsubdirectory(originuri, &tofind, client).await
                     }
                 }

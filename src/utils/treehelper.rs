@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
 use tree_sitter::{Node, Point};
+
+use super::CMAKE_PACKAGES_WITHKEY;
 /// convert Point to Positon
 /// treesitter to lsp_types
 #[inline]
@@ -27,15 +29,36 @@ pub fn position_to_point(input: Position) -> Point {
 
 /// get the doc for on hover
 pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
-    match get_positon_string(location, root, source) {
-        Some(message) => {
+    match (
+        get_positon_string(location, root, source),
+        get_pos_type(location, root, source, PositionType::NotFind),
+    ) {
+        (Some(message), PositionType::FindPackage) => {
+            let mut value = CMAKE_PACKAGES_WITHKEY.get(&message);
+            if value.is_none() {
+                value = CMAKE_PACKAGES_WITHKEY.get(&message.to_lowercase());
+            }
+            value.map(|context| {
+                format!(
+                    "
+Packagename: {}
+Packagepath: {}
+PackageVersion: {}
+",
+                    context.name,
+                    context.tojump[0],
+                    context.version.clone().unwrap_or("Undefined".to_string())
+                )
+            })
+        }
+        (Some(message), _) => {
             let mut value = MESSAGE_STORAGE.get(&message);
             if value.is_none() {
                 value = MESSAGE_STORAGE.get(&message.to_lowercase());
             }
             value.map(|context| context.to_string())
         }
-        None => None,
+        (None, _) => None,
     }
 }
 
@@ -164,3 +187,86 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
     }
     storage
 });
+
+#[derive(Clone, Copy)]
+pub enum PositionType {
+    Variable,
+    FindPackage,
+    SubDir,
+    Include,
+    NotFind,
+}
+
+pub fn get_pos_type(
+    location: Position,
+    root: Node,
+    source: &str,
+    inputtype: PositionType,
+) -> PositionType {
+    let neolocation = position_to_point(location);
+    let newsource: Vec<&str> = source.lines().collect();
+    let mut course = root.walk();
+    for child in root.children(&mut course) {
+        // if is inside same line
+        if neolocation.row <= child.end_position().row
+            && neolocation.row >= child.start_position().row
+        {
+            if child.child_count() != 0 {
+                let jumptype = match child.kind() {
+                    "normal_command" => {
+                        let h = child.start_position().row;
+                        let ids = child.child(0).unwrap();
+                        //let ids = ids.child(2).unwrap();
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &newsource[h][x..y];
+                        //println!("name = {}", name);
+                        //name == "find_package"
+                        match name {
+                            "find_package" => PositionType::FindPackage,
+                            "include" => PositionType::Include,
+                            "add_subdirectory" => PositionType::SubDir,
+                            _ => PositionType::Variable,
+                        }
+                    }
+                    "normal_var" | "unquoted_argument" | "variable_def" | "variable" => {
+                        PositionType::Variable
+                    }
+                    "argument" => match inputtype {
+                        PositionType::FindPackage
+                        | PositionType::SubDir
+                        | PositionType::Include => inputtype,
+                        _ => PositionType::Variable,
+                    },
+                    "line_comment" => PositionType::NotFind,
+                    _ => PositionType::Variable,
+                };
+
+                match jumptype {
+                    PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
+                        return get_pos_type(location, child, source, jumptype);
+                    }
+
+                    PositionType::Variable => {
+                        //} else {
+                        let currenttype =
+                            get_pos_type(location, child, source, PositionType::Variable);
+                        match currenttype {
+                            PositionType::NotFind => {}
+                            _ => return currenttype,
+                        };
+                    }
+                    PositionType::NotFind => {}
+                }
+            }
+            // if is the same line
+            else if child.start_position().row == child.end_position().row
+                && neolocation.column <= child.end_position().column
+                && neolocation.column >= child.start_position().column
+            {
+                return inputtype;
+            }
+        }
+    }
+    PositionType::NotFind
+}

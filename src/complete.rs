@@ -2,7 +2,7 @@
 mod buildin;
 mod findpackage;
 mod includescanner;
-use crate::utils::types::*;
+use crate::utils::treehelper::{PositionType,get_pos_type};
 use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
@@ -21,8 +21,8 @@ pub async fn getcoplete(
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    match get_input_type(location, tree.root_node(), source, InputType::NotFind) {
-        InputType::Variable => {
+    match get_pos_type(location, tree.root_node(), source, PositionType::NotFind) {
+        PositionType::Variable => {
             if let Some(mut message) =
                 getsubcoplete(tree.root_node(), source, Path::new(local_path))
             {
@@ -36,10 +36,10 @@ pub async fn getcoplete(
                 complete.append(&mut messages.clone());
             }
         }
-        InputType::FindPackage => {
+        PositionType::FindPackage => {
             complete.append(&mut findpackage::CMAKE_SOURCE.clone());
         }
-        InputType::Include => {
+        PositionType::Include => {
             if let Ok(messages) = &*BUILDIN_MODULE {
                 complete.append(&mut messages.clone());
             }
