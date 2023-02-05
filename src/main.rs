@@ -221,7 +221,7 @@ impl LanguageServer for Backend {
             }
         }
         self.client
-            .log_message(MessageType::INFO, &format!("{:?}", input))
+            .log_message(MessageType::INFO, &format!("{input:?}"))
             .await;
     }
 
@@ -481,7 +481,7 @@ async fn main() {
                     if sub_matches.get_flag("tojson") {
                         println!("{}", serde_json::to_string(&tree).unwrap())
                     } else {
-                        println!("{}", tree)
+                        println!("{tree}")
                     }
                 }
                 None => println!("Nothing find"),

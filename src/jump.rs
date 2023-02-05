@@ -66,7 +66,7 @@ fn godefsub(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(JumpLocation {
-                    uri: Url::parse(&format!("file://{}", originuri)).unwrap(),
+                    uri: Url::parse(&format!("file://{originuri}")).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),

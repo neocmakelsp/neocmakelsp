@@ -18,7 +18,7 @@ pub fn format_project(
         let current_keytype = KeyType::match_it(new_text);
         match (current_keytype, keytype) {
             (KeyType::KeyWords, _) => {
-                output.push_str(&format!("\n{unit}{}", new_text));
+                output.push_str(&format!("\n{unit}{new_text}"));
                 keytype = current_keytype;
             }
             (KeyType::RightBracket, _) => {
@@ -33,7 +33,7 @@ pub fn format_project(
             }
 
             (_, KeyType::KeyWords) => {
-                output.push_str(&format!(" {}", new_text));
+                output.push_str(&format!(" {new_text}"));
             }
             (_, _) => {}
         }

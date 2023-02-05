@@ -29,7 +29,7 @@ pub fn format_loopdef(
                 let node_format = super::get_format_from_node(child, source, spacelen, usespace);
                 let node_format: Vec<&str> = node_format.lines().collect();
                 for unit in node_format {
-                    output.push_str(&format!("\n{}{}", space, unit));
+                    output.push_str(&format!("\n{space}{unit}"));
                 }
             }
         }

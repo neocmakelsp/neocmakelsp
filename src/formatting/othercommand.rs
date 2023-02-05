@@ -37,10 +37,10 @@ pub fn format_othercommand(
             }
             beforeisleftblank = false;
             localline = starty;
-            output.push_str(&format!("\n{unit}{} ", new_text));
+            output.push_str(&format!("\n{unit}{new_text} "));
         } else {
             beforeisleftblank = false;
-            output.push_str(&format!("{} ", new_text));
+            output.push_str(&format!("{new_text} "));
         }
     }
     output

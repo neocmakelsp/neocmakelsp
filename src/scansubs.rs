@@ -20,7 +20,7 @@ impl fmt::Display for TreeDir {
                 for dir in dirs {
                     let message = dir.to_string();
                     for mes in message.lines() {
-                        writeln!(f, "  -> {}", mes)?
+                        writeln!(f, "  -> {mes}")?
                     }
                 }
                 Ok(())

@@ -15,13 +15,13 @@ pub(super) async fn cmpinclude(
         let root_dir = path.parent().unwrap();
         root_dir.join(subpath)
     } else {
-        Path::new(&format!("/usr/share/cmake/Modules/{}.cmake", subpath)).to_path_buf()
+        Path::new(&format!("/usr/share/cmake/Modules/{subpath}.cmake")).to_path_buf()
     };
 
     if target.exists() {
         let target = target.to_str().unwrap();
         client
-            .log_message(MessageType::INFO, format!("Jump Path is {}", target))
+            .log_message(MessageType::INFO, format!("Jump Path is {target}"))
             .await;
         Some(vec![JumpLocation {
             range: lsp_types::Range {
@@ -34,7 +34,7 @@ pub(super) async fn cmpinclude(
                     character: 0,
                 },
             },
-            uri: Url::parse(&format!("file://{}", target)).unwrap(),
+            uri: Url::parse(&format!("file://{target}")).unwrap(),
         }])
     } else {
         None

@@ -90,7 +90,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                                 if path.metadata().unwrap().is_file() {
                                     let filename = path.file_name().to_str().unwrap().to_string();
                                     if CMAKEREGEX.is_match(&filename) {
-                                        tojump.push(format!("file://{}", filepath));
+                                        tojump.push(format!("file://{filepath}"));
                                         if CMAKECONFIGVERSION.is_match(&filename) {
                                             if let Ok(context) = fs::read_to_string(&filepath) {
                                                 version = get_version(&context);
@@ -103,7 +103,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         (FileType::Dir, pathname)
                     } else {
                         let filepath = path.path().to_str().unwrap().to_string();
-                        tojump.push(format!("file://{}", filepath));
+                        tojump.push(format!("file://{filepath}"));
                         let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
                         (FileType::File, pathname)
                     }

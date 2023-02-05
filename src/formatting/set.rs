@@ -36,7 +36,7 @@ pub fn format_set(input: tree_sitter::Node, source: &str, spacelen: u32, usespac
                     output.push(')');
                 }
                 (_, KeyType::Var) => {
-                    output.push_str(&format!(" {}", new_text));
+                    output.push_str(&format!(" {new_text}"));
                 }
                 (_, _) => {}
             }
@@ -52,7 +52,7 @@ pub fn format_set(input: tree_sitter::Node, source: &str, spacelen: u32, usespac
                     keytype = KeyType::Var;
                 }
                 (KeyType::Var, KeyType::Keywords) => {
-                    output.push_str(&format!(" {}", new_text));
+                    output.push_str(&format!(" {new_text}"));
                     keytype = KeyType::Var;
                 }
                 (_, KeyType::Start) => {
@@ -62,14 +62,14 @@ pub fn format_set(input: tree_sitter::Node, source: &str, spacelen: u32, usespac
                     output.push_str("\n)");
                 }
                 (KeyType::Keywords, _) => {
-                    output.push_str(&format!("\n{unit}{}", new_text));
+                    output.push_str(&format!("\n{unit}{new_text}"));
                     keytype = KeyType::Keywords;
                 }
                 (_, KeyType::Var) => {
                     if new_text.lines().count() == 1 {
-                        output.push_str(&format!("\n{unit}{}", new_text));
+                        output.push_str(&format!("\n{unit}{new_text}"));
                     } else {
-                        output.push_str(&format!("\n{}", new_text));
+                        output.push_str(&format!("\n{new_text}"));
                     }
                 }
                 (_, _) => {}

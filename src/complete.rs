@@ -92,7 +92,7 @@ fn getsubcoplete(
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
                 complete.push(CompletionItem {
-                    label: format!("{}()", name),
+                    label: format!("{name}()"),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some(format!(
                         "defined function\nfrom: {}",

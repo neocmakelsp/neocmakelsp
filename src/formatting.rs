@@ -135,7 +135,7 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
         let mut output = String::new();
         output.push_str(&format!("{}\n", &newsource[start_y][start_x..]));
         for item in newsource.iter().take(end_y).skip(start_y + 1) {
-            output.push_str(&format!("{}\n", item));
+            output.push_str(&format!("{item}\n"));
         }
         output.push_str(&format!("{}\n", &newsource[end_y][0..end_x]));
         output
