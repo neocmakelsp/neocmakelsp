@@ -2,7 +2,7 @@
 mod buildin;
 mod findpackage;
 mod includescanner;
-use crate::utils::treehelper::{PositionType,get_pos_type};
+use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};

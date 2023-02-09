@@ -1,6 +1,8 @@
 /// Get the tree of ast
 use crate::utils::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
+
+const COMMAND_KEYWORDS: [&str; 4] = ["set", "option", "project", "target_link_libraries"];
 pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolResponse> {
     getsubast(input, source).map(DocumentSymbolResponse::Nested)
 }
@@ -121,22 +123,17 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                 //let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let name = &newsource[h][x..y];
-                if name == "set"
-                    || name == "SET"
-                    || name == "option"
-                    || name == "project"
-                    || name == "PROJECT"
-                {
+                let command_name = &newsource[h][x..y];
+                if COMMAND_KEYWORDS.contains(&command_name.to_lowercase().as_str()) {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         if x != y {
-                            let name = &newsource[h][x..y];
+                            let varname = &newsource[h][x..y];
                             asts.push(DocumentSymbol {
-                                name: name.to_string(),
+                                name: format!("{command_name}: {varname}"),
                                 detail: None,
                                 kind: SymbolKind::VARIABLE,
                                 tags: None,
