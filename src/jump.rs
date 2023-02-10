@@ -1,5 +1,5 @@
 /// privide go to definition
-use crate::utils::treehelper::{get_positon_string, point_to_position};
+use crate::utils::treehelper::{get_position_string, point_to_position};
 use lsp_types::{MessageType, Position, Range, Url};
 use tree_sitter::Node;
 mod findpackage;
@@ -17,7 +17,7 @@ pub async fn godef(
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
-    let positionstring = get_positon_string(location, tree.root_node(), source);
+    let positionstring = get_position_string(location, tree.root_node(), source);
     match positionstring {
         Some(tofind) => {
             if &tofind != "(" && &tofind != ")" {

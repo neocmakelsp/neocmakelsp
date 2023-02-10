@@ -8,7 +8,7 @@ use std::process::Command;
 use tree_sitter::{Node, Point};
 
 use super::CMAKE_PACKAGES_WITHKEY;
-/// convert Point to Positon
+/// convert Point to Position
 /// treesitter to lsp_types
 #[inline]
 pub fn point_to_position(input: Point) -> Position {
@@ -30,7 +30,7 @@ pub fn position_to_point(input: Position) -> Point {
 /// get the doc for on hover
 pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
     match (
-        get_positon_string(location, root, source),
+        get_position_string(location, root, source),
         get_pos_type(location, root, source, PositionType::NotFind),
     ) {
         (Some(message), PositionType::FindPackage) => {
@@ -62,8 +62,8 @@ PackageVersion: {}
     }
 }
 
-/// get the positon of the string
-pub fn get_positon_string(location: Position, root: Node, source: &str) -> Option<String> {
+/// get the position of the string
+pub fn get_position_string(location: Position, root: Node, source: &str) -> Option<String> {
     let neolocation = position_to_point(location);
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
@@ -73,7 +73,7 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
             && neolocation.row >= child.start_position().row
         {
             if child.child_count() != 0 {
-                let mabepos = get_positon_string(location, child, source);
+                let mabepos = get_position_string(location, child, source);
                 if mabepos.is_some() {
                     return mabepos;
                 };
@@ -97,7 +97,7 @@ pub fn get_positon_string(location: Position, root: Node, source: &str) -> Optio
 }
 
 /// from the position to get range
-pub fn get_positon_range(location: Position, root: Node) -> Option<Range> {
+pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
     let neolocation = position_to_point(location);
     //let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
@@ -107,7 +107,7 @@ pub fn get_positon_range(location: Position, root: Node) -> Option<Range> {
             && neolocation.row >= child.start_position().row
         {
             if child.child_count() != 0 {
-                let mabepos = get_positon_range(location, child);
+                let mabepos = get_position_range(location, child);
                 if mabepos.is_some() {
                     return mabepos;
                 }
