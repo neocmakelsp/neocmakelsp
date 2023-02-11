@@ -334,7 +334,7 @@ impl LanguageServer for Backend {
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
                 let origin_selection_range =
-                    treehelper::get_positon_range(location, tree.root_node());
+                    treehelper::get_position_range(location, tree.root_node());
 
                 //notify_send(context, Type::Error);
                 match jump::godef(location, context, uri.path().to_string(), &self.client).await {
