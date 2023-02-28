@@ -48,6 +48,7 @@ impl LanguageServer for Backend {
                     trigger_characters: None,
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
+                    completion_item: None,
                 }),
                 execute_command_provider: Some(ExecuteCommandOptions {
                     commands: vec!["dummy.do_something".to_string()],
@@ -73,7 +74,7 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _: InitializedParams) {
         let cachefilechangeparms = DidChangeWatchedFilesRegistrationOptions {
             watchers: vec![FileSystemWatcher {
-                glob_pattern: "build/CMakeCache.txt".to_string(),
+                glob_pattern: GlobPattern::String("build/CMakeCache.txt".to_string()),
                 kind: Some(lsp_types::WatchKind::all()),
             }],
         };
