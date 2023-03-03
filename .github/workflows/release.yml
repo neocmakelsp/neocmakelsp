@@ -1,37 +1,75 @@
-name: Release
+name: Build
 
 on:
-    push:
-        branches:
-            - master
-    pull_request:
-        branches:
-            - master
-
-env:
-    CARGO_TERM_COLOR: always
-
+  push:
+    branches:
+      - master
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - master
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-    build:
-        name: Build Binary
-        strategy:
-            matrix:
-                os:
-                    - macos-latest
-                    - ubuntu-latest
-                    - windows-latest
-                include:
-                    - os: macos-latest
-                      target: x86_64-apple-darwin
-                    - os: ubuntu-latest
-                      target: x86_64-unknown-linux-gnu
-                    - os: windows-latest
-                      target: x86_64-pc-windows-msvc
+  build:
+    name: Build Binary
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: neocmakelsp
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: neocmakelsp
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: neocmakelsp.exe
 
-        runs-on: ${{ matrix.os }}
-        steps:
-            - uses: actions/checkout@v3
-            - name: Build
-              run: cargo build --verbose --target ${{ matrix.target }} --release
-            - name: Run tests
-              run: cargo test --verbose
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --verbose --release
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          path: target/release/${{ matrix.artifact_name }}
+          name: ${{ matrix.target }}
+  release:
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: Show files
+        run: |
+          pwd
+          find
+      - name: Copy files
+        run: |
+          mkdir out
+          mv x86_64-apple-darwin/neocmakelsp out/neocmakelsp-x86_64-apple-darwin
+          mv x86_64-pc-windows-msvc/neocmakelsp.exe out/neocmakelsp-x86_64-pc-windows-msvc.exe
+          mv x86_64-unknown-linux-gnu/neocmakelsp out/neocmakelsp-x86_64-unknown-linux-gnu
+          cd out
+          sha256sum * > sha256sum
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: out/*
+          draft: true
