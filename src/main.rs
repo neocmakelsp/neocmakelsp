@@ -65,7 +65,7 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
-                references_provider: None,
+                references_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
         })
@@ -318,6 +318,21 @@ impl LanguageServer for Backend {
             }
         } else {
             Ok(None)
+        }
+    }
+    async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let uri = input.text_document_position.text_document.uri;
+        //println!("{:?}", uri);
+        let location = input.text_document_position.position;
+        let storemap = self.buffers.lock().await;
+        match storemap.get(&uri) {
+            Some(context) => {
+                let mut parse = Parser::new();
+                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                //notify_send(context, Type::Error);
+                Ok(jump::godef(location, context, uri.path().to_string(), &self.client).await)
+            }
+            None => Ok(None),
         }
     }
     async fn goto_definition(

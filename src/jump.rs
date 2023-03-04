@@ -6,13 +6,14 @@ mod findpackage;
 mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
+use lsp_types::Location;
 /// find the definition
 pub async fn godef(
     location: Position,
     source: &str,
     originuri: String,
     client: &tower_lsp::Client,
-) -> Option<Vec<JumpLocation>> {
+) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(source, None);
@@ -50,13 +51,8 @@ pub async fn godef(
 }
 
 /// sub get the def
-fn godefsub(
-    root: Node,
-    source: &str,
-    tofind: &str,
-    originuri: String,
-) -> Option<Vec<JumpLocation>> {
-    let mut definitions: Vec<JumpLocation> = vec![];
+fn godefsub(root: Node, source: &str, tofind: &str, originuri: String) -> Option<Vec<Location>> {
+    let mut definitions: Vec<Location> = vec![];
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
@@ -73,7 +69,7 @@ fn godefsub(
             let y = child.end_position().column;
             let message = &newsource[h][x..y];
             if message == tofind {
-                definitions.push(JumpLocation {
+                definitions.push(Location {
                     uri: Url::parse(&format!("file://{originuri}")).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
@@ -88,10 +84,4 @@ fn godefsub(
     } else {
         Some(definitions)
     }
-}
-
-// TODO jump to file
-pub struct JumpLocation {
-    pub range: Range,
-    pub uri: Url,
 }

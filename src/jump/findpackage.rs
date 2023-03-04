@@ -1,9 +1,9 @@
 //use lsp_types::CompletionItem;
-use super::JumpLocation;
+use super::Location;
 use crate::utils;
 use lsp_types::{MessageType, Url};
 use tower_lsp::Client;
-pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec<JumpLocation>> {
+pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec<Location>> {
     client
         .log_message(MessageType::LOG, "Go to Find Package")
         .await;
@@ -11,7 +11,7 @@ pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec
         context
             .tojump
             .iter()
-            .map(|apath| JumpLocation {
+            .map(|apath| Location {
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 0,
