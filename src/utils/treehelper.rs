@@ -7,6 +7,12 @@ use std::iter::zip;
 use std::process::Command;
 use tree_sitter::{Node, Point};
 
+const SPECIALCOMMANDS : [&str; 3] = [
+    "find_package",
+    "target_link_libraries",
+    "target_include_directories",
+];
+
 #[cfg(unix)]
 use super::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use super::CMAKE_PACKAGES_WITHKEY;
@@ -279,11 +285,28 @@ pub fn get_pos_type(
                 };
 
                 match jumptype {
-                    PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
+                    PositionType::FindPackage
+                    | PositionType::SubDir
+                    | PositionType::Include
+                    | PositionType::TargetInclude
+                    | PositionType::TargetLink => {
+                        let name = get_position_string(location, root, source);
+                        if let Some(name) = name {
+                            let name = name.to_lowercase();
+                            if SPECIALCOMMANDS.contains(&name.as_str()) {
+                                return PositionType::NotFind;
+                            }
+                        }
                         return jumptype;
                     }
                     #[cfg(unix)]
                     PositionType::FindPkgConfig => {
+                        let name = get_position_string(location, root, source);
+                        if let Some(name) = name {
+                            if name.to_lowercase() == "pkg_check_modules" {
+                                return PositionType::NotFind;
+                            }
+                        }
                         return jumptype;
                     }
                     PositionType::Variable => {
@@ -296,7 +319,6 @@ pub fn get_pos_type(
                         };
                     }
                     PositionType::NotFind => {}
-                    _ => return jumptype,
                 }
             }
             // if is the same line
