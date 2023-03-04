@@ -18,3 +18,16 @@ pub static CMAKE_SOURCE: Lazy<Vec<CompletionItem>> = Lazy::new(|| {
         })
         .collect()
 });
+
+#[cfg(unix)]
+pub static PKGCONFIG_SOURCE: Lazy<Vec<CompletionItem>> = Lazy::new(|| {
+    utils::packagepkgconfig::PKG_CONFIG_PACKAGES
+        .iter()
+        .map(|package| CompletionItem {
+            label: package.libname.clone(),
+            kind: Some(CompletionItemKind::MODULE),
+            detail: Some(format!("{}\n{}", package.libname, package.path)),
+            ..Default::default()
+        })
+        .collect()
+});

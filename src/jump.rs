@@ -36,6 +36,8 @@ pub async fn godef(
                         findpackage::cmpfindpackage(tofind, client).await
                     }
                     PositionType::NotFind => None,
+                    #[cfg(unix)]
+                    PositionType::FindPkgConfig => None,
                     PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
                     PositionType::SubDir => {
                         subdirectory::cmpsubdirectory(originuri, &tofind, client).await

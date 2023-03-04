@@ -7,6 +7,8 @@ use std::iter::zip;
 use std::process::Command;
 use tree_sitter::{Node, Point};
 
+#[cfg(unix)]
+use super::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use super::CMAKE_PACKAGES_WITHKEY;
 /// convert Point to Position
 /// treesitter to lsp_types
@@ -33,6 +35,21 @@ pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<Str
         get_position_string(location, root, source),
         get_pos_type(location, root, source, PositionType::NotFind),
     ) {
+        #[cfg(unix)]
+        (Some(message), PositionType::FindPkgConfig) => {
+            let message = message.split('_').collect::<Vec<&str>>()[0];
+            println!("{message}");
+            let value = PKG_CONFIG_PACKAGES_WITHKEY.get(message);
+            value.map(|context| {
+                format!(
+                    "
+Packagename: {}
+Packagepath: {}
+",
+                    context.libname, context.path,
+                )
+            })
+        }
         (
             Some(message),
             PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink,
@@ -189,13 +206,19 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
                 .or_insert_with(|| message.to_string());
         }
     }
+    #[cfg(unix)]
+    storage
+        .entry("pkg_check_modules".to_string())
+        .or_insert_with(|| "please FindPackage PkgConfig first".to_string());
     storage
 });
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PositionType {
     Variable,
     FindPackage,
+    #[cfg(unix)]
+    FindPkgConfig,
     SubDir,
     Include,
     NotFind,
@@ -203,6 +226,9 @@ pub enum PositionType {
     TargetLink,
 }
 
+// FIXME: there is bug
+// find_package(SS)
+// cannot get the type of find_package
 pub fn get_pos_type(
     location: Position,
     root: Node,
@@ -228,6 +254,8 @@ pub fn get_pos_type(
                         let name = newsource[h][x..y].to_lowercase();
                         match name.as_str() {
                             "find_package" => PositionType::FindPackage,
+                            #[cfg(unix)]
+                            "pkg_check_modules" => PositionType::FindPkgConfig,
                             "include" => PositionType::Include,
                             "add_subdirectory" => PositionType::SubDir,
                             "target_include_directories" => PositionType::TargetInclude,
@@ -242,6 +270,8 @@ pub fn get_pos_type(
                         PositionType::FindPackage
                         | PositionType::SubDir
                         | PositionType::Include => inputtype,
+                        #[cfg(unix)]
+                        PositionType::FindPkgConfig => inputtype,
                         _ => PositionType::Variable,
                     },
                     "line_comment" => PositionType::NotFind,
@@ -250,9 +280,12 @@ pub fn get_pos_type(
 
                 match jumptype {
                     PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
-                        return get_pos_type(location, child, source, jumptype);
+                        return jumptype;
                     }
-
+                    #[cfg(unix)]
+                    PositionType::FindPkgConfig => {
+                        return jumptype;
+                    }
                     PositionType::Variable => {
                         //} else {
                         let currenttype =

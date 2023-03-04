@@ -40,6 +40,10 @@ pub async fn getcoplete(
         PositionType::FindPackage => {
             complete.append(&mut findpackage::CMAKE_SOURCE.clone());
         }
+        #[cfg(unix)]
+        PositionType::FindPkgConfig => {
+            complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
+        }
         PositionType::Include => {
             if let Ok(messages) = &*BUILDIN_MODULE {
                 complete.append(&mut messages.clone());
@@ -144,6 +148,59 @@ fn getsubcoplete(
                                 let y = ids.end_position().column;
                                 let package_name = &newsource[h][x..y];
                                 if let PositionType::TargetLink = postype {
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_LIBRARIES"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
+                                } else {
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_INCLUDE_DIRS"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
+                                }
+                            }
+                            #[cfg(unix)]
+                            if name == "pkg_check_modules" && child.child_count() >= 3 {
+                                let ids = child.child(2).unwrap();
+                                //let ids = ids.child(2).unwrap();
+                                let x = ids.start_position().column;
+                                let y = ids.end_position().column;
+                                let package_name = &newsource[h][x..y];
+                                let modernpkgconfig = {
+                                    if child.child_count() >= 5 {
+                                        let ids = child.child(3).unwrap();
+                                        //let ids = ids.child(2).unwrap();
+                                        let x = ids.start_position().column;
+                                        let y = ids.end_position().column;
+                                        let atom = &newsource[h][x..y];
+                                        if atom != "REQUIRED" {
+                                            false
+                                        } else {
+                                            let ids = child.child(4).unwrap();
+                                            //let ids = ids.child(2).unwrap();
+                                            let x = ids.start_position().column;
+                                            let y = ids.end_position().column;
+                                            let atom = &newsource[h][x..y];
+                                            atom == "IMPORTED_TARGET"
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                };
+                                if modernpkgconfig {
+                                    if let PositionType::TargetLink = postype {
+                                        complete.push(CompletionItem {
+                                            label: format!("PkgConfig::{package_name}"),
+                                            kind: Some(CompletionItemKind::VARIABLE),
+                                            detail: Some(format!("package: {package_name}",)),
+                                            ..Default::default()
+                                        });
+                                    }
+                                } else if let PositionType::TargetLink = postype {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
