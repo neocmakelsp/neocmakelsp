@@ -21,10 +21,11 @@ pub async fn getcoplete(
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    match get_pos_type(location, tree.root_node(), source, PositionType::NotFind) {
-        PositionType::Variable => {
+    let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
+    match postype {
+        PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) =
-                getsubcoplete(tree.root_node(), source, Path::new(local_path))
+                getsubcoplete(tree.root_node(), source, Path::new(local_path), postype)
             {
                 complete.append(&mut message);
             }
@@ -59,6 +60,7 @@ fn getsubcoplete(
     input: tree_sitter::Node,
     source: &str,
     local_path: &Path,
+    postype: PositionType,
 ) -> Option<Vec<CompletionItem>> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
@@ -102,7 +104,7 @@ fn getsubcoplete(
                 });
             }
             "if_condition" | "foreach_loop" => {
-                if let Some(mut message) = getsubcoplete(child, source, local_path) {
+                if let Some(mut message) = getsubcoplete(child, source, local_path, postype) {
                     complete.append(&mut message);
                 }
             }
@@ -112,25 +114,9 @@ fn getsubcoplete(
                 //let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let name = &newsource[h][x..y];
-                if name == "set" || name == "SET" || name == "option" {
-                    let ids = child.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &newsource[h][x..y];
-                        complete.push(CompletionItem {
-                            label: name.to_string(),
-                            kind: Some(CompletionItemKind::VALUE),
-                            detail: Some(format!(
-                                "defined variable\nfrom: {}",
-                                local_path.file_name().unwrap().to_str().unwrap()
-                            )),
-                            ..Default::default()
-                        });
-                    }
-                } else if name == "include" && child.child_count() >= 3 {
+                let name = newsource[h][x..y].to_lowercase();
+
+                if name == "include" && child.child_count() >= 3 {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
@@ -141,12 +127,60 @@ fn getsubcoplete(
                             let subpath = local_path.parent().unwrap().join(name);
                             if let Ok(true) = cmake_try_exists(&subpath) {
                                 if let Some(mut comps) =
-                                    includescanner::scanner_include_coplete(&subpath)
+                                    includescanner::scanner_include_complete(&subpath, postype)
                                 {
                                     complete.append(&mut comps);
                                 }
                             }
                         }
+                    }
+                } else {
+                    match postype {
+                        PositionType::TargetLink | PositionType::TargetInclude => {
+                            if name == "find_package" && child.child_count() >= 3 {
+                                let ids = child.child(2).unwrap();
+                                //let ids = ids.child(2).unwrap();
+                                let x = ids.start_position().column;
+                                let y = ids.end_position().column;
+                                let package_name = &newsource[h][x..y];
+                                if let PositionType::TargetLink = postype {
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_LIBRARIES"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
+                                } else {
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_INCLUDE_DIRS"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
+                                }
+                            }
+                        }
+                        PositionType::Variable => {
+                            if name == "set" || name == "option" {
+                                let ids = child.child(2).unwrap();
+                                if ids.start_position().row == ids.end_position().row {
+                                    let h = ids.start_position().row;
+                                    let x = ids.start_position().column;
+                                    let y = ids.end_position().column;
+                                    let name = &newsource[h][x..y];
+                                    complete.push(CompletionItem {
+                                        label: name.to_string(),
+                                        kind: Some(CompletionItemKind::VALUE),
+                                        detail: Some(format!(
+                                            "defined variable\nfrom: {}",
+                                            local_path.file_name().unwrap().to_str().unwrap()
+                                        )),
+                                        ..Default::default()
+                                    });
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

@@ -33,8 +33,12 @@ pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<Str
         get_position_string(location, root, source),
         get_pos_type(location, root, source, PositionType::NotFind),
     ) {
-        (Some(message), PositionType::FindPackage) => {
-            let mut value = CMAKE_PACKAGES_WITHKEY.get(&message);
+        (
+            Some(message),
+            PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink,
+        ) => {
+            let message = message.split('_').collect::<Vec<&str>>()[0];
+            let mut value = CMAKE_PACKAGES_WITHKEY.get(message);
             if value.is_none() {
                 value = CMAKE_PACKAGES_WITHKEY.get(&message.to_lowercase());
             }
@@ -195,6 +199,8 @@ pub enum PositionType {
     SubDir,
     Include,
     NotFind,
+    TargetInclude,
+    TargetLink,
 }
 
 pub fn get_pos_type(
@@ -219,13 +225,13 @@ pub fn get_pos_type(
                         //let ids = ids.child(2).unwrap();
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let name = &newsource[h][x..y];
-                        //println!("name = {}", name);
-                        //name == "find_package"
-                        match name {
+                        let name = newsource[h][x..y].to_lowercase();
+                        match name.as_str() {
                             "find_package" => PositionType::FindPackage,
                             "include" => PositionType::Include,
                             "add_subdirectory" => PositionType::SubDir,
+                            "target_include_directories" => PositionType::TargetInclude,
+                            "target_link_libraries" => PositionType::TargetLink,
                             _ => PositionType::Variable,
                         }
                     }
@@ -257,6 +263,7 @@ pub fn get_pos_type(
                         };
                     }
                     PositionType::NotFind => {}
+                    _ => return jumptype,
                 }
             }
             // if is the same line

@@ -24,10 +24,16 @@ pub async fn godef(
                 let jumptype =
                     get_pos_type(location, tree.root_node(), source, PositionType::Variable);
                 match jumptype {
+                    // TODO: maybe can hadle Include?
                     PositionType::Variable => {
                         godefsub(tree.root_node(), source, &tofind, originuri)
                     }
-                    PositionType::FindPackage => findpackage::cmpfindpackage(tofind, client).await,
+                    PositionType::FindPackage
+                    | PositionType::TargetLink
+                    | PositionType::TargetInclude => {
+                        let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
+                        findpackage::cmpfindpackage(tofind, client).await
+                    }
                     PositionType::NotFind => None,
                     PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
                     PositionType::SubDir => {

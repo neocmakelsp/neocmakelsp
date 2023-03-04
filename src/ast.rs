@@ -2,7 +2,13 @@
 use crate::utils::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
 
-const COMMAND_KEYWORDS: [&str; 4] = ["set", "option", "project", "target_link_libraries"];
+const COMMAND_KEYWORDS: [&str; 5] = [
+    "set",
+    "option",
+    "project",
+    "target_link_libraries",
+    "target_include_directories",
+];
 pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolResponse> {
     getsubast(input, source).map(DocumentSymbolResponse::Nested)
 }
