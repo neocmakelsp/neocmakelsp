@@ -22,6 +22,23 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .collect();
     let content: Vec<_> = re.split(&temp).into_iter().collect();
     let context = &content[1..];
+    #[cfg(unix)]
+    {
+        let mut key = key.clone();
+        key.push("pkg_check_modules");
+        let mut context = context.to_vec();
+        context.push("please findpackage PkgConfig first");
+        Ok(zip(key, context)
+            .into_iter()
+            .map(|(akey, message)| CompletionItem {
+                label: akey.to_string(),
+                kind: Some(CompletionItemKind::MODULE),
+                detail: Some(message.to_string()),
+                ..Default::default()
+            })
+            .collect())
+    }
+    #[cfg(not(unix))]
     Ok(zip(key, context)
         .into_iter()
         .map(|(akey, message)| CompletionItem {

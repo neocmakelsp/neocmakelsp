@@ -62,6 +62,50 @@ fn get_version(source: &str) -> Option<String> {
 
     None
 }
+#[cfg(unix)]
+pub mod packagepkgconfig {
+    use once_cell::sync::Lazy;
+    use std::collections::HashMap;
+    pub struct PkgConfig {
+        pub libname: String,
+        pub path: String,
+    }
+
+    fn get_pkg_messages() -> HashMap<String, PkgConfig> {
+        let mut packages: HashMap<String, PkgConfig> = HashMap::new();
+        let mut generatepackage = || -> anyhow::Result<()> {
+            for entry in glob::glob("/usr/lib/**/pkgconfig/*.pc")?.flatten() {
+                let p = entry.as_path().to_str().unwrap();
+                let name = p
+                    .split('/')
+                    .collect::<Vec<&str>>()
+                    .last()
+                    .unwrap()
+                    .to_string();
+                let realname = name
+                    .split('.')
+                    .collect::<Vec<&str>>()
+                    .first()
+                    .unwrap()
+                    .to_string();
+                packages
+                    .entry(realname.to_string())
+                    .or_insert_with(|| PkgConfig {
+                        libname: realname,
+                        path: p.to_string(),
+                    });
+            }
+            Ok(())
+        };
+        let _ = generatepackage();
+        packages
+    }
+    pub static PKG_CONFIG_PACKAGES_WITHKEY: Lazy<HashMap<String, PkgConfig>> =
+        Lazy::new(get_pkg_messages);
+
+    pub static PKG_CONFIG_PACKAGES: Lazy<Vec<PkgConfig>> =
+        Lazy::new(|| get_pkg_messages().into_values().collect());
+}
 pub use cmakepackage::*;
 #[test]
 fn regextest() {
