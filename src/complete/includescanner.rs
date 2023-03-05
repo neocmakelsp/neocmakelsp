@@ -1,6 +1,6 @@
 use crate::utils::treehelper::PositionType;
 
-use super::getsubcoplete;
+use super::getsubcomplete;
 use lsp_types::CompletionItem;
 use std::fs;
 use std::path::PathBuf;
@@ -14,7 +14,7 @@ pub fn scanner_include_complete(
             parse.set_language(tree_sitter_cmake::language()).unwrap();
             let thetree = parse.parse(content.clone(), None);
             let tree = thetree.unwrap();
-            getsubcoplete(tree.root_node(), content.as_str(), path, postype)
+            getsubcomplete(tree.root_node(), content.as_str(), path, postype, None)
         }
         Err(_) => None,
     }

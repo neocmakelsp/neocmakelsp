@@ -8,7 +8,7 @@ use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 use std::path::{Path, PathBuf};
 /// get the complet messages
-pub async fn getcoplete(
+pub async fn getcomplete(
     source: &str,
     location: Position,
     client: &tower_lsp::Client,
@@ -24,9 +24,13 @@ pub async fn getcoplete(
     let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
     match postype {
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
-            if let Some(mut message) =
-                getsubcoplete(tree.root_node(), source, Path::new(local_path), postype)
-            {
+            if let Some(mut message) = getsubcomplete(
+                tree.root_node(),
+                source,
+                Path::new(local_path),
+                postype,
+                Some(location),
+            ) {
                 complete.append(&mut message);
             }
 
@@ -60,18 +64,30 @@ pub async fn getcoplete(
     }
 }
 /// get the variable from the loop
-fn getsubcoplete(
+/// use position to make only can complete which has show before
+fn getsubcomplete(
     input: tree_sitter::Node,
     source: &str,
     local_path: &Path,
     postype: PositionType,
+    location: Option<Position>,
 ) -> Option<Vec<CompletionItem>> {
+    if let Some(location) = location {
+        if input.start_position().row as u32 > location.line {
+            return None;
+        }
+    }
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
     //let mut course2 = course.clone();
     //let mut hasid = false;
     let mut complete: Vec<CompletionItem> = vec![];
     for child in input.children(&mut course) {
+        if let Some(location) = location {
+            if child.start_position().row as u32 > location.line {
+                continue;
+            }
+        }
         match child.kind() {
             "function_def" => {
                 let h = child.start_position().row;
@@ -108,7 +124,9 @@ fn getsubcoplete(
                 });
             }
             "if_condition" | "foreach_loop" => {
-                if let Some(mut message) = getsubcoplete(child, source, local_path, postype) {
+                if let Some(mut message) =
+                    getsubcomplete(child, source, local_path, postype, location)
+                {
                     complete.append(&mut message);
                 }
             }
