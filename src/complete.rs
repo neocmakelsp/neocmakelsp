@@ -175,40 +175,43 @@ fn getsubcoplete(
                                         None
                                     }
                                 };
+                                // mordern cmake like Qt5::Core
                                 if let Some(components) = components_packages {
                                     for component in components {
                                         if let PositionType::TargetLink = postype {
                                             complete.push(CompletionItem {
                                                 label: component,
                                                 kind: Some(CompletionItemKind::VARIABLE),
-                                                detail: Some(format!("package from: {package_name}",)),
+                                                detail: Some(format!(
+                                                    "package from: {package_name}",
+                                                )),
                                                 ..Default::default()
                                             });
                                         } else {
                                             complete.push(CompletionItem {
                                                 label: component,
                                                 kind: Some(CompletionItemKind::VARIABLE),
-                                                detail: Some(format!("package from: {package_name}",)),
+                                                detail: Some(format!(
+                                                    "package from: {package_name}",
+                                                )),
                                                 ..Default::default()
                                             });
                                         }
                                     }
+                                } else if let PositionType::TargetLink = postype {
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_LIBRARIES"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
                                 } else {
-                                    if let PositionType::TargetLink = postype {
-                                        complete.push(CompletionItem {
-                                            label: format!("{package_name}_LIBRARIES"),
-                                            kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some(format!("package: {package_name}",)),
-                                            ..Default::default()
-                                        });
-                                    } else {
-                                        complete.push(CompletionItem {
-                                            label: format!("{package_name}_INCLUDE_DIRS"),
-                                            kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some(format!("package: {package_name}",)),
-                                            ..Default::default()
-                                        });
-                                    }
+                                    complete.push(CompletionItem {
+                                        label: format!("{package_name}_INCLUDE_DIRS"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
                                 }
                             }
                             #[cfg(unix)]
