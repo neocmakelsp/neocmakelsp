@@ -11,7 +11,7 @@ if(NOT DEFINED INSTALL_EXAMPLESDIR)
 endif()
 set(INSTALL_EXAMPLEDIR "${INSTALL_EXAMPLESDIR}/widgets/animation/states")
 find_package(Qt6 REQUIRED COMPONENTS
-  Core Gui StateMachine Widgets)
+	Core Gui StateMachine Widgets)
 qt_add_executable(states main.cpp)
 set_target_properties(states PROPERTIES
   WIN32_EXECUTABLE TRUE
@@ -20,7 +20,8 @@ target_link_libraries(states PUBLIC
   Qt::Core
   Qt::Gui
   Qt::StateMachine
-  Qt::Widgets)
+  Qt::Widgets
+  Qt6::StateMachine)
 # Resources:
 set(states_resource_files
   "accessories-dictionary.png"

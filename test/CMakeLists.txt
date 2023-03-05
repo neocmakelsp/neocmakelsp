@@ -7,6 +7,7 @@ include(./test1.cmake)
 include(./test3.cmake)
 include(./DWayland.cmake)
 pkg_check_modules(libva REQUIRED IMPORTED_TARGET libsystemd)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 target_link_libraries(ss PUBLIC
 	${DtkGui_LIBRARIES}
 	PkgConfig::libevent_core

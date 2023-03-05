@@ -147,20 +147,68 @@ fn getsubcoplete(
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
                                 let package_name = &newsource[h][x..y];
-                                if let PositionType::TargetLink = postype {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_LIBRARIES"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
-                                        ..Default::default()
-                                    });
+                                let components_packages = {
+                                    if child.child_count() >= 5 {
+                                        let mut support_commponent = false;
+                                        let count = child.child_count();
+                                        let mut components_packages = Vec::new();
+                                        for index in 3..count - 1 {
+                                            let ids = child.child(index).unwrap();
+                                            //let ids = ids.child(2).unwrap();
+                                            let x = ids.start_position().column;
+                                            let y = ids.end_position().column;
+                                            let h = ids.start_position().row;
+                                            let component = &newsource[h][x..y];
+                                            if component == "COMPONENTS" {
+                                                support_commponent = true;
+                                            } else if component != "REQUIRED" {
+                                                components_packages
+                                                    .push(format!("{package_name}::{component}"));
+                                            }
+                                        }
+                                        if support_commponent {
+                                            Some(components_packages)
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                };
+                                if let Some(components) = components_packages {
+                                    for component in components {
+                                        if let PositionType::TargetLink = postype {
+                                            complete.push(CompletionItem {
+                                                label: component,
+                                                kind: Some(CompletionItemKind::VARIABLE),
+                                                detail: Some(format!("package from: {package_name}",)),
+                                                ..Default::default()
+                                            });
+                                        } else {
+                                            complete.push(CompletionItem {
+                                                label: component,
+                                                kind: Some(CompletionItemKind::VARIABLE),
+                                                detail: Some(format!("package from: {package_name}",)),
+                                                ..Default::default()
+                                            });
+                                        }
+                                    }
                                 } else {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_INCLUDE_DIRS"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
-                                        ..Default::default()
-                                    });
+                                    if let PositionType::TargetLink = postype {
+                                        complete.push(CompletionItem {
+                                            label: format!("{package_name}_LIBRARIES"),
+                                            kind: Some(CompletionItemKind::VARIABLE),
+                                            detail: Some(format!("package: {package_name}",)),
+                                            ..Default::default()
+                                        });
+                                    } else {
+                                        complete.push(CompletionItem {
+                                            label: format!("{package_name}_INCLUDE_DIRS"),
+                                            kind: Some(CompletionItemKind::VARIABLE),
+                                            detail: Some(format!("package: {package_name}",)),
+                                            ..Default::default()
+                                        });
+                                    }
                                 }
                             }
                             #[cfg(unix)]
