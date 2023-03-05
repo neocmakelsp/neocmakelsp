@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
 mod complete;
+mod filewatcher;
 mod formatting;
 mod gammar;
 mod jump;
@@ -36,7 +37,24 @@ struct Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, inital: InitializeParams) -> Result<InitializeResult> {
+        if let Some(workspace) = inital.capabilities.workspace {
+            if let Some(watch_file) = workspace.did_change_watched_files {
+                if let (Some(true), Some(true)) = (
+                    watch_file.dynamic_registration,
+                    watch_file.relative_pattern_support,
+                ) {
+                    if let Some(uri) = inital.root_uri {
+                        let path = std::path::Path::new(uri.path())
+                            .join("build")
+                            .join("CMakeCache.txt");
+                        if path.exists() {
+                            filewatcher::refresh_error_packages(path);
+                        }
+                    }
+                }
+            }
+        }
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
@@ -111,8 +129,16 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         tracing::info!("CMakeCache changed");
+        for change in params.changes {
+            if let FileChangeType::DELETED = change.typ {
+                filewatcher::clear_error_packages();
+            } else {
+                let path = change.uri.path();
+                filewatcher::refresh_error_packages(path);
+            }
+        }
         self.client
             .log_message(MessageType::INFO, "watched files have changed!")
             .await;
