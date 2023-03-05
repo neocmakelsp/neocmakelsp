@@ -295,7 +295,7 @@ impl LanguageServer for Backend {
             //notify_send("test", Type::Error);
             match storemap.get(&uri) {
                 Some(context) => {
-                    Ok(complete::getcoplete(context, location, &self.client, uri.path()).await)
+                    Ok(complete::getcomplete(context, location, &self.client, uri.path()).await)
                 }
                 None => Ok(None),
             }
