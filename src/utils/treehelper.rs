@@ -44,7 +44,6 @@ pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<Str
         #[cfg(unix)]
         (Some(message), PositionType::FindPkgConfig) => {
             let message = message.split('_').collect::<Vec<&str>>()[0];
-            println!("{message}");
             let value = PKG_CONFIG_PACKAGES_WITHKEY.get(message);
             value.map(|context| {
                 format!(
