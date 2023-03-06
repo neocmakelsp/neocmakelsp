@@ -115,7 +115,7 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _: InitializedParams) {
         let cachefilechangeparms = DidChangeWatchedFilesRegistrationOptions {
             watchers: vec![FileSystemWatcher {
-                glob_pattern: GlobPattern::String("build/CMakeCache.txt".to_string()),
+                glob_pattern: GlobPattern::String("**/CMakeCache.txt".to_string()),
                 kind: Some(lsp_types::WatchKind::all()),
             }],
         };
