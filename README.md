@@ -63,6 +63,7 @@ new version will not work on mac and windows, so I need your help
 
 ## Features
 
+* watchfile
 * complete
 * symbol\_provider
 * On hover
@@ -76,6 +77,21 @@ new version will not work on mac and windows, so I need your help
 ## TODO
 * Undefined function check
 * add\_subdirectory
+
+### If you want to use watchfile in neovim, use the nightly one, and set
+
+``` lua
+capabilities = {
+    workspace = {
+        didChangeWatchedFiles = {
+            dynamicRegistration = true,
+        },
+    },
+}
+```
+
+It will check CMakeCache.txt, and get weather the package is exist
+
 
 ## Show
 

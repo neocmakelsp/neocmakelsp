@@ -14,7 +14,14 @@ return {
             on_attach = function(client, bufnr)
                 vim.notify("Lsp Start")
                 require("cmps.cmp_onattach")(client, bufnr)
-            end
+            end,
+            capabilities = {
+                workspace = {
+                    didChangeWatchedFiles = {
+                        dynamicRegistration = true,
+                    },
+                },
+            }
         }
     }
 }
