@@ -201,7 +201,9 @@ impl LanguageServer for Backend {
         let context = input.content_changes[0].text.clone();
         let mut storemap = self.buffers.lock().await;
         storemap.insert(uri.clone(), context.clone());
-        self.publish_diagnostics(uri, context).await;
+        if context.lines().count() < 500 {
+            self.publish_diagnostics(uri, context).await;
+        }
         self.client
             .log_message(MessageType::INFO, &format!("{input:?}"))
             .await;
@@ -368,17 +370,8 @@ impl LanguageServer for Backend {
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri.clone();
         let storemap = self.buffers.lock().await;
-        //notify_send("test", Type::Error);
         match storemap.get(&uri) {
-            Some(context) => {
-                let mut parse = Parser::new();
-                parse.set_language(tree_sitter_cmake::language()).unwrap();
-                let thetree = parse.parse(context.clone(), None);
-                let tree = thetree.unwrap();
-                //notify_send(context, Type::Error);
-                //Ok(None)
-                Ok(ast::getast(tree.root_node(), context))
-            }
+            Some(context) => Ok(ast::getast(&self.client, context).await),
             None => Ok(None),
         }
     }

@@ -85,7 +85,8 @@ fn getsubcomplete(
     for child in input.children(&mut course) {
         if let Some(location) = location {
             if child.start_position().row as u32 > location.line {
-                continue;
+                // if this child is below row, then break all loop
+                break;
             }
         }
         match child.kind() {
@@ -159,6 +160,24 @@ fn getsubcomplete(
                 } else {
                     match postype {
                         PositionType::TargetLink | PositionType::TargetInclude => {
+                            if name == "set" || name == "option" {
+                                let ids = child.child(2).unwrap();
+                                if ids.start_position().row == ids.end_position().row {
+                                    let h = ids.start_position().row;
+                                    let x = ids.start_position().column;
+                                    let y = ids.end_position().column;
+                                    let name = &newsource[h][x..y];
+                                    complete.push(CompletionItem {
+                                        label: name.to_string(),
+                                        kind: Some(CompletionItemKind::VALUE),
+                                        detail: Some(format!(
+                                            "defined variable\nfrom: {}",
+                                            local_path.file_name().unwrap().to_str().unwrap()
+                                        )),
+                                        ..Default::default()
+                                    });
+                                }
+                            }
                             if name == "find_package" && child.child_count() >= 3 {
                                 let ids = child.child(2).unwrap();
                                 //let ids = ids.child(2).unwrap();

@@ -1,6 +1,7 @@
 /// Get the tree of ast
 use crate::utils::treehelper::point_to_position;
-use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
+use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
+use tower_lsp::Client;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
     "set",
@@ -9,11 +10,21 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_link_libraries",
     "target_include_directories",
 ];
-pub fn getast(input: tree_sitter::Node, source: &str) -> Option<DocumentSymbolResponse> {
-    getsubast(input, source).map(DocumentSymbolResponse::Nested)
+pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
+    let line = context.lines().count();
+    if line > 10000 {
+        client
+            .log_message(MessageType::INFO, "use simple ast")
+            .await;
+    }
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let thetree = parse.parse(context.clone(), None);
+    let tree = thetree.unwrap();
+    getsubast(tree.root_node(), context, line > 10000).map(DocumentSymbolResponse::Nested)
 }
 #[allow(deprecated)]
-fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbol>> {
+fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec<DocumentSymbol>> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
     let mut asts: Vec<DocumentSymbol> = vec![];
@@ -52,7 +63,11 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                             character: child.end_position().column as u32,
                         },
                     },
-                    children: getsubast(child, source),
+                    children: if simple {
+                        None
+                    } else {
+                        getsubast(child, source, simple)
+                    },
                 });
             }
             "macro_def" => {
@@ -88,7 +103,11 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                             character: child.end_position().column as u32,
                         },
                     },
-                    children: getsubast(child, source),
+                    children: if simple {
+                        None
+                    } else {
+                        getsubast(child, source, simple)
+                    },
                 });
             }
             "if_condition" | "foreach_loop" => {
@@ -118,7 +137,11 @@ fn getsubast(input: tree_sitter::Node, source: &str) -> Option<Vec<DocumentSymbo
                             character: child.end_position().column as u32,
                         },
                     },
-                    children: getsubast(child, source),
+                    children: if simple {
+                        None
+                    } else {
+                        getsubast(child, source, simple)
+                    },
                 });
             }
             "normal_command" => {
