@@ -74,7 +74,28 @@ pub mod packagepkgconfig {
     fn get_pkg_messages() -> HashMap<String, PkgConfig> {
         let mut packages: HashMap<String, PkgConfig> = HashMap::new();
         let mut generatepackage = || -> anyhow::Result<()> {
-            for entry in glob::glob("/usr/lib/**/pkgconfig/*.pc")?.flatten() {
+            for entry in glob::glob("/usr/lib/pkgconfig/*.pc")?.flatten() {
+                let p = entry.as_path().to_str().unwrap();
+                let name = p
+                    .split('/')
+                    .collect::<Vec<&str>>()
+                    .last()
+                    .unwrap()
+                    .to_string();
+                let realname = name
+                    .split('.')
+                    .collect::<Vec<&str>>()
+                    .first()
+                    .unwrap()
+                    .to_string();
+                packages
+                    .entry(realname.to_string())
+                    .or_insert_with(|| PkgConfig {
+                        libname: realname,
+                        path: p.to_string(),
+                    });
+            }
+            for entry in glob::glob("/usr/lib/*/pkgconfig/*.pc")?.flatten() {
                 let p = entry.as_path().to_str().unwrap();
                 let name = p
                     .split('/')
