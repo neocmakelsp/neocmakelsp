@@ -74,10 +74,6 @@ new version will not work on mac and windows, so I need your help
 * Search cli
 * Get the project struct
 
-## TODO
-* Undefined function check
-* add\_subdirectory
-
 ### If you want to use watchfile in neovim, use the nightly one, and set
 
 ``` lua
@@ -92,10 +88,11 @@ capabilities = {
 
 It will check CMakeCache.txt, and get weather the package is exist
 
-
+## TODO
+* Undefined function check
 ## Show
 
-### Search 
+### Search
 ![Search](./images/search.png)
 
 ### symbol
