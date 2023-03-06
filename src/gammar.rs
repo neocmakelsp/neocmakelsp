@@ -44,7 +44,8 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                             let h = child.start_position().row;
                             let x = child.start_position().column;
                             let y = child.end_position().column;
-                            if h < newsource.len() {
+                            if h < newsource.len() && y > x && y < newsource[h].len() {
+                                println!("{h},{x},{y}");
                                 let name = &newsource[h][x..y];
                                 if errorpackages.contains(&name.to_string()) {
                                     output.push((
