@@ -209,7 +209,12 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn did_save(&self, _: DidSaveTextDocumentParams) {
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let storemap = self.buffers.lock().await;
+        if let Some(context) = storemap.get(&uri) {
+            self.publish_diagnostics(uri, context.to_string()).await;
+        }
         self.client
             .log_message(MessageType::INFO, "file saved!")
             .await;
