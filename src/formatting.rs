@@ -8,6 +8,8 @@ mod othercommand;
 mod project;
 mod set;
 
+const NOT_FORMAT_ME: &str = "# Not Format Me";
+
 fn get_space(spacelen: u32, usespace: bool) -> String {
     let unit = if usespace { ' ' } else { '\t' };
     let mut space = String::new();
@@ -17,7 +19,7 @@ fn get_space(spacelen: u32, usespace: bool) -> String {
     space
 }
 
-//use crate::utils::treehelper::point_to_position;
+// use crate::utils::treehelper::point_to_position;
 pub async fn getformat(
     source: &str,
     client: &tower_lsp::Client,
@@ -48,9 +50,18 @@ pub fn get_format_from_root_node(
         let mut new_text = String::new();
         let mut course = input.walk();
         let mut startline = 0;
+        let mut not_format = false;
         for child in input.children(&mut course) {
             let childstartline = child.start_position().row;
-            let reformat = get_format_from_node(child, source, spacelen, usespace);
+            let reformat = if not_format {
+                not_format = false;
+                get_origin_source(child, source)
+            } else {
+                if is_notformat_mark(child, source) {
+                    not_format = true;
+                }
+                get_format_from_node(child, source, spacelen, usespace)
+            };
             //down += downpoint;
             for _ in startline..childstartline {
                 new_text.push('\n');
@@ -76,6 +87,7 @@ pub fn get_format_from_root_node(
         }])
     }
 }
+
 pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> {
     if input.has_error() {
         None
@@ -83,10 +95,18 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
         let mut new_text = String::new();
         let mut course = input.walk();
         let mut startline = 0;
+        let mut not_format = false;
         for child in input.children(&mut course) {
             let childstartline = child.start_position().row;
-            let reformat = get_format_from_node(child, source, 2, false);
-            //down += downpoint;
+            let reformat = if not_format {
+                not_format = false;
+                get_origin_source(child, source)
+            } else {
+                if is_notformat_mark(child, source) {
+                    not_format = true;
+                }
+                get_format_from_node(child, source, 2, false)
+            };
             for _ in startline..childstartline {
                 new_text.push('\n');
             }
@@ -96,6 +116,20 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
         Some(new_text)
     }
 }
+
+fn get_origin_source(input: tree_sitter::Node, source: &str) -> String {
+    let newsource: Vec<&str> = source.lines().collect();
+    let start_y = input.start_position().row;
+    let end_y = input.end_position().row;
+    let mut output = String::new();
+    for line in start_y..=end_y {
+        output.push_str(newsource[line]);
+        output.push('\n');
+    }
+    output.pop();
+    output
+}
+
 fn get_format_from_node(
     input: tree_sitter::Node,
     source: &str,
@@ -119,6 +153,24 @@ fn get_format_from_node(
         }
         _ => default_format(input, source),
     }
+}
+
+fn is_notformat_mark(input: tree_sitter::Node, source: &str) -> bool {
+    if CommandType::LineComment != CommandType::from_node(input, source) {
+        return false;
+    };
+    let newsource: Vec<&str> = source.lines().collect();
+    let start_position = input.start_position();
+    let end_position = input.end_position();
+    if start_position.row != end_position.row {
+        return false;
+    }
+    let start_y = start_position.row;
+    let start_x = start_position.column;
+    let end_x = end_position.column;
+
+    let comment = newsource[start_y][start_x..end_x].to_string();
+    comment == NOT_FORMAT_ME
 }
 
 fn default_format(input: tree_sitter::Node, source: &str) -> String {
@@ -187,6 +239,7 @@ impl CommandType {
         }
     }
 }
+
 #[test]
 fn tst_type() {
     let mut parse = tree_sitter::Parser::new();
@@ -201,6 +254,7 @@ fn tst_type() {
         CommandType::from_node(node, "project(Mime)")
     );
 }
+
 fn node_to_string(node: tree_sitter::Node, source: &str) -> String {
     let newsource: Vec<&str> = source.lines().collect();
     let startx = node.start_position().column;
@@ -217,6 +271,7 @@ fn node_to_string(node: tree_sitter::Node, source: &str) -> String {
     output.push_str(&newsource[endy][0..endx]);
     output
 }
+
 #[test]
 fn tst_node_to_str() {
     let a = r#"
@@ -238,4 +293,13 @@ set(
     let tree = parse.parse(a, None).unwrap();
     let e = node_to_string(tree.root_node(), a);
     assert_eq!(a, e);
+}
+
+#[test]
+fn tst_is_notformat_me() {
+    let a = NOT_FORMAT_ME;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(a, None).unwrap();
+    assert!(is_notformat_mark(tree.root_node().child(0).unwrap(), a));
 }
