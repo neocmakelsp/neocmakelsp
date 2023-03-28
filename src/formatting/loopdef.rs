@@ -35,7 +35,7 @@ pub fn format_loopdef(
                     if super::is_notformat_mark(child, source) {
                         is_mark_not_format = true;
                     }
-                    super::get_format_from_node(child, source, 2, false)
+                    super::get_format_from_node(child, source, spacelen, usespace)
                 };
                 if not_format {
                     output.push('\n');
