@@ -31,30 +31,29 @@ impl fmt::Display for TreeDir {
 
 // Path Input is xxx/CMakeLists.txt
 pub fn get_treedir(path: &Path) -> Option<TreeDir> {
-    if let Ok(content) = std::fs::read_to_string(path) {
-        let mut top = TreeDir {
-            dir: path.into(),
-            subdirs: None,
-        };
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(tree_sitter_cmake::language()).unwrap();
-        let tree = parse.parse(&content, None).unwrap();
-        let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
-        if !subdirs.is_empty() {
-            let mut sub_dirs: Vec<TreeDir> = vec![];
-            for dir in subdirs {
-                if let Some(treedir) = get_treedir(&dir) {
-                    sub_dirs.push(treedir);
-                }
-            }
-            if !sub_dirs.is_empty() {
-                top.subdirs = Some(sub_dirs);
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return None;
+    };
+    let mut top = TreeDir {
+        dir: path.into(),
+        subdirs: None,
+    };
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(&content, None).unwrap();
+    let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
+    if !subdirs.is_empty() {
+        let mut sub_dirs: Vec<TreeDir> = vec![];
+        for dir in subdirs {
+            if let Some(treedir) = get_treedir(&dir) {
+                sub_dirs.push(treedir);
             }
         }
-        Some(top)
-    } else {
-        None
+        if !sub_dirs.is_empty() {
+            top.subdirs = Some(sub_dirs);
+        }
     }
+    Some(top)
 }
 
 fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) -> Vec<PathBuf> {

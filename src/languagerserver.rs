@@ -368,7 +368,6 @@ impl LanguageServer for Backend {
         }
         //Ok(None)
     }
-    // TODO ? Why cannot get it?
     async fn document_symbol(
         &self,
         input: DocumentSymbolParams,
