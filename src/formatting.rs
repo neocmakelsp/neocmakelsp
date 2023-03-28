@@ -122,8 +122,8 @@ fn get_origin_source(input: tree_sitter::Node, source: &str) -> String {
     let start_y = input.start_position().row;
     let end_y = input.end_position().row;
     let mut output = String::new();
-    for line in start_y..=end_y {
-        output.push_str(newsource[line]);
+    for line in newsource.iter().take(end_y + 1).skip(start_y) {
+        output.push_str(line);
         output.push('\n');
     }
     output.pop();

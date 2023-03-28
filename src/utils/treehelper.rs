@@ -167,7 +167,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
                 temp[0]
             })
             .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
+        let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
             storage
@@ -185,7 +185,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
                 temp[0]
             })
             .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
+        let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
             storage
@@ -203,7 +203,7 @@ pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
                 temp[0]
             })
             .collect();
-        let content: Vec<_> = re.split(&temp).into_iter().collect();
+        let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
             storage

@@ -3,11 +3,11 @@ root = true
 
 [*.{cmake}]
 indent_style = tab
-indent_size = 4
+indent_size = 2
 
 [CMakeLists.txt]
 indent_style = tab
-indent_size = 4
+indent_size = 2
 
 [*.{lua}]
 indent_style = space

@@ -20,7 +20,7 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).into_iter().collect();
+    let content: Vec<_> = re.split(&temp).collect();
     let context = &content[1..];
     #[cfg(unix)]
     {
@@ -29,7 +29,6 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         let mut context = context.to_vec();
         context.push("please findpackage PkgConfig first");
         Ok(zip(key, context)
-            .into_iter()
             .map(|(akey, message)| CompletionItem {
                 label: akey.to_string(),
                 kind: Some(CompletionItemKind::MODULE),
@@ -40,7 +39,6 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
     }
     #[cfg(not(unix))]
     Ok(zip(key, context)
-        .into_iter()
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
@@ -65,10 +63,9 @@ pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).into_iter().collect();
+    let content: Vec<_> = re.split(&temp).collect();
     let context = &content[1..];
     Ok(zip(key, context)
-        .into_iter()
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::VARIABLE),
@@ -90,10 +87,9 @@ pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).into_iter().collect();
+    let content: Vec<_> = re.split(&temp).collect();
     let context = &content[1..];
     Ok(zip(key, context)
-        .into_iter()
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::MODULE),
@@ -111,7 +107,7 @@ mod tests {
         assert!(re.is_match("---------"));
         assert!(re.is_match("-------------------"));
         let temp = "javascrpt---------it is";
-        let splits: Vec<_> = re.split(temp).into_iter().collect();
+        let splits: Vec<_> = re.split(temp).collect();
         let aftersplit = vec!["javascrpt", "it is"];
         for (split, after) in zip(splits, aftersplit) {
             assert_eq!(split, after);
@@ -126,7 +122,7 @@ mod tests {
         let output = output.stdout;
         let temp = String::from_utf8_lossy(&output);
         let _key: Vec<_> = re.find_iter(&temp).collect();
-        let splits: Vec<_> = re.split(&temp).into_iter().collect();
+        let splits: Vec<_> = re.split(&temp).collect();
 
         //for akey in key {
         //    println!("{}", akey.as_str());
