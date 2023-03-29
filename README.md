@@ -1,4 +1,4 @@
-# CMake lsp based on Tower and treesitter
+# CMake LSP implementation based on Tower and Tree-sitter
 
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
 

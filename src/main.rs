@@ -34,7 +34,7 @@ struct Backend {
 async fn main() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     let matches = Command::new("neocmakelsp")
-        .about("neo lsp for cmake")
+        .about("CMake LSP implementation based on Tower and Tree-sitter")
         .version(VERSION)
         .subcommand_required(true)
         .arg_required_else_help(true)
