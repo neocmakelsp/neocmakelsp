@@ -141,8 +141,11 @@ async fn main() {
                     match formatting::get_format_cli(tree.root_node(), &buf) {
                         Some(context) => {
                             if hasoverride {
-                                if let Err(e) = file.seek(std::io::SeekFrom::Start(0)) {
+                                if let Err(e) = file.set_len(0) {
                                     println!("Cannot clear the file: {e}");
+                                };
+                                if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
+                                    println!("Cannot jump to end: {e}");
                                 };
                                 let Ok(_) = file.write_all(context.as_bytes()) else {
                                     println!("cannot write in {}",filepath.display());
