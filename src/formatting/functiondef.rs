@@ -51,7 +51,11 @@ pub fn format_functiondef(
                 } else {
                     let node_format: Vec<&str> = node_format.lines().collect();
                     for unit in node_format {
-                        output.push_str(&format!("\n{space}{unit}"));
+                        if unit.is_empty() {
+                            output.push('\n');
+                        } else {
+                            output.push_str(&format!("\n{space}{unit}"));
+                        }
                     }
                 }
                 not_format = is_mark_not_format;
