@@ -31,6 +31,21 @@ struct Backend {
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
 }
 
+fn gitignore() -> Vec<String> {
+    let gitignore = std::path::Path::new(".gitignore");
+    if !gitignore.exists() {
+        return Vec::new();
+    }
+    let Ok(mut file) = std::fs::File::open(gitignore) else {
+        return Vec::new();
+    };
+    let mut buf = String::new();
+    if file.read_to_string(&mut buf).is_err() {
+        return Vec::new();
+    }
+    buf.lines().map(|iter| iter.to_string()).collect()
+}
+
 fn editconfig_setting() -> Option<(bool, u32)> {
     let editconfig_path = std::path::Path::new(".editorconfig");
     if !editconfig_path.exists() {
@@ -137,11 +152,23 @@ async fn main() {
                 .expect("Cannot get globpattern");
             let hasoverride = sub_matches.get_flag("override");
             let (usespace, spacelen) = editconfig_setting().unwrap_or((true, 2));
+            let ignorepatterns = gitignore();
+            let isinpattern = |path: &str| -> bool {
+                ignorepatterns.iter().any(|pattern| {
+                    glob::Pattern::new(pattern).unwrap().matches(path)
+                        || glob::Pattern::new(&format!("{}/*", pattern))
+                            .unwrap()
+                            .matches(path)
+                })
+            };
             let formatpattern = |pattern: &str| {
                 for filepath in glob::glob(pattern)
                     .unwrap_or_else(|_| panic!("error pattern"))
                     .flatten()
                 {
+                    if isinpattern(filepath.to_str().unwrap()) {
+                        continue;
+                    }
                     let mut file = match std::fs::OpenOptions::new()
                         .read(true)
                         .write(hasoverride)
@@ -176,11 +203,11 @@ async fn main() {
                                 println!("== Format of file {} is ==", filepath.display());
                                 println!("{context}");
                                 println!("== End ==");
-                                println!("");
+                                println!();
                             }
                         }
                         None => {
-                            println!("There is error in file");
+                            println!("There is error in file: {}", filepath.display());
                         }
                     }
                 }
@@ -191,7 +218,7 @@ async fn main() {
                     let mut file = match std::fs::OpenOptions::new()
                         .read(true)
                         .write(hasoverride)
-                        .open(&filepath)
+                        .open(filepath)
                     {
                         Ok(file) => file,
                         Err(e) => {
@@ -223,7 +250,7 @@ async fn main() {
                             }
                         }
                         None => {
-                            println!("There is error in file");
+                            println!("There is error in file: {}", filepath);
                         }
                     }
                 } else {
