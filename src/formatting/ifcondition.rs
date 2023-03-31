@@ -9,7 +9,16 @@ pub fn format_ifcondition(
     let mut output = String::new();
     let mut cursor = input.walk();
     let mut not_format = false;
+    let mut start_line = input.start_position().row;
     for child in input.children(&mut cursor) {
+        let child_start_line = child.start_position().row;
+        if start_line != child_start_line {
+            for _ in start_line..child_start_line - 1 {
+                output.push('\n');
+            }
+            start_line = child.end_position().row;
+        }
+
         match child.kind() {
             "if_command" => {
                 let childy = child.start_position().row;

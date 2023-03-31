@@ -45,16 +45,19 @@ macro(hunter_add_package_safe)
 	set(pkg_temp_backup_libdir "$ENV{PKG_CONFIG_LIBDIR}")
 	set(pkg_temp_backup_path "$ENV{PKG_CONFIG_PATH}")
 	hunter_add_package(${ARGV})
+
 	if("${pkg_temp_backup_path}" STREQUAL "")
 		unset(ENV{PKG_CONFIG_PATH})
 	else()
 		set(ENV{PKG_CONFIG_PATH} "${pkg_temp_backup_path}")
 	endif()
+
 	if("${pkg_temp_backup_libdir}" STREQUAL "")
 		unset(ENV{PKG_CONFIG_LIBDIR})
 	else()
 		set(ENV{PKG_CONFIG_LIBDIR} "${pkg_temp_backup_libdir}")
 	endif()
+
 	message("pkg_conf_path: '$ENV{PKG_CONFIG_PATH}', pkg_conf_libdir: '$ENV{PKG_CONFIG_LIBDIR}'")
 endmacro()
 
@@ -87,8 +90,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
 	message("Adding FetchContent_MakeAvailable")
 	# from cmakes sources
+
 	macro(FetchContent_MakeAvailable)
 		foreach(contentName IN ITEMS ${ARGV})
+		
 			string(TOLOWER ${contentName} contentNameLower)
 			FetchContent_GetProperties(${contentName})
 			if(NOT ${contentNameLower}_POPULATED)
@@ -194,6 +199,7 @@ if(USE_BUNDLED_COEURL)
 		coeurl
 		GIT_REPOSITORY https://nheko.im/Nheko-Reborn/coeurl.git
 		GIT_TAG f989f3c54c1ca15e29c5bd6b1ce4efbcb3fd8078)
+
 	FetchContent_MakeAvailable(coeurl)
 	set(COEURL_TARGET_NAME coeurl::coeurl)
 else()

@@ -9,7 +9,15 @@ pub fn format_functiondef(
     let mut output = String::new();
     let mut cursor = input.walk();
     let mut not_format = false;
+    let mut start_line = input.start_position().row;
     for child in input.children(&mut cursor) {
+        let child_start_line = child.start_position().row;
+        if start_line != child_start_line {
+            for _ in start_line..child_start_line {
+                output.push('\n');
+            }
+            start_line = child.end_position().row;
+        }
         match child.kind() {
             "function_command" => {
                 let childy = child.start_position().row;
