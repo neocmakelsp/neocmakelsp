@@ -88,7 +88,12 @@ pub fn get_format_from_root_node(
     }
 }
 
-pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> {
+pub fn get_format_cli(
+    input: tree_sitter::Node,
+    source: &str,
+    spacelen: u32,
+    usespace: bool,
+) -> Option<String> {
     if input.has_error() {
         None
     } else {
@@ -105,7 +110,7 @@ pub fn get_format_cli(input: tree_sitter::Node, source: &str) -> Option<String> 
                 if is_notformat_mark(child, source) {
                     not_format = true;
                 }
-                get_format_from_node(child, source, 2, false)
+                get_format_from_node(child, source, spacelen, usespace)
             };
             for _ in startline..childstartline {
                 new_text.push('\n');

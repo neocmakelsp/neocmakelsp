@@ -22,8 +22,8 @@ target_include_directories(ss PUBLIC
 
 if(A)
 	target_link_libraries(ss PUBLIC
-			${DtkGui_LIBRARIES}
-			PkgConfig::libevent_core)
+		${DtkGui_LIBRARIES}
+		PkgConfig::libevent_core)
 	# Not Format Me
 	target_include_directories(ss PUBLIC
 		${DtkGui_INCLUDE_DIRS}
@@ -32,8 +32,8 @@ endif()
 
 foreach()
 	target_link_libraries(ss PUBLIC
-			${DtkGui_LIBRARIES}
-			PkgConfig::libevent_core)
+		${DtkGui_LIBRARIES}
+		PkgConfig::libevent_core)
 	# Not Format Me
 	target_include_directories(ss PUBLIC
 		${DtkGui_INCLUDE_DIRS}

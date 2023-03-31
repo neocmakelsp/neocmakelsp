@@ -13,22 +13,33 @@ endif()
 option(FLATPAK "Set this only if Nheko is built as a flatpak" OFF)
 option(JSON_ImplicitConversions "Disable implicit conversions in nlohmann/json" ON)
 
-set(
-	CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/toolchain.cmake"
+set(CMAKE_TOOLCHAIN_FILE
+	"${CMAKE_CURRENT_LIST_DIR}/toolchain.cmake"
 	CACHE
 	FILEPATH "Default toolchain"
-	)
-set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard")
-set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "Require C++ standard to be supported")
-set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "compile as PIC by default")
+)
+set(CMAKE_CXX_STANDARD
+	20
+	CACHE
+	STRING "C++ standard"
+)
+set(CMAKE_CXX_STANDARD_REQUIRED
+	ON
+	CACHE
+	BOOL "Require C++ standard to be supported"
+)
+set(CMAKE_POSITION_INDEPENDENT_CODE
+	ON
+	CACHE
+	BOOL "compile as PIC by default"
+)
 
 option(HUNTER_ENABLED "Enable Hunter package manager" OFF)
 include("cmake/HunterGate.cmake")
 HunterGate(
-    URL "https://github.com/cpp-pm/hunter/archive/v0.24.8.tar.gz"
-    SHA1 "ca7838dded9a1811b04ffd56175f629e0af82d3d"
-    LOCAL
-)
+	URL "https://github.com/cpp-pm/hunter/archive/v0.24.8.tar.gz"
+	SHA1 "ca7838dded9a1811b04ffd56175f629e0af82d3d"
+	LOCAL)
 
 macro(hunter_add_package_safe)
 	set(pkg_temp_backup_libdir "$ENV{PKG_CONFIG_LIBDIR}")
@@ -77,13 +88,11 @@ if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
 	message("Adding FetchContent_MakeAvailable")
 	# from cmakes sources
 	macro(FetchContent_MakeAvailable)
-
 		foreach(contentName IN ITEMS ${ARGV})
 			string(TOLOWER ${contentName} contentNameLower)
 			FetchContent_GetProperties(${contentName})
 			if(NOT ${contentNameLower}_POPULATED)
 				FetchContent_Populate(${contentName})
-
 				# Only try to call add_subdirectory() if the populated content
 				# can be treated that way. Protecting the call with the check
 				# allows this function to be used for projects that just want
@@ -95,14 +104,15 @@ if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
 				endif()
 			endif()
 		endforeach()
-
 	endmacro()
 endif()
 
 # Include Qt basic functions
 include(QtCommon)
 
-project(nheko LANGUAGES CXX C)
+project(nheko
+	LANGUAGES CXX C
+)
 
 include(GNUInstallDirs)
 
@@ -131,18 +141,15 @@ endif()
 
 if (BUILD_DOCS)
 	find_package(Doxygen)
-
 	if (DOXYGEN_FOUND)
 		set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Doxyfile.in)
 		set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-
 		configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT})
-
 		add_custom_target(docs ALL
 			COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 			COMMENT "Generating API documentation with Doxygen"
-			VERBATIM )
+			VERBATIM)
 	else (DOXYGEN_FOUND)
 		message("Doxygen need to be installed to generate the doxygen documentation")
 	endif (DOXYGEN_FOUND)
@@ -156,7 +163,7 @@ if (USE_BUNDLED_LIBEVENT)
 	hunter_add_package_safe(Libevent)
 	find_package(Libevent CONFIG REQUIRED)
 else()
-	find_package(PkgConfig REQUIRED) 
+	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(libevent_core REQUIRED IMPORTED_TARGET libevent_core)
 	if (WIN32)
 		pkg_check_modules(libevent_windows REQUIRED IMPORTED_TARGET libevent_windows)
@@ -171,7 +178,7 @@ if (USE_BUNDLED_LIBCURL)
 	hunter_add_package_safe(CURL)
 	find_package(CURL CONFIG REQUIRED)
 else()
-	find_package(PkgConfig REQUIRED) 
+	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(libcurl REQUIRED IMPORTED_TARGET libcurl)
 endif()
 
@@ -186,8 +193,7 @@ if(USE_BUNDLED_COEURL)
 	FetchContent_Declare(
 		coeurl
 		GIT_REPOSITORY https://nheko.im/Nheko-Reborn/coeurl.git
-		GIT_TAG        f989f3c54c1ca15e29c5bd6b1ce4efbcb3fd8078
-		)
+		GIT_TAG f989f3c54c1ca15e29c5bd6b1ce4efbcb3fd8078)
 	FetchContent_MakeAvailable(coeurl)
 	set(COEURL_TARGET_NAME coeurl::coeurl)
 else()
@@ -225,7 +231,6 @@ endif()
 if(USE_BUNDLED_LMDB)
 	hunter_add_package_safe(lmdb)
 	find_package(liblmdb CONFIG REQUIRED)
-
 	target_include_directories(liblmdb::lmdb INTERFACE
 		"${HUNTER_INSTALL_PREFIX}/include/lmdb")
 else()
@@ -244,14 +249,25 @@ if (USE_BUNDLED_QTKEYCHAIN)
 	FetchContent_Declare(
 		qt5keychain
 		GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git
-		GIT_TAG        v0.13.1
-		)
+		GIT_TAG v0.13.1)
 	if (BUILD_SHARED_LIBS)
-		set(QTKEYCHAIN_STATIC OFF CACHE INTERNAL "")
+		set(QTKEYCHAIN_STATIC
+			OFF
+			CACHE
+			INTERNAL ""
+		)
 	else()
-		set(QTKEYCHAIN_STATIC ON CACHE INTERNAL "")
+		set(QTKEYCHAIN_STATIC
+			ON
+			CACHE
+			INTERNAL ""
+		)
 	endif()
-	set(BUILD_TEST_APPLICATION OFF CACHE INTERNAL "")
+	set(BUILD_TEST_APPLICATION
+		OFF
+		CACHE
+		INTERNAL ""
+	)
 	FetchContent_MakeAvailable(qt5keychain)
 else()
 	find_package(Qt5Keychain REQUIRED)
@@ -270,6 +286,7 @@ endif(Qt5Widgets_FOUND)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 if(NOT MSVC)
+	# Not Format Me
 	set(
 		CMAKE_CXX_FLAGS
 		"${CMAKE_CXX_FLAGS} \
@@ -289,16 +306,16 @@ if(NOT MSVC)
 endif()
 
 if (MSVC)
-	set(
-		CMAKE_CXX_FLAGS
-		"${CMAKE_CXX_FLAGS} /bigobj"
-		)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 endif()
 
 if(NOT (CMAKE_BUILD_TYPE OR CMAKE_CONFIGURATION_TYPES))
-	set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
-		"Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
-		FORCE)
+	set(CMAKE_BUILD_TYPE
+		"Debug"
+		CACHE
+		STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+		FORCE
+	)
 	message("Setting build type to '${CMAKE_BUILD_TYPE}'")
 else(NOT (CMAKE_BUILD_TYPE OR CMAKE_CONFIGURATION_TYPES))
 	message("Build type set to '${CMAKE_BUILD_TYPE}'")
@@ -320,8 +337,7 @@ if(GIT)
 	execute_process(
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		COMMAND ${GIT} rev-parse --short HEAD
-		OUTPUT_VARIABLE GIT_OUT OUTPUT_STRIP_TRAILING_WHITESPACE
-		)
+		OUTPUT_VARIABLE GIT_OUT OUTPUT_STRIP_TRAILING_WHITESPACE)
 	if(GIT_OUT)
 		set(CPACK_PACKAGE_VERSION_PATCH "${CPACK_PACKAGE_VERSION_PATCH}-${GIT_OUT}")
 	else()
@@ -350,13 +366,11 @@ set(SRC_FILES
 	src/dialogs/FallbackAuth.h
 	src/dialogs/ReCaptcha.cpp
 	src/dialogs/ReCaptcha.h
-
 	# Emoji
 	src/emoji/EmojiModel.cpp
 	src/emoji/EmojiModel.h
 	src/emoji/Provider.cpp
 	src/emoji/Provider.h
-
 	# Timeline
 	src/timeline/CommunitiesModel.cpp
 	src/timeline/CommunitiesModel.h
@@ -380,7 +394,6 @@ set(SRC_FILES
 	src/timeline/TimelineModel.h
 	src/timeline/TimelineViewManager.cpp
 	src/timeline/TimelineViewManager.h
-
 	# UI components
 	src/ui/HiddenEvents.cpp
 	src/ui/HiddenEvents.h
@@ -408,14 +421,12 @@ set(SRC_FILES
 	src/ui/UIA.h
 	src/ui/UserProfile.cpp
 	src/ui/UserProfile.h
-
 	src/voip/CallDevices.cpp
 	src/voip/CallDevices.h
 	src/voip/CallManager.cpp
 	src/voip/CallManager.h
 	src/voip/WebRTCSession.cpp
 	src/voip/WebRTCSession.h
-
 	src/encryption/DeviceVerificationFlow.cpp
 	src/encryption/DeviceVerificationFlow.h
 	src/encryption/Olm.cpp
@@ -424,14 +435,11 @@ set(SRC_FILES
 	src/encryption/SelfVerificationStatus.h
 	src/encryption/VerificationManager.cpp
 	src/encryption/VerificationManager.h
-
 	# Generic notification stuff
 	src/notifications/Manager.cpp
 	src/notifications/Manager.h
-
 	src/dock/Dock.cpp
 	src/dock/Dock.h
-
 	src/AliasEditModel.cpp
 	src/AliasEditModel.h
 	src/AvatarProvider.cpp
@@ -499,11 +507,9 @@ set(SRC_FILES
 	src/UsersModel.h
 	src/Utils.cpp
 	src/Utils.h
-
 	includes/jdenticoninterface.h
-
 	src/main.cpp
-	)
+)
 
 include(FeatureSummary)
 
@@ -517,17 +523,19 @@ if(USE_BUNDLED_OLM)
 	FetchContent_Declare(
 		Olm
 		GIT_REPOSITORY https://gitlab.matrix.org/matrix-org/olm.git
-		GIT_TAG        3.2.12
-		)
-	set(OLM_TESTS OFF CACHE INTERNAL "")
+		GIT_TAG 3.2.12)
+	set(OLM_TESTS
+		OFF
+		CACHE
+		INTERNAL ""
+	)
 	FetchContent_MakeAvailable(Olm)
 else()
 	find_package(Olm 3.2.7 REQUIRED)
 	set_package_properties(Olm PROPERTIES
 		DESCRIPTION "An implementation of the Double Ratchet cryptographic ratchet"
 		URL "https://git.matrix.org/git/olm/about/"
-		TYPE REQUIRED
-		)
+		TYPE REQUIRED)
 endif()
 if(USE_BUNDLED_SPDLOG)
 	hunter_add_package_safe(spdlog)
@@ -539,9 +547,8 @@ if(USE_BUNDLED_CMARK)
 	FetchContent_Declare(
 		cmark
 		GIT_REPOSITORY https://github.com/commonmark/cmark.git
-		GIT_TAG        0.30.2
-		CMAKE_ARGS     "CMARK_STATIC=ON CMARK_SHARED=OFF CMARK_TESTS=OFF CMARK_TESTS=OFF"
-		)
+		GIT_TAG 0.30.2
+		CMAKE_ARGS "CMARK_STATIC=ON CMARK_SHARED=OFF CMARK_TESTS=OFF CMARK_TESTS=OFF")
 	FetchContent_MakeAvailable(cmark)
 	if (MSVC)
 		add_library(cmark::cmark ALIAS cmark)
@@ -559,8 +566,7 @@ find_package(nlohmann_json 3.2.0)
 set_package_properties(nlohmann_json PROPERTIES
 	DESCRIPTION "JSON for Modern C++, a C++11 header-only JSON class"
 	URL "https://nlohmann.github.io/json/"
-	TYPE REQUIRED
-	)
+	TYPE REQUIRED)
 
 if(USE_BUNDLED_LMDBXX)
 	include(FetchContent)
@@ -569,8 +575,7 @@ if(USE_BUNDLED_LMDBXX)
 		URL "https://raw.githubusercontent.com/hoytech/lmdbxx/1.0.0/lmdb++.h"
 		DOWNLOAD_NO_EXTRACT TRUE
 		CONFIGURE_COMMAND ""
-		BUILD_COMMAND ""
-		)
+		BUILD_COMMAND "")
 	FetchContent_Populate(lmdbxx)
 	add_library(lmdbxx INTERFACE)
 	target_include_directories(lmdbxx INTERFACE ${lmdbxx_SOURCE_DIR})
@@ -583,7 +588,6 @@ else()
 			/usr/local/include
 			$ENV{LIB_DIR}/include
 			$ENV{LIB_DIR}/include/lmdbxx)
-
 	endif()
 	add_library(lmdbxx INTERFACE)
 	target_include_directories(lmdbxx INTERFACE ${LMDBXX_INCLUDE_DIR})
@@ -594,11 +598,18 @@ if(USE_BUNDLED_MTXCLIENT)
 	include(FetchContent)
 	FetchContent_Declare(
 		MatrixClient
-                GIT_REPOSITORY https://github.com/Nheko-Reborn/mtxclient.git
-                GIT_TAG        79dcdbb8daad2efb06147e136702a12cd8877aba
-		)
-	set(BUILD_LIB_EXAMPLES OFF CACHE INTERNAL "")
-	set(BUILD_LIB_TESTS OFF CACHE INTERNAL "")
+		GIT_REPOSITORY https://github.com/Nheko-Reborn/mtxclient.git
+		GIT_TAG 79dcdbb8daad2efb06147e136702a12cd8877aba)
+	set(BUILD_LIB_EXAMPLES
+		OFF
+		CACHE
+		INTERNAL ""
+	)
+	set(BUILD_LIB_TESTS
+		OFF
+		CACHE
+		INTERNAL ""
+	)
 	FetchContent_MakeAvailable(MatrixClient)
 else()
 	find_package(MatrixClient 0.8.1 REQUIRED)
@@ -613,7 +624,11 @@ if (VOIP)
 endif()
 
 # single instance functionality
-set(QAPPLICATION_CLASS QApplication CACHE STRING "Inheritance class for SingleApplication")
+set(QAPPLICATION_CLASS
+	QApplication
+	CACHE
+	STRING "Inheritance class for SingleApplication"
+)
 add_subdirectory(third_party/SingleApplication-3.3.2/)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
@@ -627,51 +642,68 @@ endif()
 # Bundle translations.
 #
 include(Translations)
-set(TRANSLATION_DEPS ${LANG_QRC} ${QRC} ${QM_SRC})
+set(TRANSLATION_DEPS
+	${LANG_QRC}
+	${QRC}
+	${QM_SRC}
+)
 
 if (APPLE)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Foundation -framework Cocoa -framework UserNotifications")
-	set(SRC_FILES ${SRC_FILES} src/notifications/NotificationManagerProxy.h src/notifications/MacNotificationDelegate.h src/notifications/MacNotificationDelegate.mm src/notifications/ManagerMac.mm src/notifications/ManagerMac.cpp src/emoji/MacHelper.mm src/emoji/MacHelper.h)
+	set(SRC_FILES
+		${SRC_FILES}
+		src/notifications/NotificationManagerProxy.h
+		src/notifications/MacNotificationDelegate.h
+		src/notifications/MacNotificationDelegate.mm
+		src/notifications/ManagerMac.mm
+		src/notifications/ManagerMac.cpp
+		src/emoji/MacHelper.mm
+		src/emoji/MacHelper.h
+	)
 	if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
-		set_source_files_properties( src/notifications/NotificationManagerProxy.h src/notifications/MacNotificationDelegate.h src/notifications/MacNotificationDelegate.mm src/notifications/ManagerMac.mm src/emoji/MacHelper.mm src/emoji/MacHelper.h PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+		set_source_files_properties(src/notifications/NotificationManagerProxy.h src/notifications/MacNotificationDelegate.h src/notifications/MacNotificationDelegate.mm src/notifications/ManagerMac.mm src/emoji/MacHelper.mm src/emoji/MacHelper.h PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 	endif()
 elseif (WIN32)
 	file(DOWNLOAD
 		"https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.cpp"
 		${PROJECT_SOURCE_DIR}/src/wintoastlib.cpp
 		EXPECTED_HASH SHA256=1A1A7CE41C1052B12946798F4A6C67CE1FAD209C967F5ED4D720B173527E2073)
-
 	file(DOWNLOAD
 		"https://raw.githubusercontent.com/mohabouje/WinToast/41ed1c58d5dce0ee9c01dbdeac05be45358d4f57/src/wintoastlib.h"
 		${PROJECT_SOURCE_DIR}/src/wintoastlib.h
 		EXPECTED_HASH SHA256=b4481023c5782733795838be22bf1a75f45d87458cd4d9a5a75f664a146eea11)
-
-	set(SRC_FILES ${SRC_FILES} src/notifications/ManagerWin.cpp src/wintoastlib.cpp src/wintoastlib.h)
+	set(SRC_FILES
+		${SRC_FILES}
+		src/notifications/ManagerWin.cpp
+		src/wintoastlib.cpp
+		src/wintoastlib.h
+	)
 else ()
-	set(SRC_FILES ${SRC_FILES}
-        src/dbus/NhekoDBusApi.h
-        src/dbus/NhekoDBusBackend.h
-        src/dbus/NhekoDBusApi.cpp
-        src/dbus/NhekoDBusBackend.cpp
-        src/notifications/ManagerLinux.cpp
-        )
+	set(SRC_FILES
+		${SRC_FILES}
+		src/dbus/NhekoDBusApi.h
+		src/dbus/NhekoDBusBackend.h
+		src/dbus/NhekoDBusApi.cpp
+		src/dbus/NhekoDBusBackend.cpp
+		src/notifications/ManagerLinux.cpp
+	)
 endif ()
 
 set(NHEKO_DEPS
 	${SRC_FILES}
 	${TRANSLATION_DEPS}
-	${META_FILES_TO_INCLUDE})
+	${META_FILES_TO_INCLUDE}
+)
 
 if(ASAN)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
 endif()
 
 if(WIN32)
-	add_executable (nheko WIN32 ${OS_BUNDLE} ${NHEKO_DEPS})
+	add_executable(nheko WIN32 ${OS_BUNDLE} ${NHEKO_DEPS})
 	target_compile_definitions(nheko PRIVATE _WIN32_WINNT=0x0601 NOMINMAX WIN32_LEAN_AND_MEAN STRICT)
 else()
-	add_executable (nheko ${OS_BUNDLE} ${NHEKO_DEPS})
-
+	add_executable(nheko ${OS_BUNDLE} ${NHEKO_DEPS})
 	if (HAVE_BACKTRACE_SYMBOLS_FD AND NOT CMAKE_BUILD_TYPE STREQUAL "Release")
 		set_target_properties(nheko PROPERTIES ENABLE_EXPORTS ON)
 	endif()
@@ -679,19 +711,19 @@ endif()
 
 set_target_properties(nheko
 	PROPERTIES
-		CMAKE_SKIP_INSTALL_RPATH TRUE
-		AUTOMOC ON)
+	CMAKE_SKIP_INSTALL_RPATH TRUE
+	AUTOMOC ON)
 
 if(APPLE)
-	target_link_libraries (nheko PRIVATE Qt5::MacExtras)
+	target_link_libraries(nheko PRIVATE Qt5::MacExtras)
 elseif(WIN32)
 	target_compile_definitions(nheko PRIVATE WIN32_LEAN_AND_MEAN)
-	target_link_libraries (nheko PRIVATE ${NTDLIB} Qt5::WinMain)
+	target_link_libraries(nheko PRIVATE ${NTDLIB} Qt5::WinMain)
 	if(MSVC)
 		target_compile_options(nheko PUBLIC "/Zc:__cplusplus")
 	endif()
 else()
-	target_link_libraries (nheko PRIVATE Qt5::DBus)
+	target_link_libraries(nheko PRIVATE Qt5::DBus)
 	if (FLATPAK)
 		target_compile_definitions(nheko PRIVATE NHEKO_FLATPAK)
 	endif()
@@ -702,7 +734,7 @@ set(THIRD_PARTY_SRC_FILES
 	third_party/blurhash/blurhash.cpp
 	third_party/blurhash/blurhash.hpp
 	third_party/cpp-httplib-0.5.12/httplib.h
-	)
+)
 target_sources(nheko PRIVATE ${THIRD_PARTY_SRC_FILES})
 
 # Fixup bundled keychain include dirs
@@ -712,8 +744,7 @@ endif()
 
 if (NOT JSON_ImplicitConversions)
 	set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-					INTERFACE_COMPILE_DEFINITIONS "JSON_USE_IMPLICIT_CONVERSIONS=\$<BOOL:OFF>;JSON_DIAGNOSTICS=\$<BOOL:OFF>"
-					)
+		INTERFACE_COMPILE_DEFINITIONS "JSON_USE_IMPLICIT_CONVERSIONS=\$<BOOL:OFF>;JSON_DIAGNOSTICS=\$<BOOL:OFF>")
 	target_compile_definitions(nheko PUBLIC JSON_USE_IMPLICIT_CONVERSIONS=0)
 endif()
 
@@ -739,8 +770,7 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
 	target_precompile_headers(nheko
 		PRIVATE
 		<string>
-		<algorithm>
-		)
+		<algorithm>)
 endif()
 
 if (TARGET PkgConfig::GSTREAMER)
@@ -782,23 +812,20 @@ if(UNIX AND NOT APPLE)
 	else()
 		set(APPID "nheko")
 	endif()
-
-	install (TARGETS nheko RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-	install (FILES "resources/nheko-16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-64.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko-512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "${APPID}.png")
-	install (FILES "resources/nheko.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps" RENAME "${APPID}.svg")
-	install (FILES "resources/_nheko" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/zsh/site-functions")
-
+	install(TARGETS nheko RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+	install(FILES "resources/nheko-16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-64.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko-512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "${APPID}.png")
+	install(FILES "resources/nheko.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps" RENAME "${APPID}.svg")
+	install(FILES "resources/_nheko" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/zsh/site-functions")
 	configure_file("resources/nheko.desktop.in" "resources/nheko.desktop" @ONLY)
-	install (FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/nheko.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" RENAME "${APPID}.desktop")
+	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/nheko.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" RENAME "${APPID}.desktop")
 	configure_file("resources/nheko.appdata.xml.in" "resources/nheko.appdata.xml" @ONLY)
-	install (FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/nheko.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" RENAME "${APPID}.appdata.xml")
-
+	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/nheko.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo" RENAME "${APPID}.appdata.xml")
 	if(NOT TARGET uninstall)
 		configure_file(
 			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"

@@ -2,6 +2,7 @@ use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 //use std::process::Command;
+use ini::Ini;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::*;
@@ -28,6 +29,24 @@ struct Backend {
     client: Client,
     /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
+}
+
+fn editconfig_setting() -> Option<(bool, u32)> {
+    let editconfig_path = std::path::Path::new(".editorconfig");
+    if !editconfig_path.exists() {
+        return None;
+    }
+    let conf = Ini::load_from_file(editconfig_path).unwrap();
+
+    let Some(cmakesession) = conf.section(Some("CMakeLists.txt")) else {
+        return None;
+    };
+
+    let indent_style = cmakesession.get("indent_style").unwrap_or("space");
+    let indent_size = cmakesession.get("indent_size").unwrap_or("2");
+    let indent_size: u32 = indent_size.parse().unwrap_or(2);
+
+    Some((indent_style == "space", indent_size))
 }
 
 #[tokio::main]
@@ -117,6 +136,7 @@ async fn main() {
                 .get_one::<String>("FormatPath")
                 .expect("Cannot get globpattern");
             let hasoverride = sub_matches.get_flag("override");
+            let (usespace, spacelen) = editconfig_setting().unwrap_or((true, 2));
             let formatpattern = |pattern: &str| {
                 for filepath in glob::glob(pattern)
                     .unwrap_or_else(|_| panic!("error pattern"))
@@ -138,7 +158,7 @@ async fn main() {
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(tree_sitter_cmake::language()).unwrap();
                     let tree = parse.parse(&buf, None).unwrap();
-                    match formatting::get_format_cli(tree.root_node(), &buf) {
+                    match formatting::get_format_cli(tree.root_node(), &buf, spacelen, usespace) {
                         Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
@@ -184,7 +204,7 @@ async fn main() {
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(tree_sitter_cmake::language()).unwrap();
                     let tree = parse.parse(&buf, None).unwrap();
-                    match formatting::get_format_cli(tree.root_node(), &buf) {
+                    match formatting::get_format_cli(tree.root_node(), &buf, spacelen, usespace) {
                         Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
