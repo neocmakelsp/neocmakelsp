@@ -13,7 +13,7 @@ pub fn format_functiondef(
     for child in input.children(&mut cursor) {
         let child_start_line = child.start_position().row;
         if start_line != child_start_line {
-            for _ in start_line..child_start_line {
+            for _ in start_line..child_start_line - 1 {
                 output.push('\n');
             }
             start_line = child.end_position().row;
