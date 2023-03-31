@@ -74,7 +74,17 @@ async fn main() {
                 .long_flag("format")
                 .short_flag('F')
                 .about("format the file")
-                .arg(arg!(<PATH> ... "path to format").value_parser(clap::value_parser!(PathBuf))),
+                .arg(
+                    arg!(<FoldPath> ... "glob pattern to format")
+                        .value_parser(clap::value_parser!(String)),
+                )
+                .arg(
+                    Arg::new("override")
+                        .long("override")
+                        .short('o')
+                        .action(ArgAction::SetTrue)
+                        .help("override"),
+                ),
         )
         .subcommand(
             Command::new("tree")
@@ -104,18 +114,54 @@ async fn main() {
         }
         Some(("format", sub_matches)) => {
             let path = sub_matches
-                .get_one::<PathBuf>("PATH")
-                .expect("Cannot get path");
-            let mut file = std::fs::File::open(path).unwrap();
-            let mut buf = String::new();
-            file.read_to_string(&mut buf).unwrap();
-            let mut parse = tree_sitter::Parser::new();
-            parse.set_language(tree_sitter_cmake::language()).unwrap();
-            let tree = parse.parse(&buf, None).unwrap();
-            match formatting::get_format_cli(tree.root_node(), &buf) {
-                Some(context) => println!("{context}"),
-                None => println!("There is error in File"),
-            }
+                .get_one::<String>("FoldPath")
+                .expect("Cannot get globpattern");
+            let hasoverride = sub_matches.get_flag("override");
+            let formatpattern = |pattern: &str| {
+                for filepath in glob::glob(pattern)
+                    .unwrap_or_else(|_| panic!("error pattern"))
+                    .flatten()
+                {
+                    let mut file = match std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(hasoverride)
+                        .open(&filepath)
+                    {
+                        Ok(file) => file,
+                        Err(e) => {
+                            println!("cannot read file {} :{e}", filepath.display());
+                            continue;
+                        }
+                    };
+                    let mut buf = String::new();
+                    file.read_to_string(&mut buf).unwrap();
+                    let mut parse = tree_sitter::Parser::new();
+                    parse.set_language(tree_sitter_cmake::language()).unwrap();
+                    let tree = parse.parse(&buf, None).unwrap();
+                    match formatting::get_format_cli(tree.root_node(), &buf) {
+                        Some(context) => {
+                            if hasoverride {
+                                if let Err(e) = file.seek(std::io::SeekFrom::Start(0)) {
+                                    println!("Cannot clear the file: {e}");
+                                };
+                                let Ok(_) = file.write_all(context.as_bytes()) else {
+                                    println!("cannot write in {}",filepath.display());
+                                    continue;
+                                };
+                                let _ = file.flush();
+                            } else {
+                                println!("here");
+                                println!("{context}")
+                            }
+                        }
+                        None => {
+                            println!("There is error in file");
+                        }
+                    }
+                }
+            };
+            formatpattern(&format!("./{}/**/*.cmake", path));
+            formatpattern(&format!("./{}/**/CMakeLists.txt", path));
         }
         Some(("tree", sub_matches)) => {
             let path = sub_matches
