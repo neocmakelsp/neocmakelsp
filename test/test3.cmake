@@ -261,6 +261,7 @@ if (Qt5Widgets_FOUND)
 endif(Qt5Widgets_FOUND)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 if(NOT MSVC)
+	# Not Format Me
 	set(CMAKE_CXX_FLAGS
 	"${CMAKE_CXX_FLAGS} \
 	    -Wall \

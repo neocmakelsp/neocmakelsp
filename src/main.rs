@@ -58,10 +58,15 @@ fn editconfig_setting() -> Option<(bool, u32)> {
     };
 
     let indent_style = cmakesession.get("indent_style").unwrap_or("space");
+    let usespace = indent_style == "space";
     let indent_size = cmakesession.get("indent_size").unwrap_or("2");
-    let indent_size: u32 = indent_size.parse().unwrap_or(2);
+    let indent_size: u32 = if usespace {
+        indent_size.parse::<u32>().unwrap_or(2)
+    } else {
+        1
+    };
 
-    Some((indent_style == "space", indent_size))
+    Some((usespace, indent_size))
 }
 
 #[tokio::main]
@@ -186,7 +191,8 @@ async fn main() {
                     parse.set_language(tree_sitter_cmake::language()).unwrap();
                     let tree = parse.parse(&buf, None).unwrap();
                     match formatting::get_format_cli(tree.root_node(), &buf, spacelen, usespace) {
-                        Some(context) => {
+                        Some(mut context) => {
+                            context.push('\n');
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
                                     println!("Cannot clear the file: {e}");
