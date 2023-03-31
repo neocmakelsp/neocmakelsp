@@ -75,7 +75,7 @@ async fn main() {
                 .short_flag('F')
                 .about("format the file")
                 .arg(
-                    arg!(<FoldPath> ... "glob pattern to format")
+                    arg!(<FormatPath> ... "file or folder to format")
                         .value_parser(clap::value_parser!(String)),
                 )
                 .arg(
@@ -113,8 +113,8 @@ async fn main() {
             }
         }
         Some(("format", sub_matches)) => {
-            let path = sub_matches
-                .get_one::<String>("FoldPath")
+            let filepath = sub_matches
+                .get_one::<String>("FormatPath")
                 .expect("Cannot get globpattern");
             let hasoverride = sub_matches.get_flag("override");
             let formatpattern = |pattern: &str| {
@@ -153,8 +153,10 @@ async fn main() {
                                 };
                                 let _ = file.flush();
                             } else {
-                                println!("here");
-                                println!("{context}")
+                                println!("== Format of file {} is ==", filepath.display());
+                                println!("{context}");
+                                println!("== End ==");
+                                println!("");
                             }
                         }
                         None => {
@@ -163,8 +165,52 @@ async fn main() {
                     }
                 }
             };
-            formatpattern(&format!("./{}/**/*.cmake", path));
-            formatpattern(&format!("./{}/**/CMakeLists.txt", path));
+            let toformatpath = std::path::Path::new(filepath);
+            if toformatpath.exists() {
+                if toformatpath.is_file() {
+                    let mut file = match std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(hasoverride)
+                        .open(&filepath)
+                    {
+                        Ok(file) => file,
+                        Err(e) => {
+                            println!("cannot read file {} :{e}", filepath);
+                            return;
+                        }
+                    };
+                    let mut buf = String::new();
+                    file.read_to_string(&mut buf).unwrap();
+                    let mut parse = tree_sitter::Parser::new();
+                    parse.set_language(tree_sitter_cmake::language()).unwrap();
+                    let tree = parse.parse(&buf, None).unwrap();
+                    match formatting::get_format_cli(tree.root_node(), &buf) {
+                        Some(context) => {
+                            if hasoverride {
+                                if let Err(e) = file.set_len(0) {
+                                    println!("Cannot clear the file: {e}");
+                                };
+                                if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
+                                    println!("Cannot jump to end: {e}");
+                                };
+                                let Ok(_) = file.write_all(context.as_bytes()) else {
+                                    println!("cannot write in {}",filepath);
+                                    return;
+                                };
+                                let _ = file.flush();
+                            } else {
+                                println!("{context}")
+                            }
+                        }
+                        None => {
+                            println!("There is error in file");
+                        }
+                    }
+                } else {
+                    formatpattern(&format!("./{}/**/*.cmake", filepath));
+                    formatpattern(&format!("./{}/**/CMakeLists.txt", filepath));
+                }
+            }
         }
         Some(("tree", sub_matches)) => {
             let path = sub_matches
