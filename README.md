@@ -73,6 +73,7 @@ new version will not work on mac and windows, so I need your help
 	* include
 * Search cli
 * Get the project struct
+* It is also a cli tool to format
 
 ### If you want to use watchfile in neovim, use the nightly one, and set
 
@@ -111,3 +112,28 @@ It will check CMakeCache.txt, and get weather the package is exist
 
 ### Tree
 ![TreeShow](images/tree.png)
+
+### Format cli
+
+```
+format the file
+
+Usage: neocmakelsp {format|--format|-F} [OPTIONS] <FormatPath>...
+
+Arguments:
+  <FormatPath>...  file or folder to format
+
+Options:
+  -o, --override  override
+  -h, --help      Print help
+```
+
+It will read .editconfig file to format files, just set like
+
+```ini
+[CMakeLists.txt]
+indent_style = tab
+indent_size = 2
+```
+
+If you don't want to format a part, just comment `Not Format Me` before that block
