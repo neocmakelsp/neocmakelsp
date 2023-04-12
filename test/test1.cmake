@@ -10,9 +10,17 @@ endif ()
 add_subdirectory(src/game)
 add_subdirectory(src/backend)
 add_subdirectory(src/pingit)
-if (STARTTEST)
-	add_subdirectory(tests)
-endif ()
+if(AA
+	AND CC)
+
+
+	if(STARTTEST
+		AND B)
+
+
+		add_subdirectory(tests)
+	endif ()
+endif()
 find_package(DtkCore)
 include(./test2.cmake)
 include(GNUInstallDirs)

@@ -12,8 +12,14 @@ pub fn format_ifcondition(
     let mut start_line = input.start_position().row;
     for child in input.children(&mut cursor) {
         let child_start_line = child.start_position().row;
+        let child_end_line = child.end_position().row;
         if start_line != child_start_line {
             for _ in start_line..child_start_line - 1 {
+                output.push('\n');
+            }
+            start_line = child.end_position().row;
+        } else if child_end_line != child_start_line {
+            for _ in start_line..child_end_line - 1 {
                 output.push('\n');
             }
             start_line = child.end_position().row;
@@ -21,11 +27,34 @@ pub fn format_ifcondition(
 
         match child.kind() {
             "if_command" => {
-                let childy = child.start_position().row;
-                let startx = child.start_position().column;
-                let endx = child.end_position().column;
-                let new_text = &newsource[childy][startx..endx];
-                output.push_str(new_text);
+                let mut ifcommandtext = String::new();
+                let mut ifcursor = child.walk();
+                let childverybegin = child.start_position().row;
+                let mut childstarty = child.start_position().row;
+                let mut childstartx = child.start_position().column;
+                let mut childendx = child.start_position().column;
+                macro_rules! formatifcommand {
+                    () => {
+                        let new_text = &newsource[childstarty][childstartx..childendx];
+                        if childstarty != childverybegin {
+                            ifcommandtext.push('\n');
+                            ifcommandtext.push_str(&space);
+                        }
+                        ifcommandtext.push_str(&new_text);
+                    };
+                }
+                for ifchild in child.children(&mut ifcursor) {
+                    if ifchild.start_position().row != childstarty {
+                        formatifcommand!();
+                        childstarty = ifchild.start_position().row;
+                        childstartx = ifchild.start_position().column;
+                        childendx = ifchild.end_position().column;
+                    } else {
+                        childendx = ifchild.end_position().column;
+                    }
+                }
+                formatifcommand!();
+                output.push_str(&ifcommandtext);
             }
             "endif_command" | "else_command" | "elseif_command" => {
                 let childy = child.start_position().row;
