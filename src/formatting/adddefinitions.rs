@@ -17,9 +17,14 @@ pub fn format_definition(input: tree_sitter::Node, source: &str) -> String {
         } else if new_text == "(" {
             output.push('(');
         } else if new_text == ")" {
+            // NOTE: pop the more " "
+            output.pop();
             output.push(')');
         } else {
             output.push_str(&new_text);
+            if !new_text.ends_with('=') {
+                output.push(' ');
+            }
         }
     }
     output

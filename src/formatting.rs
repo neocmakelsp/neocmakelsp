@@ -228,7 +228,9 @@ impl CommandType {
                 let name = &newsource[h][x..y].to_lowercase();
                 let name = name.as_str();
                 match name {
-                    "add_definitions" | "add_compile_definitions" => CommandType::AddDefinitions,
+                    "add_definitions"
+                    | "add_compile_definitions"
+                    | "target_compile_definitions" => CommandType::AddDefinitions,
                     //"option" => CommandType::Option,
                     "project" => CommandType::Project,
                     //"find_package" => CommandType::FindPackage,
