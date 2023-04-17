@@ -6,7 +6,6 @@ mod loopdef;
 mod macrodef;
 mod othercommand;
 mod project;
-mod set;
 
 const NOT_FORMAT_ME: &str = "# Not Format Me";
 
@@ -143,7 +142,6 @@ fn get_format_from_node(
 ) -> String {
     match CommandType::from_node(input, source) {
         CommandType::Project => project::format_project(input, source, spacelen, usespace),
-        CommandType::Set => set::format_set(input, source, spacelen, usespace),
         CommandType::AddDefinitions => adddefinitions::format_definition(input, source),
         CommandType::OtherCommand => {
             othercommand::format_othercommand(input, source, spacelen, usespace)
@@ -201,7 +199,6 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
 
 #[derive(Debug, PartialEq)]
 enum CommandType {
-    Set,
     //Option,
     Project,
     AddDefinitions,
@@ -231,7 +228,6 @@ impl CommandType {
                 let name = &newsource[h][x..y].to_lowercase();
                 let name = name.as_str();
                 match name {
-                    "set" => CommandType::Set,
                     "add_definitions" | "add_compile_definitions" => CommandType::AddDefinitions,
                     //"option" => CommandType::Option,
                     "project" => CommandType::Project,
@@ -243,21 +239,6 @@ impl CommandType {
             _ => Self::OtherCommand,
         }
     }
-}
-
-#[test]
-fn tst_type() {
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
-    let tree = parse.parse("set(A 10)", None).unwrap();
-    let node = tree.root_node().child(0).unwrap();
-    assert_eq!(CommandType::Set, CommandType::from_node(node, "set(A 10)"));
-    let tree = parse.parse("project(Mime)", None).unwrap();
-    let node = tree.root_node().child(0).unwrap();
-    assert_eq!(
-        CommandType::Project,
-        CommandType::from_node(node, "project(Mime)")
-    );
 }
 
 fn node_to_string(node: tree_sitter::Node, source: &str) -> String {
