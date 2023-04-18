@@ -189,22 +189,22 @@ fn getsubcomplete(
                 } else if name == "mark_as_advanced" {
                     let mut advancedwalk = child.walk();
                     for identifier in child.children(&mut advancedwalk) {
-                        if identifier.kind() == "argument" {
-                            if identifier.start_position().row == identifier.end_position().row {
-                                let startx = identifier.start_position().column;
-                                let endx = identifier.end_position().column;
-                                let row = identifier.start_position().row;
-                                let variable = &newsource[row][startx..endx];
-                                complete.push(CompletionItem {
-                                    label: variable.to_string(),
-                                    kind: Some(CompletionItemKind::VARIABLE),
-                                    detail: Some(format!(
-                                        "defined var\nfrom: {}",
-                                        local_path.file_name().unwrap().to_str().unwrap()
-                                    )),
-                                    ..Default::default()
-                                });
-                            }
+                        if identifier.kind() == "argument"
+                            && identifier.start_position().row == identifier.end_position().row
+                        {
+                            let startx = identifier.start_position().column;
+                            let endx = identifier.end_position().column;
+                            let row = identifier.start_position().row;
+                            let variable = &newsource[row][startx..endx];
+                            complete.push(CompletionItem {
+                                label: variable.to_string(),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some(format!(
+                                    "defined var\nfrom: {}",
+                                    local_path.file_name().unwrap().to_str().unwrap()
+                                )),
+                                ..Default::default()
+                            });
                         }
                     }
                 } else {
