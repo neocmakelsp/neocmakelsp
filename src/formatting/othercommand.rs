@@ -30,6 +30,9 @@ pub fn format_othercommand(
             if nodecount > 3 {
                 output.pop();
             }
+            if starty > localline {
+                output.push('\n');
+            }
             output.push(')');
         } else if starty > localline {
             if !beforeisleftblank {
