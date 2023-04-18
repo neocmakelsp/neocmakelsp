@@ -208,6 +208,7 @@ enum CommandType {
     FunctionDef,
     Loop,
     LineComment,
+    BranketComment,
     OtherCommand,
 }
 
@@ -237,6 +238,7 @@ impl CommandType {
                     _ => Self::OtherCommand,
                 }
             }
+            "bracket_comment" => Self::BranketComment,
             "line_comment" => Self::LineComment,
             _ => Self::OtherCommand,
         }
