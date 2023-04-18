@@ -7,6 +7,19 @@ use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 use std::path::{Path, PathBuf};
+pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
+    doc.lines()
+        .filter(|line| line.starts_with(".. command:: "))
+        .map(|line| &line[13..])
+        .map(|line| CompletionItem {
+            label: line.to_string(),
+            kind: Some(CompletionItemKind::MODULE),
+            detail: Some(format!("defined command from {filename}")),
+            ..Default::default()
+        })
+        .collect()
+}
+
 /// get the complet messages
 pub async fn getcomplete(
     source: &str,
@@ -90,6 +103,18 @@ fn getsubcomplete(
             }
         }
         match child.kind() {
+            "bracket_comment" => {
+                let start_y = child.start_position().row;
+                let end_y = child.end_position().row;
+                let mut output = String::new();
+                for item in newsource.iter().take(end_y).skip(start_y + 1) {
+                    output.push_str(&format!("{item}\n"));
+                }
+                complete.append(&mut rst_doc_read(
+                    output,
+                    local_path.file_name().unwrap().to_str().unwrap(),
+                ));
+            }
             "function_def" => {
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
@@ -138,7 +163,6 @@ fn getsubcomplete(
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = newsource[h][x..y].to_lowercase();
-
                 if name == "include" && child.child_count() >= 3 {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
@@ -146,14 +170,40 @@ fn getsubcomplete(
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &newsource[h][x..y];
-                        if name.split('.').count() != 1 {
-                            let subpath = local_path.parent().unwrap().join(name);
-                            if let Ok(true) = cmake_try_exists(&subpath) {
-                                if let Some(mut comps) =
-                                    includescanner::scanner_include_complete(&subpath, postype)
-                                {
-                                    complete.append(&mut comps);
-                                }
+                        let subpath = {
+                            if name.split('.').count() != 1 {
+                                local_path.parent().unwrap().join(name)
+                            } else {
+                                Path::new(&format!("/usr/share/cmake/Modules/{name}.cmake"))
+                                    .to_path_buf()
+                            }
+                        };
+                        if let Ok(true) = cmake_try_exists(&subpath) {
+                            if let Some(mut comps) =
+                                includescanner::scanner_include_complete(&subpath, postype)
+                            {
+                                complete.append(&mut comps);
+                            }
+                        }
+                    }
+                } else if name == "mark_as_advanced" {
+                    let mut advancedwalk = child.walk();
+                    for identifier in child.children(&mut advancedwalk) {
+                        if identifier.kind() == "argument" {
+                            if identifier.start_position().row == identifier.end_position().row {
+                                let startx = identifier.start_position().column;
+                                let endx = identifier.end_position().column;
+                                let row = identifier.start_position().row;
+                                let variable = &newsource[row][startx..endx];
+                                complete.push(CompletionItem {
+                                    label: variable.to_string(),
+                                    kind: Some(CompletionItemKind::VARIABLE),
+                                    detail: Some(format!(
+                                        "defined var\nfrom: {}",
+                                        local_path.file_name().unwrap().to_str().unwrap()
+                                    )),
+                                    ..Default::default()
+                                });
                             }
                         }
                     }
