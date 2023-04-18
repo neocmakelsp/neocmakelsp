@@ -11,19 +11,15 @@ pub fn format_ifcondition(
     let mut not_format = false;
     let mut start_line = input.start_position().row;
     for child in input.children(&mut cursor) {
+        // NOTE: re add the origin empty lines
         let child_start_line = child.start_position().row;
         let child_end_line = child.end_position().row;
-        if start_line != child_start_line {
+        if child_start_line - start_line > 1 {
             for _ in start_line..child_start_line - 1 {
                 output.push('\n');
             }
-            start_line = child.end_position().row;
-        } else if child_end_line != child_start_line {
-            for _ in start_line..child_end_line - 1 {
-                output.push('\n');
-            }
-            start_line = child.end_position().row;
         }
+        start_line = child_end_line;
 
         match child.kind() {
             "if_command" => {
