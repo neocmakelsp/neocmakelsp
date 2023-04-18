@@ -5,7 +5,6 @@ mod ifcondition;
 mod loopdef;
 mod macrodef;
 mod othercommand;
-mod project;
 
 const NOT_FORMAT_ME: &str = "# Not Format Me";
 
@@ -141,7 +140,6 @@ fn get_format_from_node(
     usespace: bool,
 ) -> String {
     match CommandType::from_node(input, source) {
-        CommandType::Project => project::format_project(input, source, spacelen, usespace),
         CommandType::AddDefinitions => adddefinitions::format_definition(input, source),
         CommandType::OtherCommand => {
             othercommand::format_othercommand(input, source, spacelen, usespace)
@@ -200,7 +198,6 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
 #[derive(Debug, PartialEq)]
 enum CommandType {
     //Option,
-    Project,
     AddDefinitions,
     //FindPackage,
     IfCondition,
@@ -233,7 +230,6 @@ impl CommandType {
                     | "add_compile_definitions"
                     | "target_compile_definitions" => CommandType::AddDefinitions,
                     //"option" => CommandType::Option,
-                    "project" => CommandType::Project,
                     //"find_package" => CommandType::FindPackage,
                     _ => Self::OtherCommand,
                 }
