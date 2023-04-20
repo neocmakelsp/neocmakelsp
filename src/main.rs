@@ -1,3 +1,4 @@
+use std::fs;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -159,8 +160,19 @@ async fn main() {
             let (usespace, spacelen) = editconfig_setting().unwrap_or((true, 2));
             let ignorepatterns = gitignore();
             let isinpattern = |path: &str| -> bool {
+                let Ok(currentdir) = std::env::current_dir() else { return false; };
+                let Ok(currentdir) = fs::canonicalize(currentdir) else { return false; };
+                let Some(currentdir) = currentdir.to_str() else {return false;};
                 ignorepatterns.iter().any(|pattern| {
-                    glob::Pattern::new(pattern).unwrap().matches(path)
+                    let pattern = {
+                        if pattern.starts_with('/') {
+                            &pattern[1..]
+                        } else {
+                            pattern
+                        }
+                    };
+                    let pattern = format!("{currentdir}/{pattern}");
+                    glob::Pattern::new(&pattern).unwrap().matches(path)
                         || glob::Pattern::new(&format!("{}/*", pattern))
                             .unwrap()
                             .matches(path)
@@ -171,6 +183,7 @@ async fn main() {
                     .unwrap_or_else(|_| panic!("error pattern"))
                     .flatten()
                 {
+                    let Ok(filepath) = fs::canonicalize(filepath) else { continue; };
                     if isinpattern(filepath.to_str().unwrap()) {
                         continue;
                     }
