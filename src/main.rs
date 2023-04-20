@@ -166,12 +166,11 @@ async fn main() {
                 ignorepatterns.iter().any(|pattern| {
                     let pattern = {
                         if let Some(pattern) = pattern.strip_prefix('/') {
-                            pattern
+                            format!("{currentdir}/{pattern}")
                         } else {
-                            pattern
+                            pattern.to_string()
                         }
                     };
-                    let pattern = format!("{currentdir}/{pattern}");
                     glob::Pattern::new(&pattern).unwrap().matches(path)
                         || glob::Pattern::new(&format!("{}/*", pattern))
                             .unwrap()
