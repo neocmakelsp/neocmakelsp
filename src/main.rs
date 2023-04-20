@@ -165,8 +165,8 @@ async fn main() {
                 let Some(currentdir) = currentdir.to_str() else {return false;};
                 ignorepatterns.iter().any(|pattern| {
                     let pattern = {
-                        if pattern.starts_with('/') {
-                            &pattern[1..]
+                        if let Some(pattern) = pattern.strip_prefix('/') {
+                            pattern
                         } else {
                             pattern
                         }
