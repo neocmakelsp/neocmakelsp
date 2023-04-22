@@ -10,6 +10,10 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
 use clap::{arg, Arg, ArgAction, Command};
+
+// color
+use nu_ansi_term::Color::LightYellow;
+
 use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
@@ -74,7 +78,11 @@ fn editconfig_setting() -> Option<(bool, u32)> {
 async fn main() {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     let matches = Command::new("neocmakelsp")
-        .about("CMake LSP implementation based on Tower and Tree-sitter")
+        .about(
+            LightYellow
+                .paint("CMake LSP implementation based on Tower and Tree-sitter")
+                .to_string(),
+        )
         .version(VERSION)
         .subcommand_required(true)
         .arg_required_else_help(true)

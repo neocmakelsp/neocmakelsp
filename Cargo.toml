@@ -11,7 +11,7 @@ keywords = ["lsp"]
 #[features]
 #tcp = []
 [dependencies]
-clap = "4.2.4"
+clap = { version = "4.2.4", features = ["string"] }
 tower-lsp = "0.19.0"
 lsp-types = "0.94.0"
 tokio = { version = "1.27.0", features = ["full"] }
@@ -27,3 +27,4 @@ cli-table = "0.4.7"
 tracing = "0.1.37"
 glob = "0.3.1"
 rust-ini = "0.18.0"
+nu-ansi-term = "0.47.0"

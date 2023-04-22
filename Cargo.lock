@@ -497,6 +497,7 @@ dependencies = [
  "cli-table",
  "glob",
  "lsp-types",
+ "nu-ansi-term 0.47.0",
  "once_cell",
  "regex",
  "rust-ini",
@@ -518,6 +519,15 @@ checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
 dependencies = [
  "overload",
  "winapi",
+]
+
+[[package]]
+name = "nu-ansi-term"
+version = "0.47.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1df031e117bca634c262e9bd3173776844b6c17a90b3741c9163663b4385af76"
+dependencies = [
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -1018,7 +1028,7 @@ version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
 dependencies = [
- "nu-ansi-term",
+ "nu-ansi-term 0.46.0",
  "sharded-slab",
  "smallvec",
  "thread_local",
