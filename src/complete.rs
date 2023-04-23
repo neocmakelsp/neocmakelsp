@@ -15,7 +15,7 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
         .map(|line| CompletionItem {
             label: line,
             kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(format!("defined command from {filename}")),
+            detail: Some(format!("defined command from {filename}\n{doc}")),
             ..Default::default()
         })
         .collect()
