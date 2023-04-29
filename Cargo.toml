@@ -11,13 +11,13 @@ keywords = ["lsp"]
 #[features]
 #tcp = []
 [dependencies]
-clap = { version = "4.2.4", features = ["string"] }
+clap = { version = "4.2.5", features = ["string"] }
 tower-lsp = "0.19.0"
 lsp-types = "0.94.0"
-tokio = { version = "1.27.0", features = ["full"] }
+tokio = { version = "1.28.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tracing-subscriber = "0.3.16"
+tracing-subscriber = "0.3.17"
 tree-sitter = "0.20.10"
 tree-sitter-cmake = "0.2.0"
 regex = "1"
