@@ -8,6 +8,28 @@ mod othercommand;
 
 const NOT_FORMAT_ME: &str = "# Not Format Me";
 
+fn strip_trailing_newline(input: &str) -> &str {
+    input
+        .strip_suffix("\r\n")
+        .or(input.strip_suffix('\n'))
+        .unwrap_or(input)
+}
+
+// remove all \r to normal one
+fn strip_trailing_newline_document(input: &str) -> String {
+    let cll: Vec<&str> = input
+        .lines()
+        .map(strip_trailing_newline)
+        .collect();
+    let mut output = String::new();
+
+    for line in cll {
+        output.push_str(line);
+        output.push('\n');
+    }
+    output
+}
+
 fn get_space(spacelen: u32, usespace: bool) -> String {
     let unit = if usespace { ' ' } else { '\t' };
     let mut space = String::new();
@@ -24,10 +46,12 @@ pub async fn getformat(
     spacelen: u32,
     usespace: bool,
 ) -> Option<Vec<TextEdit>> {
+    let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(tree_sitter_cmake::language()).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let formatresult = get_format_from_root_node(tree.root_node(), source, spacelen, usespace);
+    let tree = parse.parse(source.as_str(), None).unwrap();
+    let formatresult =
+        get_format_from_root_node(tree.root_node(), source.as_str(), spacelen, usespace);
     if formatresult.is_none() {
         client
             .log_message(MessageType::WARNING, "Error source")
@@ -95,6 +119,7 @@ pub fn get_format_cli(
     if input.has_error() {
         None
     } else {
+        let source = strip_trailing_newline_document(source);
         let mut new_text = String::new();
         let mut course = input.walk();
         let mut startline = 0;
@@ -103,12 +128,12 @@ pub fn get_format_cli(
             let childstartline = child.start_position().row;
             let reformat = if not_format {
                 not_format = false;
-                get_origin_source(child, source)
+                get_origin_source(child, source.as_str())
             } else {
-                if is_notformat_mark(child, source) {
+                if is_notformat_mark(child, source.as_str()) {
                     not_format = true;
                 }
-                get_format_from_node(child, source, spacelen, usespace)
+                get_format_from_node(child, source.as_str(), spacelen, usespace)
             };
             for _ in startline..childstartline {
                 new_text.push('\n');
@@ -190,7 +215,7 @@ fn default_format(input: tree_sitter::Node, source: &str) -> String {
         for item in newsource.iter().take(end_y).skip(start_y + 1) {
             output.push_str(&format!("{item}\n"));
         }
-        output.push_str(&format!("{}\n", &newsource[end_y][0..end_x]));
+        output.push_str(&newsource[end_y][0..end_x]);
         output
     }
 }
@@ -288,4 +313,15 @@ fn tst_is_notformat_me() {
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(a, None).unwrap();
     assert!(is_notformat_mark(tree.root_node().child(0).unwrap(), a));
+}
+
+#[test]
+fn strip_newline_works() {
+    assert_eq!(
+        strip_trailing_newline_document("Test0\r\n\r\n"),
+        "Test0\n\n"
+    );
+    assert_eq!(strip_trailing_newline("Test1\r\n"), "Test1");
+    assert_eq!(strip_trailing_newline("Test2\n"), "Test2");
+    assert_eq!(strip_trailing_newline("Test3"), "Test3");
 }

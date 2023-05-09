@@ -93,7 +93,7 @@ if(${CMAKE_VERSION} VERSION_LESS "3.14.0")
 
 	macro(FetchContent_MakeAvailable)
 		foreach(contentName IN ITEMS ${ARGV})
-		
+
 			string(TOLOWER ${contentName} contentNameLower)
 			FetchContent_GetProperties(${contentName})
 			if(NOT ${contentNameLower}_POPULATED)
