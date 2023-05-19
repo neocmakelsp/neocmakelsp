@@ -18,7 +18,7 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
             inner: vec![(
                 input.start_position(),
                 input.end_position(),
-                "Gammer Error".to_string(),
+                "Grammar error".to_string(),
                 None,
             )],
         })
@@ -76,7 +76,7 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                                             output.push((
                                                 node.start_position(),
                                                 node.end_position(),
-                                                "Contain Error in include file".to_string(),
+                                                "Error in include file".to_string(),
                                                 Some(DiagnosticSeverity::ERROR),
                                             ));
                                         }
@@ -85,7 +85,7 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                                         output.push((
                                             node.start_position(),
                                             node.end_position(),
-                                            "include file is not exist or cannot access"
+                                            "include file does not exist or is inaccessible"
                                                 .to_string(),
                                             Some(DiagnosticSeverity::WARNING),
                                         ));
