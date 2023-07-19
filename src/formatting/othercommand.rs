@@ -49,6 +49,7 @@ pub fn format_othercommand(
     output
 }
 
+#[cfg(unix)]
 #[test]
 fn tst_format_base() {
     let source = include_str!("../../assert/base/formatbefore.cmake");

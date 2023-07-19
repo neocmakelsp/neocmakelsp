@@ -65,6 +65,7 @@ pub fn format_functiondef(
     output
 }
 
+#[cfg(unix)]
 #[test]
 fn tst_format_function() {
     let source = include_str!("../../assert/function/formatbefore.cmake");
