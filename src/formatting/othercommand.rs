@@ -48,3 +48,15 @@ pub fn format_othercommand(
     }
     output
 }
+
+#[test]
+fn tst_format_base() {
+    let source = include_str!("../../assert/base/formatbefore.cmake");
+    let sourceafter = include_str!("../../assert/base/formatafter.cmake");
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(source, None).unwrap();
+    let mut formatstr = super::get_format_cli(tree.root_node(), source, 1, false).unwrap();
+    formatstr.push('\n');
+    assert_eq!(formatstr.as_str(), sourceafter);
+}

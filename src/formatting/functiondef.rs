@@ -64,3 +64,15 @@ pub fn format_functiondef(
     }
     output
 }
+
+#[test]
+fn tst_format_function() {
+    let source = include_str!("../../assert/function/formatbefore.cmake");
+    let sourceafter = include_str!("../../assert/function/formatafter.cmake");
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(source, None).unwrap();
+    let mut formatstr = super::get_format_cli(tree.root_node(), source, 1, false).unwrap();
+    formatstr.push('\n');
+    assert_eq!(formatstr.as_str(), sourceafter);
+}
