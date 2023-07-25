@@ -115,6 +115,8 @@ It will check CMakeCache.txt, and get weather the package is exist
 
 ### Format cli
 
+*Note: When formating files, make sure that your .editorconfig file is in your working directory*
+
 ```
 format the file
 
@@ -128,12 +130,24 @@ Options:
   -h, --help      Print help
 ```
 
-It will read .editconfig file to format files, just set like
+It will read .editorconfig file to format files, just set like
 
 ```ini
 [CMakeLists.txt]
-indent_style = tab
-indent_size = 2
+indent_style = space
+indent_size = 4
 ```
 
-If you don't want to format a part, just comment `Not Format Me` before that block
+If you don't want to format a part, just comment `Not Format Me` before that block.
+For example:
+
+```cmake
+# Not Format Me
+ecm_generate_headers(KCoreAddons_HEADERS
+    HEADER_NAMES
+        KPluginFactory
+        KPluginMetaData
+        KStaticPluginHelpers
+    REQUIRED_HEADERS KCoreAddons_HEADERS
+)
+```
