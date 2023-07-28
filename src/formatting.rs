@@ -17,10 +17,7 @@ fn strip_trailing_newline(input: &str) -> &str {
 
 // remove all \r to normal one
 fn strip_trailing_newline_document(input: &str) -> String {
-    let cll: Vec<&str> = input
-        .lines()
-        .map(strip_trailing_newline)
-        .collect();
+    let cll: Vec<&str> = input.lines().map(strip_trailing_newline).collect();
     let mut output = String::new();
 
     for line in cll {
