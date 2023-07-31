@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(CMAKE_BUILD_TYPE STRLESS_EQUAL "Debug")
 	set(STARTTEST ON)
 endif ()
-#add_executable(cmake_study src/main.cpp src/header.h)
+#add_executable(cmake_study   src/main.cpp src/header.h)
 add_subdirectory(src/game)
 add_subdirectory(src/backend)
 add_subdirectory(src/pingit)
@@ -14,7 +14,7 @@ if(AA
 	AND CC)
 
 
-	if(STARTTEST
+		if(STARTTEST
 		AND B)
 
 
