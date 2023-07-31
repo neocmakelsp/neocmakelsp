@@ -234,26 +234,22 @@ fn getsubcomplete(
                                 //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
-                                let package_name = &newsource[h][x..y];
+                                let package_names: Vec<&str> =
+                                    newsource[h][x..y].split(' ').collect();
+                                let package_name = package_names[0];
                                 let components_packages = {
-                                    if child.child_count() >= 5 {
+                                    if package_names.len() >= 2 {
                                         let mut support_commponent = false;
-                                        let count = child.child_count();
                                         let mut components_packages = Vec::new();
-                                        for index in 3..count - 1 {
-                                            let ids = child.child(index).unwrap();
-                                            //let ids = ids.child(2).unwrap();
-                                            let x = ids.start_position().column;
-                                            let y = ids.end_position().column;
-                                            let h = ids.start_position().row;
-                                            let component = &newsource[h][x..y];
-                                            if component == "COMPONENTS" {
+                                        for component in package_names.iter().skip(1) {
+                                            if *component == "COMPONENTS" {
                                                 support_commponent = true;
-                                            } else if component != "REQUIRED" {
+                                            } else if *component != "REQUIRED" {
                                                 components_packages
                                                     .push(format!("{package_name}::{component}"));
                                             }
                                         }
+
                                         if support_commponent {
                                             Some(components_packages)
                                         } else {
