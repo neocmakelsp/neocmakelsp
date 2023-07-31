@@ -35,25 +35,29 @@ fn get_version(source: &str) -> Option<String> {
         if child.kind() == "normal_command" {
             let h = child.start_position().row;
             let ids = child.child(0).unwrap();
-            //let ids = ids.child(2).unwrap();
             let x = ids.start_position().column;
             let y = ids.end_position().column;
             let name = &newsource[h][x..y];
             if name == "set" || name == "SET" {
-                if let Some(id) = child.child(2) {
-                    if let Some(version) = child.child(3) {
-                        let h = id.start_position().row;
-                        let x = id.start_position().column;
-                        let y = id.end_position().column;
-                        if x != y {
-                            let name = &newsource[h][x..y];
-                            if name == "PACKAGE_VERSION" {
-                                let h = version.start_position().row;
-                                let x = version.start_position().column;
-                                let y = version.end_position().column;
-                                return Some(newsource[h][x..y].to_string());
-                            }
-                        }
+                let Some(argumentlist) = child.child(2) else {
+                    return None;
+                };
+                let Some(id) = argumentlist.child(0) else {
+                    return None;
+                };
+                let Some(version) = argumentlist.child(1) else {
+                    return None;
+                };
+                let h = id.start_position().row;
+                let x = id.start_position().column;
+                let y = id.end_position().column;
+                if x != y {
+                    let name = &newsource[h][x..y];
+                    if name == "PACKAGE_VERSION" {
+                        let h = version.start_position().row;
+                        let x = version.start_position().column;
+                        let y = version.end_position().column;
+                        return Some(newsource[h][x..y].to_string());
                     }
                 }
             }

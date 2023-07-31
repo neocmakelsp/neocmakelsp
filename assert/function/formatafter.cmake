@@ -9,6 +9,6 @@ function(A)
 		A
 		B
 		C
-	)
+		)
 
 endfunction()
