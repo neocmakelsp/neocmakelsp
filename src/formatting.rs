@@ -85,7 +85,6 @@ fn format_content(
             new_text.push('\n');
         }
         endline = end_position.row;
-        println!("{}", child.kind());
         if child.kind() == "function_def" {
             let (text, newend) = format_content(child, source, spacelen, usespace, appendtab);
             endline = newend;
