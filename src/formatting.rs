@@ -107,39 +107,37 @@ pub fn get_format_from_root_node(
     }
 }
 
-pub fn get_format_cli(
-    input: tree_sitter::Node,
-    source: &str,
-    spacelen: u32,
-    usespace: bool,
-) -> Option<String> {
+pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<String> {
+    let source = strip_trailing_newline_document(source);
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let input = tree.root_node();
     if input.has_error() {
-        None
-    } else {
-        let source = strip_trailing_newline_document(source);
-        let mut new_text = String::new();
-        let mut course = input.walk();
-        let mut startline = 0;
-        let mut not_format = false;
-        for child in input.children(&mut course) {
-            let childstartline = child.start_position().row;
-            let reformat = if not_format {
-                not_format = false;
-                get_origin_source(child, source.as_str())
-            } else {
-                if is_notformat_mark(child, source.as_str()) {
-                    not_format = true;
-                }
-                get_format_from_node(child, source.as_str(), spacelen, usespace)
-            };
-            for _ in startline..childstartline {
-                new_text.push('\n');
-            }
-            new_text.push_str(&reformat);
-            startline = child.end_position().row;
-        }
-        Some(new_text)
+        return None;
     }
+    let mut new_text = String::new();
+    let mut course = input.walk();
+    let mut startline = 0;
+    let mut not_format = false;
+    for child in input.children(&mut course) {
+        let childstartline = child.start_position().row;
+        let reformat = if not_format {
+            not_format = false;
+            get_origin_source(child, source.as_str())
+        } else {
+            if is_notformat_mark(child, source.as_str()) {
+                not_format = true;
+            }
+            get_format_from_node(child, source.as_str(), spacelen, usespace)
+        };
+        for _ in startline..childstartline {
+            new_text.push('\n');
+        }
+        new_text.push_str(&reformat);
+        startline = child.end_position().row;
+    }
+    Some(new_text)
 }
 
 fn get_origin_source(input: tree_sitter::Node, source: &str) -> String {

@@ -209,8 +209,7 @@ async fn main() {
                     file.read_to_string(&mut buf).unwrap();
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(tree_sitter_cmake::language()).unwrap();
-                    let tree = parse.parse(&buf, None).unwrap();
-                    match formatting::get_format_cli(tree.root_node(), &buf, spacelen, usespace) {
+                    match formatting::get_format_cli(&buf, spacelen, usespace) {
                         Some(mut context) => {
                             context.push('\n');
                             if hasoverride {
@@ -254,10 +253,7 @@ async fn main() {
                     };
                     let mut buf = String::new();
                     file.read_to_string(&mut buf).unwrap();
-                    let mut parse = tree_sitter::Parser::new();
-                    parse.set_language(tree_sitter_cmake::language()).unwrap();
-                    let tree = parse.parse(&buf, None).unwrap();
-                    match formatting::get_format_cli(tree.root_node(), &buf, spacelen, usespace) {
+                    match formatting::get_format_cli(&buf, spacelen, usespace) {
                         Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
