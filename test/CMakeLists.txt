@@ -269,11 +269,11 @@ if(A)
 	)
 endif()
 
-foreach()
+foreach(A)
 	target_link_libraries(ss PUBLIC
 		${DtkGui_LIBRARIES}
 		PkgConfig::libevent_core)
-	# Not Format Me
+
 	target_include_directories(ss PUBLIC
 		${DtkGui_INCLUDE_DIRS}
 	)
