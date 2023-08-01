@@ -138,16 +138,32 @@ indent_style = space
 indent_size = 4
 ```
 
-If you don't want to format a part, just comment `Not Format Me` before that block.
-For example:
+#### Note
+
+The format do the min things, just do `trim` and place the first line to the right place by the indent you set, this means
 
 ```cmake
-# Not Format Me
-ecm_generate_headers(KCoreAddons_HEADERS
-    HEADER_NAMES
-        KPluginFactory
-        KPluginMetaData
-        KStaticPluginHelpers
-    REQUIRED_HEADERS KCoreAddons_HEADERS
-)
+function(A)
+
+        set(A               
+        B
+            C
+        )
+
+    endfunction()
 ```
+
+it will just become
+
+```cmake
+
+function(A)
+    set(A
+        B
+            C
+        )
+
+endfunction()
+```
+
+It just remove the space in the end, replace `\t` at the begin of each line to ` `, if set `indent_size` to space, and format the first line to right place. It does little, but I think it is enough.
