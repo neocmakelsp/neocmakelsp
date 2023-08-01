@@ -152,6 +152,13 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
+            "body" => {
+                if let Some(mut message) =
+                    getsubcomplete(child, source, local_path, postype, location)
+                {
+                    complete.append(&mut message);
+                }
+            }
             "if_condition" | "foreach_loop" => {
                 if let Some(mut message) =
                     getsubcomplete(child, source, local_path, postype, location)
