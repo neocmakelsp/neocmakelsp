@@ -110,6 +110,12 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                     },
                 });
             }
+            "body" => {
+                let Some(mut bodycontent) = getsubast(child, source, simple) else {
+                    continue;
+                };
+                asts.append(&mut bodycontent);
+            }
             "if_condition" | "foreach_loop" => {
                 asts.push(DocumentSymbol {
                     name: "Closure".to_string(),
