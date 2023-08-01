@@ -164,35 +164,40 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                 let y = ids.end_position().column;
                 let command_name = &newsource[h][x..y];
                 if COMMAND_KEYWORDS.contains(&command_name.to_lowercase().as_str()) {
-                    let ids = child.child(2).unwrap();
+                    let Some(argumentlists) = child.child(2) else {
+                        continue;
+                    };
+                    let Some(ids) = argumentlists.child(0) else {
+                        continue;
+                    };
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
+                        let h2 = ids.end_position().row;
+                        if h != h2 {
+                            continue;
+                        }
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        if x != y {
-                            let Some(varname) = &newsource[h][x..y].split(' ').next() else {
-                                continue;
-                            };
-                            asts.push(DocumentSymbol {
-                                name: format!("{command_name}: {varname}"),
-                                detail: None,
-                                kind: SymbolKind::VARIABLE,
-                                tags: None,
-                                deprecated: None,
-                                range: lsp_types::Range { start, end },
-                                selection_range: lsp_types::Range {
-                                    start: lsp_types::Position {
-                                        line: h as u32,
-                                        character: x as u32,
-                                    },
-                                    end: lsp_types::Position {
-                                        line: h as u32,
-                                        character: y as u32,
-                                    },
+                        let varname = &newsource[h][x..y];
+                        asts.push(DocumentSymbol {
+                            name: format!("{command_name}: {varname}"),
+                            detail: None,
+                            kind: SymbolKind::VARIABLE,
+                            tags: None,
+                            deprecated: None,
+                            range: lsp_types::Range { start, end },
+                            selection_range: lsp_types::Range {
+                                start: lsp_types::Position {
+                                    line: h as u32,
+                                    character: x as u32,
                                 },
-                                children: None,
-                            });
-                        }
+                                end: lsp_types::Position {
+                                    line: h as u32,
+                                    character: y as u32,
+                                },
+                            },
+                            children: None,
+                        });
                     }
                 }
             }
