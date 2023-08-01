@@ -157,29 +157,6 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
     Some(format_content(input, source.as_str(), spacelen, usespace, 0, 0).0)
 }
 
-//#[test]
-//fn tst_node_to_str() {
-//    let a = r#"
-//set(
-//  CMAKE_CXX_FLAGS
-//  "${CMAKE_CXX_FLAGS} \
-//  -Wall \
-//  -Wextra \
-//  -pipe \
-//  -pedantic \
-//  -fsized-deallocation \
-//  -fdiagnostics-color=always \
-//  -Wunreachable-code \
-//  -Wno-attributes"
-//)
-//    "#;
-//    let mut parse = tree_sitter::Parser::new();
-//    parse.set_language(tree_sitter_cmake::language()).unwrap();
-//    let tree = parse.parse(a, None).unwrap();
-//    let e = node_to_string(tree.root_node(), a);
-//    assert_eq!(a, e);
-//}
-
 #[test]
 fn strip_newline_works() {
     assert_eq!(
@@ -191,11 +168,19 @@ fn strip_newline_works() {
     assert_eq!(strip_trailing_newline("Test3"), "Test3");
 }
 
-#[cfg(unix)]
 #[test]
 fn tst_format_function() {
     let source = include_str!("../assert/function/formatbefore.cmake");
     let sourceafter = include_str!("../assert/function/formatafter.cmake");
+    let mut formatstr = get_format_cli(source, 1, false).unwrap();
+    formatstr.push('\n');
+    assert_eq!(formatstr.as_str(), sourceafter);
+}
+
+#[test]
+fn tst_format_base() {
+    let source = include_str!("../assert/base/formatbefore.cmake");
+    let sourceafter = include_str!("../assert/base/formatafter.cmake");
     let mut formatstr = get_format_cli(source, 1, false).unwrap();
     formatstr.push('\n');
     assert_eq!(formatstr.as_str(), sourceafter);
