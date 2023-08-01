@@ -223,7 +223,11 @@ fn getsubcomplete(
                                     let h = ids.start_position().row;
                                     let x = ids.start_position().column;
                                     let y = ids.end_position().column;
-                                    let name = &newsource[h][x..y];
+                                    let name = &newsource[h][x..y].split(' ').next();
+
+                                    let Some(name) = name.map(|name| name.to_string()) else {
+                                        continue;
+                                    };
                                     complete.push(CompletionItem {
                                         label: name.to_string(),
                                         kind: Some(CompletionItemKind::VALUE),
@@ -349,7 +353,11 @@ fn getsubcomplete(
                                     let h = ids.start_position().row;
                                     let x = ids.start_position().column;
                                     let y = ids.end_position().column;
-                                    let name = &newsource[h][x..y];
+                                    let name = &newsource[h][x..y].split(' ').next();
+
+                                    let Some(name) = name.map(|name| name.to_string()) else {
+                                        continue;
+                                    };
                                     complete.push(CompletionItem {
                                         label: name.to_string(),
                                         kind: Some(CompletionItemKind::VALUE),

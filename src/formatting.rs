@@ -113,7 +113,8 @@ fn format_content(
         new_text.push_str(firstline);
         new_text.push('\n');
         for currentline in newsource.iter().take(end_row + 1).skip(start_row + 1) {
-            let trimapter = currentline.trim_start().trim_end();
+            let currentline = currentline.trim_end();
+            let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
             let mut newline = get_space(spacesize as u32, usespace);
 
