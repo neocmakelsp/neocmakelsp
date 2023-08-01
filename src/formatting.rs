@@ -1,5 +1,7 @@
 use lsp_types::{MessageType, Position, TextEdit};
 
+const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
+
 fn strip_trailing_newline(input: &str) -> &str {
     input
         .strip_suffix("\r\n")
@@ -46,7 +48,7 @@ pub async fn getformat(
             .await;
         return None;
     }
-    let (new_text, _) = format_content(tree.root_node(), source.as_str(), spacelen, usespace, 0);
+    let (new_text, _) = format_content(tree.root_node(), source.as_str(), spacelen, usespace, 0, 0);
     let len_ot = new_text.lines().count();
     let len_origin = source.lines().count();
     let len = std::cmp::max(len_ot, len_origin);
@@ -71,11 +73,12 @@ fn format_content(
     spacelen: u32,
     usespace: bool,
     appendtab: u32,
+    endline: usize,
 ) -> (String, usize) {
+    let mut endline = endline;
     let newsource: Vec<&str> = source.lines().collect();
     let mut new_text = String::new();
     let mut course = input.walk();
-    let mut endline = 0;
     for child in input.children(&mut course) {
         let start_position = child.start_position();
         let end_position = child.end_position();
@@ -84,18 +87,23 @@ fn format_content(
         for _ in endline..start_row {
             new_text.push('\n');
         }
-        endline = end_position.row;
-        if child.kind() == "function_def" {
-            let (text, newend) = format_content(child, source, spacelen, usespace, appendtab);
+
+        endline = start_position.row;
+        if CLOSURE.contains(&child.kind()) {
+            let (text, newend) =
+                format_content(child, source, spacelen, usespace, appendtab, endline);
             endline = newend;
             new_text.push_str(&text);
             continue;
         } else if child.kind() == "body" {
-            let (text, newend) = format_content(child, source, spacelen, usespace, appendtab + 1);
+            let (text, newend) =
+                format_content(child, source, spacelen, usespace, appendtab + 1, endline);
             new_text.push_str(&text);
             endline = newend;
             continue;
         }
+
+        endline = end_position.row;
         let startsource = newsource[start_row]
             .trim_start()
             .trim_end()
@@ -146,7 +154,7 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
         return None;
     }
 
-    Some(format_content(input, source.as_str(), spacelen, usespace, 0).0)
+    Some(format_content(input, source.as_str(), spacelen, usespace, 0, 0).0)
 }
 
 //#[test]
