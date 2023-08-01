@@ -32,10 +32,14 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
         match child.kind() {
             "function_def" => {
                 let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let ids = ids.child(2).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
+                let Some(ids) = child.child(0) else {
+                    continue;
+                };
+                let Some(argumentlists) = ids.child(2) else {
+                    continue;
+                };
+                let x = argumentlists.start_position().column;
+                let y = argumentlists.end_position().column;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
@@ -74,10 +78,14 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
             }
             "macro_def" => {
                 let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let ids = ids.child(2).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
+                let Some(ids) = child.child(0) else {
+                    continue;
+                };
+                let Some(argumentlists) = ids.child(2) else {
+                    continue;
+                };
+                let x = argumentlists.start_position().column;
+                let y = argumentlists.end_position().column;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
@@ -158,8 +166,9 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                 let start = point_to_position(child.start_position());
                 let end = point_to_position(child.end_position());
                 let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                //let ids = ids.child(2).unwrap();
+                let Some(ids) = child.child(0) else {
+                    continue;
+                };
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let command_name = &newsource[h][x..y];
