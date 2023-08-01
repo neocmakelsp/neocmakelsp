@@ -36,7 +36,9 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                 let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let name = &newsource[h][x..y];
+                let Some(name) = &newsource[h][x..y].split(' ').next() else {
+                    continue;
+                };
                 asts.push(DocumentSymbol {
                     name: name.to_string(),
                     detail: None,
@@ -76,7 +78,9 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                 let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let name = &newsource[h][x..y];
+                let Some(name) = &newsource[h][x..y].split(' ').next() else {
+                    continue;
+                };
                 asts.push(DocumentSymbol {
                     name: name.to_string(),
                     detail: None,
@@ -166,7 +170,9 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         if x != y {
-                            let varname = &newsource[h][x..y];
+                            let Some(varname) = &newsource[h][x..y].split(' ').next() else {
+                                continue;
+                            };
                             asts.push(DocumentSymbol {
                                 name: format!("{command_name}: {varname}"),
                                 detail: None,

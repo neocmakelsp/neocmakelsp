@@ -124,7 +124,7 @@ fn getsubcomplete(
                 let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let Some(name) = &newsource[h][x..y].split(" ").next() else {
+                let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
                 complete.push(CompletionItem {
@@ -143,7 +143,7 @@ fn getsubcomplete(
                 let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let Some(name) = &newsource[h][x..y].split(" ").next() else {
+                let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
                 complete.push(CompletionItem {
