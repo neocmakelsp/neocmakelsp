@@ -158,6 +158,7 @@ it will just become
 ```cmake
 
 function(A)
+
     set(A
         B
             C
