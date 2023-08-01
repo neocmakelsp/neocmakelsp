@@ -7,6 +7,10 @@ use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 use std::path::{Path, PathBuf};
+
+#[cfg(unix)]
+const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
+
 pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
     doc.lines()
         .filter(|line| line.starts_with(".. command:: "))
@@ -93,8 +97,6 @@ fn getsubcomplete(
     }
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
-    //let mut course2 = course.clone();
-    //let mut hasid = false;
     let mut complete: Vec<CompletionItem> = vec![];
     for child in input.children(&mut course) {
         if let Some(location) = location {
@@ -188,6 +190,10 @@ fn getsubcomplete(
                         }
                     }
                 } else if name == "mark_as_advanced" {
+                    if child.child_count() < 3 {
+                        continue;
+                    }
+                    let child = child.child(2).unwrap();
                     let mut advancedwalk = child.walk();
                     for identifier in child.children(&mut advancedwalk) {
                         if identifier.kind() == "argument"
@@ -231,6 +237,7 @@ fn getsubcomplete(
                             }
                             if name == "find_package" && child.child_count() >= 3 {
                                 let ids = child.child(2).unwrap();
+                                let h = ids.start_position().row;
                                 //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
@@ -304,28 +311,11 @@ fn getsubcomplete(
                                 //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
-                                let package_name = &newsource[h][x..y];
-                                let modernpkgconfig = {
-                                    if child.child_count() >= 5 {
-                                        let ids = child.child(3).unwrap();
-                                        //let ids = ids.child(2).unwrap();
-                                        let x = ids.start_position().column;
-                                        let y = ids.end_position().column;
-                                        let atom = &newsource[h][x..y];
-                                        if atom != "REQUIRED" {
-                                            false
-                                        } else {
-                                            let ids = child.child(4).unwrap();
-                                            //let ids = ids.child(2).unwrap();
-                                            let x = ids.start_position().column;
-                                            let y = ids.end_position().column;
-                                            let atom = &newsource[h][x..y];
-                                            atom == "IMPORTED_TARGET"
-                                        }
-                                    } else {
-                                        false
-                                    }
-                                };
+                                let package_names: Vec<&str> =
+                                    newsource[h][x..y].split(' ').collect();
+                                let package_name = package_names[0];
+
+                                let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
                                 if modernpkgconfig {
                                     if let PositionType::TargetLink = postype {
                                         complete.push(CompletionItem {
