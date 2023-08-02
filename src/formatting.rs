@@ -124,7 +124,6 @@ fn format_content(
             let currentline = currentline.trim_end();
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
-            let spacesize = spacesize - spacesize % (spacelen as usize);
             let mut newline = get_space(spacesize as u32, usespace);
 
             let startsource = currentline
