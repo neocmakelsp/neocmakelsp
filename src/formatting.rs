@@ -84,6 +84,10 @@ fn format_content(
         let end_position = child.end_position();
         let start_row = start_position.row;
         let end_row = end_position.row;
+        // if is the commit at the end of line, continue
+        if child.kind() == "line_comment" && endline == start_row {
+            continue;
+        }
         for _ in endline..start_row {
             new_text.push('\n');
         }

@@ -8,7 +8,7 @@ function(A)
 	option(E e)
 
 	set(MM
-		A
+		A # test
 		B
 		C
 		)
