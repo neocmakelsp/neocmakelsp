@@ -79,13 +79,15 @@ fn format_content(
     let newsource: Vec<&str> = source.lines().collect();
     let mut new_text = String::new();
     let mut course = input.walk();
+    // when in body, the firstline is also the firstline of the child
+    let mut isfirstunit = true;
     for child in input.children(&mut course) {
         let start_position = child.start_position();
         let end_position = child.end_position();
         let start_row = start_position.row;
         let end_row = end_position.row;
         // if is the commit at the end of line, continue
-        if child.kind() == "line_comment" && endline == start_row {
+        if child.kind() == "line_comment" && endline == start_row && !isfirstunit {
             continue;
         }
         for _ in endline..start_row {
@@ -144,6 +146,7 @@ fn format_content(
             new_text.push('\n');
         }
         new_text = new_text.trim_end().to_string();
+        isfirstunit = false;
     }
     (new_text, endline)
 }
