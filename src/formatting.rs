@@ -48,7 +48,15 @@ pub async fn getformat(
             .await;
         return None;
     }
-    let (new_text, _) = format_content(tree.root_node(), source.as_str(), spacelen, usespace, 0, 0);
+    let (new_text, _) = format_content(
+        tree.root_node(),
+        source.as_str(),
+        spacelen,
+        usespace,
+        0,
+        0,
+        0,
+    );
     let len_ot = new_text.lines().count();
     let len_origin = source.lines().count();
     let len = std::cmp::max(len_ot, len_origin);
@@ -74,7 +82,10 @@ fn format_content(
     usespace: bool,
     appendtab: u32,
     endline: usize,
+    lastendline: usize,
 ) -> (String, usize) {
+    // lastendline is to check if if(A) is the sameline with comment
+    let mut lastendline = lastendline;
     let mut endline = endline;
     let newsource: Vec<&str> = source.lines().collect();
     let mut new_text = String::new();
@@ -87,7 +98,10 @@ fn format_content(
         let start_row = start_position.row;
         let end_row = end_position.row;
         // if is the commit at the end of line, continue
-        if child.kind() == "line_comment" && endline == start_row && !isfirstunit {
+        if child.kind() == "line_comment"
+            && endline == start_row
+            && (!isfirstunit || start_row == lastendline)
+        {
             continue;
         }
         for _ in endline..start_row {
@@ -96,20 +110,36 @@ fn format_content(
 
         endline = start_position.row;
         if CLOSURE.contains(&child.kind()) {
-            let (text, newend) =
-                format_content(child, source, spacelen, usespace, appendtab, endline);
+            let (text, newend) = format_content(
+                child,
+                source,
+                spacelen,
+                usespace,
+                appendtab,
+                endline,
+                lastendline,
+            );
             endline = newend;
+            lastendline = newend;
             new_text.push_str(&text);
             continue;
         } else if child.kind() == "body" {
-            let (text, newend) =
-                format_content(child, source, spacelen, usespace, appendtab + 1, endline);
+            let (text, newend) = format_content(
+                child,
+                source,
+                spacelen,
+                usespace,
+                appendtab + 1,
+                endline,
+                lastendline,
+            );
             new_text.push_str(&text);
             endline = newend;
             continue;
         }
 
         endline = end_position.row;
+        lastendline = end_position.row;
         let startsource = newsource[start_row]
             .trim_start()
             .trim_end()
@@ -161,7 +191,7 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
         return None;
     }
 
-    Some(format_content(input, source.as_str(), spacelen, usespace, 0, 0).0)
+    Some(format_content(input, source.as_str(), spacelen, usespace, 0, 0, 0).0)
 }
 
 #[test]
