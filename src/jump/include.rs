@@ -1,6 +1,6 @@
 use super::Location;
 use lsp_types::{MessageType, Url};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 fn ismodule(tojump: &str) -> bool {
     tojump.split('.').count() == 1
 }
@@ -15,7 +15,16 @@ pub(super) async fn cmpinclude(
         let root_dir = path.parent().unwrap();
         root_dir.join(subpath)
     } else {
-        Path::new(&format!("/usr/share/cmake/Modules/{subpath}.cmake")).to_path_buf()
+        let Some(path) = glob::glob(
+                             format!("/usr/share/cmake*/Modules/{subpath}.cmake").as_str(),
+                         )
+                         .into_iter()
+                         .flatten()
+                         .flatten()
+                         .next() else {
+                             return None;
+                         };
+        path
     };
 
     if target.exists() {

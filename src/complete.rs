@@ -188,8 +188,16 @@ fn getsubcomplete(
                             if name.split('.').count() != 1 {
                                 local_path.parent().unwrap().join(name)
                             } else {
-                                Path::new(&format!("/usr/share/cmake/Modules/{name}.cmake"))
-                                    .to_path_buf()
+                                let Some(path) = glob::glob(
+                                    format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
+                                )
+                                .into_iter()
+                                .flatten()
+                                .flatten()
+                                .next() else {
+                                    continue;
+                                };
+                                path
                             }
                         };
                         if let Ok(true) = cmake_try_exists(&subpath) {
