@@ -117,7 +117,9 @@ mod tests {
     #[test]
     fn tst_cmakecommand_buildin() {
         // NOTE: In case the command fails, ignore test
-        let Ok(output) = Command::new("cmake") .arg("--help-commands") .output() else { return; };
+        let Ok(output) = Command::new("cmake").arg("--help-commands").output() else {
+            return;
+        };
         let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
         let output = output.stdout;
         let temp = String::from_utf8_lossy(&output);
