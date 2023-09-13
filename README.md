@@ -31,6 +31,11 @@ if not configs.neocmake then
             end,
             single_file_support = true,-- suggested
             on_attach = on_attach -- on_attach is the on_attach function you defined
+            init_options = {
+                format = {
+                    enable = true
+                }
+            }
         }
     }
     nvim_lsp.neocmake.setup({})
@@ -49,6 +54,11 @@ if not configs.neocmake then
             end,
             single_file_support = true,-- suggested
             on_attach = on_attach -- on_attach is the on_attach function you defined
+            init_options = {
+                format = {
+                    enable = true
+                }
+            }
         }
     }
     nvim_lsp.neocmake.setup({})
