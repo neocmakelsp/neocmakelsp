@@ -1,6 +1,6 @@
 [package]
 name = "neocmakelsp"
-version = "0.6.4"
+version = "0.6.5"
 edition = "2021"
 license = "MIT"
 description = "The Lsp for cmake"
@@ -11,7 +11,7 @@ keywords = ["lsp"]
 #[features]
 #tcp = []
 [dependencies]
-clap = { version = "4.4.0", features = ["string"] }
+clap = { version = "4.4.3", features = ["string"] }
 tower-lsp = "0.20.0"
 lsp-types = "0.94.1"
 tokio = { version = "1.32.0", features = ["full"] }
