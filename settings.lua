@@ -8,9 +8,6 @@ return {
             root_dir = function(fname)
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
-            init_options = {
-                AutomaticWorkspaceInit = true,
-            },
             on_attach = function(client, bufnr)
                 vim.notify("Lsp Start")
                 require("cmps.cmp_onattach")(client, bufnr)
@@ -21,6 +18,9 @@ return {
                         dynamicRegistration = true,
                     },
                 },
+            },
+            init_options = {
+                format = true
             }
         }
     }
