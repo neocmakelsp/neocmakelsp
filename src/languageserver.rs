@@ -1,3 +1,7 @@
+mod config;
+
+use self::config::Config;
+
 use super::Backend;
 use crate::ast;
 use crate::complete;
@@ -62,11 +66,12 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, inital: InitializeParams) -> Result<InitializeResult> {
-        let do_format = inital
+        let inital_config: Config = inital
             .initialization_options
-            .and_then(|value| value.get("format").cloned())
-            .and_then(|value| value.as_bool())
-            .unwrap_or(true);
+            .and_then(|value| serde_json::from_value(value).unwrap_or(None))
+            .unwrap_or(Config::default());
+
+        let do_format = inital_config.is_format_enabled();
 
         if let Some(workspace) = inital.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {

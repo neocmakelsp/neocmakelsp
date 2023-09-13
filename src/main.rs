@@ -22,7 +22,7 @@ mod filewatcher;
 mod formatting;
 mod gammar;
 mod jump;
-mod languagerserver;
+mod languageserver;
 mod scansubs;
 mod search;
 mod utils;
