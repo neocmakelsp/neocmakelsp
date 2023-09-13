@@ -1,3 +1,4 @@
+use config::Config;
 use std::fs;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -18,6 +19,7 @@ use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
 mod complete;
+mod config;
 mod filewatcher;
 mod formatting;
 mod gammar;
@@ -34,6 +36,8 @@ struct Backend {
     client: Client,
     /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
+
+    config: Config,
 }
 
 fn gitignore() -> Vec<String> {
@@ -310,6 +314,7 @@ async fn main() {
             let (service, socket) = LspService::new(|client| Backend {
                 client,
                 buffers: Arc::new(Mutex::new(HashMap::new())),
+                config: Config::config_from_file(),
             });
             Server::new(stdin, stdout, socket).serve(service).await;
         }
@@ -348,6 +353,7 @@ async fn main() {
             let (service, socket) = LspService::new(|client| Backend {
                 client,
                 buffers: Arc::new(Mutex::new(HashMap::new())),
+                config: Config::config_from_file(),
             });
             Server::new(read, write, socket).serve(service).await;
         }

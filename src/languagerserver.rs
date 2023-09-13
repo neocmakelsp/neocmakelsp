@@ -98,7 +98,13 @@ impl LanguageServer for Backend {
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
-                document_formatting_provider: Some(OneOf::Left(true)),
+                document_formatting_provider: {
+                    if self.config.enable_format.is_some_and(|format| format) {
+                        Some(OneOf::Left(true))
+                    } else {
+                        None
+                    }
+                },
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
