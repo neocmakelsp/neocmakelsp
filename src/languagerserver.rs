@@ -17,36 +17,37 @@ impl Backend {
         let mut parse = Parser::new();
         parse.set_language(tree_sitter_cmake::language()).unwrap();
         let thetree = parse.parse(&context, None);
-        if let Some(tree) = thetree {
-            let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node());
-            if let Some(diagnoses) = gammererror {
-                let mut pusheddiagnoses = vec![];
-                for (start, end, message, severity) in diagnoses.inner {
-                    let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
-                    let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
-                    let range = Range {
-                        start: pointx,
-                        end: pointy,
-                    };
-                    let diagnose = Diagnostic {
-                        range,
-                        severity,
-                        code: None,
-                        code_description: None,
-                        source: None,
-                        message,
-                        related_information: None,
-                        tags: None,
-                        data: None,
-                    };
-                    pusheddiagnoses.push(diagnose);
-                }
-                self.client
-                    .publish_diagnostics(uri, pusheddiagnoses, Some(1))
-                    .await;
-            } else {
-                self.client.publish_diagnostics(uri, vec![], None).await;
+        let Some(tree) = thetree else {
+            return;
+        };
+        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node());
+        if let Some(diagnoses) = gammererror {
+            let mut pusheddiagnoses = vec![];
+            for (start, end, message, severity) in diagnoses.inner {
+                let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
+                let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
+                let range = Range {
+                    start: pointx,
+                    end: pointy,
+                };
+                let diagnose = Diagnostic {
+                    range,
+                    severity,
+                    code: None,
+                    code_description: None,
+                    source: None,
+                    message,
+                    related_information: None,
+                    tags: None,
+                    data: None,
+                };
+                pusheddiagnoses.push(diagnose);
             }
+            self.client
+                .publish_diagnostics(uri, pusheddiagnoses, Some(1))
+                .await;
+        } else {
+            self.client.publish_diagnostics(uri, vec![], None).await;
         }
     }
     async fn update_diagnostics(&self) {
