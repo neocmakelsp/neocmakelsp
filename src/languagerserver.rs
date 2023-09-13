@@ -62,6 +62,12 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, inital: InitializeParams) -> Result<InitializeResult> {
+        let do_format = inital
+            .initialization_options
+            .and_then(|value| value.get("format").cloned())
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true);
+
         if let Some(workspace) = inital.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {
                 if let (Some(true), Some(true)) = (
@@ -98,7 +104,11 @@ impl LanguageServer for Backend {
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
-                document_formatting_provider: Some(OneOf::Left(true)),
+                document_formatting_provider: if do_format {
+                    Some(OneOf::Left(true))
+                } else {
+                    None
+                },
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
