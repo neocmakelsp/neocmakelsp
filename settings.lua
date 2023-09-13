@@ -20,7 +20,9 @@ return {
                 },
             },
             init_options = {
-                format = true
+                format = {
+                    enable = true
+                }
             }
         }
     }
