@@ -100,7 +100,8 @@ fn format_content(
         // if is the commit at the end of line, continue
         if child.kind() == "line_comment"
             && endline == start_row
-            && (!isfirstunit || start_row == lastendline)
+            && !isfirstunit
+            && start_row == lastendline
         {
             continue;
         }
