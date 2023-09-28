@@ -100,11 +100,12 @@ fn format_content(
         // if is the commit at the end of line, continue
         if child.kind() == "line_comment"
             && endline == start_row
-            && !isfirstunit
-            && start_row == lastendline
+            && (!isfirstunit || start_row == lastendline)
+            && start_row != 0
         {
             continue;
         }
+
         for _ in endline..start_row {
             new_text.push('\n');
         }
