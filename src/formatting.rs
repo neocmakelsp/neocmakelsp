@@ -48,7 +48,7 @@ pub async fn getformat(
             .await;
         return None;
     }
-    let (new_text, _) = format_content(
+    let (mut new_text, _) = format_content(
         tree.root_node(),
         source.as_str(),
         spacelen,
@@ -57,6 +57,9 @@ pub async fn getformat(
         0,
         0,
     );
+    if !matches!(new_text.chars().last(), Some('\n')) {
+        new_text.push('\n');
+    }
     let len_ot = new_text.lines().count();
     let len_origin = source.lines().count();
     let len = std::cmp::max(len_ot, len_origin);
@@ -103,6 +106,20 @@ fn format_content(
             && (!isfirstunit || start_row == lastendline)
             && start_row != 0
         {
+            continue;
+        }
+
+        if child.kind() == "bracket_comment" {
+            for _ in endline..start_row {
+                new_text.push('\n');
+            }
+            endline = end_position.row;
+            lastendline = end_position.row;
+            for index in start_row..=endline {
+                new_text.push_str(newsource[index]);
+                new_text.push('\n');
+            }
+            new_text.pop();
             continue;
         }
 

@@ -233,7 +233,6 @@ Example using both :command:`configure_package_config_file` and
 
 
 
-
 cmake_minimum_required(VERSION 3.13)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
