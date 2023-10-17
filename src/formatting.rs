@@ -48,7 +48,7 @@ pub async fn getformat(
             .await;
         return None;
     }
-    let (mut new_text, _) = format_content(
+    let (mut new_text, endline) = format_content(
         tree.root_node(),
         source.as_str(),
         spacelen,
@@ -57,9 +57,10 @@ pub async fn getformat(
         0,
         0,
     );
-    if !matches!(new_text.chars().last(), Some('\n')) {
+    for _ in endline..source.lines().count() {
         new_text.push('\n');
     }
+
     let len_ot = new_text.lines().count();
     let len_origin = source.lines().count();
     let len = std::cmp::max(len_ot, len_origin);
@@ -209,8 +210,19 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
     if input.has_error() {
         return None;
     }
-
-    Some(format_content(input, source.as_str(), spacelen, usespace, 0, 0, 0).0)
+    let (mut new_text, endline) = format_content(
+        tree.root_node(),
+        source.as_str(),
+        spacelen,
+        usespace,
+        0,
+        0,
+        0,
+    );
+    for _ in endline..source.lines().count() - 1 {
+        new_text.push('\n');
+    }
+    Some(new_text)
 }
 
 #[test]
