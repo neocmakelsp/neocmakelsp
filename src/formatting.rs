@@ -219,7 +219,7 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
         0,
         0,
     );
-    for _ in endline..source.lines().count() - 1 {
+    for _ in endline..source.lines().count() {
         new_text.push('\n');
     }
     Some(new_text)
@@ -241,8 +241,7 @@ fn strip_newline_works() {
 fn tst_format_function() {
     let source = include_str!("../assert/function/formatbefore.cmake");
     let sourceafter = include_str!("../assert/function/formatafter.cmake");
-    let mut formatstr = get_format_cli(source, 1, false).unwrap();
-    formatstr.push('\n');
+    let formatstr = get_format_cli(source, 1, false).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
 }
 
@@ -251,7 +250,6 @@ fn tst_format_function() {
 fn tst_format_base() {
     let source = include_str!("../assert/base/formatbefore.cmake");
     let sourceafter = include_str!("../assert/base/formatafter.cmake");
-    let mut formatstr = get_format_cli(source, 1, false).unwrap();
-    formatstr.push('\n');
+    let formatstr = get_format_cli(source, 1, false).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
 }
