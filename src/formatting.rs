@@ -253,3 +253,12 @@ fn tst_format_base() {
     let formatstr = get_format_cli(source, 1, false).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
 }
+
+#[cfg(unix)]
+#[test]
+fn tst_format_lastline() {
+    let source = include_str!("../assert/lastline/before.cmake");
+    let sourceafter = include_str!("../assert/lastline/after.cmake");
+    let formatstr = get_format_cli(source, 4, true).unwrap();
+    assert_eq!(formatstr.as_str(), sourceafter);
+}
