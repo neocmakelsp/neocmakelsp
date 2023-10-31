@@ -160,27 +160,25 @@ fn format_content(
 
         endline = end_position.row;
         lastendline = end_position.row;
-        let startsource = newsource[start_row]
-            .trim_start()
-            .trim_end()
-            .split(' ')
-            .collect::<Vec<&str>>();
-        let mut firstline = String::new();
-        for _ in 0..appendtab {
-            firstline.push_str(&get_space(spacelen, usespace));
-        }
-        for unit in startsource {
-            firstline.push_str(unit);
-            firstline.push(' ');
-        }
-        let firstline = firstline.trim_end();
-        new_text.push_str(firstline);
-        new_text.push('\n');
-        for currentline in newsource.iter().take(end_row + 1).skip(start_row + 1) {
+
+        for (index, currentline) in newsource
+            .iter()
+            .take(end_row + 1)
+            .skip(start_row)
+            .enumerate()
+        {
             let currentline = currentline.trim_end();
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
-            let mut newline = get_space(spacesize as u32, usespace);
+            let mut newline = if index != 0 {
+                get_space(spacesize as u32, usespace)
+            } else {
+                let mut firstline = String::new();
+                for _ in 0..appendtab {
+                    firstline.push_str(&get_space(spacelen, usespace));
+                }
+                firstline
+            };
 
             let startsource = currentline
                 .trim_start()
