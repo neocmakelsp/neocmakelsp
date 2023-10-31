@@ -68,6 +68,9 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                                 let namesplit: Vec<&str> = name.split('"').collect();
                                 name = namesplit[1];
                             }
+                            if name.contains('$') {
+                                continue;
+                            }
                             if name.split('.').count() != 1 {
                                 let subpath = local_path.parent().unwrap().join(name);
                                 match cmake_try_exists(&subpath) {
