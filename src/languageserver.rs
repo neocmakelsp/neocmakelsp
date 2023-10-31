@@ -69,7 +69,7 @@ impl LanguageServer for Backend {
         let inital_config: Config = inital
             .initialization_options
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
-            .unwrap_or(Config::default());
+            .unwrap_or_default();
 
         let do_format = inital_config.is_format_enabled();
 

@@ -116,8 +116,8 @@ fn format_content(
             }
             endline = end_position.row;
             lastendline = end_position.row;
-            for index in start_row..=endline {
-                new_text.push_str(newsource[index]);
+            for comment in newsource.iter().take(endline + 1).skip(start_row) {
+                new_text.push_str(comment);
                 new_text.push('\n');
             }
             new_text.pop();
