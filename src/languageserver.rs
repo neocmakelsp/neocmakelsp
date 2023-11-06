@@ -312,18 +312,13 @@ impl LanguageServer for Backend {
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
         let location = input.text_document_position.position;
-        if input.context.is_some() {
-            let uri = input.text_document_position.text_document.uri;
-            let storemap = self.buffers.lock().await;
-            //notify_send("test", Type::Error);
-            match storemap.get(&uri) {
-                Some(context) => {
-                    Ok(complete::getcomplete(context, location, &self.client, uri.path()).await)
-                }
-                None => Ok(None),
+        let uri = input.text_document_position.text_document.uri;
+        let storemap = self.buffers.lock().await;
+        match storemap.get(&uri) {
+            Some(context) => {
+                Ok(complete::getcomplete(context, location, &self.client, uri.path()).await)
             }
-        } else {
-            Ok(None)
+            None => Ok(None),
         }
     }
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
