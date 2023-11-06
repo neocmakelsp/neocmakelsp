@@ -10,7 +10,7 @@ It is a CMake lsp based on tower-lsp and treesitter
 cargo install neocmakelsp
 ```
 
-## Setup
+## Setup For neovim
 
 The config of neocmakelsp is in `nvim-lsp-config`, so just follow `nvim-lsp-config` to setup it
 
@@ -66,7 +66,34 @@ end
 
 ```
 
-## Help needed 
+## Setup for helix
+
+### Tcp (good for debug)
+
+```toml
+[[language]]
+name = "neocmake"
+auto-format = true
+language-servers = [{ name = "neocmakelsp" }]
+
+[language-server.neocmakelsp]
+command = "nc"
+args = ["localhost", "9257"]
+```
+### Stdio
+
+```toml
+[[language]]
+name = "cmake"
+auto-format = true
+language-servers = [{ name = "neocmakelsp" }]
+
+[language-server.neocmakelsp]
+command = "neocmakelsp"
+args = ["--stdio"]
+```
+
+## Help needed
 
 new version will not work on mac and windows, so I need your help
 
