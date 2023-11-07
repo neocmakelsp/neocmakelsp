@@ -173,7 +173,6 @@ fn getsubcomplete(
             "normal_command" => {
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
-                //let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = newsource[h][x..y].to_lowercase();
@@ -235,28 +234,36 @@ fn getsubcomplete(
                     }
                 } else {
                     match postype {
-                        PositionType::TargetLink | PositionType::TargetInclude => {
+                        PositionType::TargetLink
+                        | PositionType::TargetInclude
+                        | PositionType::Variable => {
                             if name == "set" || name == "option" {
-                                let ids = child.child(2).unwrap();
-                                if ids.start_position().row == ids.end_position().row {
-                                    let h = ids.start_position().row;
-                                    let x = ids.start_position().column;
-                                    let y = ids.end_position().column;
-                                    let name = &newsource[h][x..y].split(' ').next();
-
-                                    let Some(name) = name.map(|name| name.to_string()) else {
-                                        continue;
-                                    };
-                                    complete.push(CompletionItem {
-                                        label: name.to_string(),
-                                        kind: Some(CompletionItemKind::VALUE),
-                                        detail: Some(format!(
-                                            "defined variable\nfrom: {}",
-                                            local_path.file_name().unwrap().to_str().unwrap()
-                                        )),
-                                        ..Default::default()
-                                    });
+                                let Some(arguments) = child.child(2) else {
+                                    continue;
+                                };
+                                let Some(ids) = arguments.child(0) else {
+                                    continue;
+                                };
+                                if ids.start_position().row != ids.end_position().row {
+                                    continue;
                                 }
+                                let h = ids.start_position().row;
+                                let x = ids.start_position().column;
+                                let y = ids.end_position().column;
+                                let name = &newsource[h][x..y].split(' ').next();
+
+                                let Some(name) = name.map(|name| name.to_string()) else {
+                                    continue;
+                                };
+                                complete.push(CompletionItem {
+                                    label: name.to_string(),
+                                    kind: Some(CompletionItemKind::VALUE),
+                                    detail: Some(format!(
+                                        "defined variable\nfrom: {}",
+                                        local_path.file_name().unwrap().to_str().unwrap()
+                                    )),
+                                    ..Default::default()
+                                });
                             }
                             if name == "find_package" && child.child_count() >= 3 {
                                 let ids = child.child(2).unwrap();
@@ -360,30 +367,6 @@ fn getsubcomplete(
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
                                         detail: Some(format!("package: {package_name}",)),
-                                        ..Default::default()
-                                    });
-                                }
-                            }
-                        }
-                        PositionType::Variable => {
-                            if name == "set" || name == "option" {
-                                let ids = child.child(2).unwrap();
-                                if ids.start_position().row == ids.end_position().row {
-                                    let h = ids.start_position().row;
-                                    let x = ids.start_position().column;
-                                    let y = ids.end_position().column;
-                                    let name = &newsource[h][x..y].split(' ').next();
-
-                                    let Some(name) = name.map(|name| name.to_string()) else {
-                                        continue;
-                                    };
-                                    complete.push(CompletionItem {
-                                        label: name.to_string(),
-                                        kind: Some(CompletionItemKind::VALUE),
-                                        detail: Some(format!(
-                                            "defined variable\nfrom: {}",
-                                            local_path.file_name().unwrap().to_str().unwrap()
-                                        )),
                                         ..Default::default()
                                     });
                                 }
