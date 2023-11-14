@@ -347,7 +347,10 @@ fn getsubcomplete(
 
                                 let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
                                 if modernpkgconfig {
-                                    if let PositionType::TargetLink = postype {
+                                    if matches!(
+                                        postype,
+                                        PositionType::Variable | PositionType::TargetLink
+                                    ) {
                                         complete.push(CompletionItem {
                                             label: format!("PkgConfig::{package_name}"),
                                             kind: Some(CompletionItemKind::VARIABLE),
