@@ -72,7 +72,7 @@ fn godefsub(root: Node, source: &str, tofind: &str, originuri: String) -> Option
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(Location {
-                    uri: Url::parse(&format!("file://{originuri}")).unwrap(),
+                    uri: Url::from_file_path(&originuri).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),
