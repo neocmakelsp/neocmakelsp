@@ -1,5 +1,7 @@
 mod findpackage;
 pub mod treehelper;
+use std::path::PathBuf;
+
 //use anyhow::Result;
 //use once_cell::sync::Lazy;
 //use std::collections::HashMap;
@@ -25,7 +27,7 @@ pub struct CMakePackage {
     pub filetype: FileType,
     pub filepath: String,
     pub version: Option<String>,
-    pub tojump: Vec<String>,
+    pub tojump: Vec<PathBuf>,
 }
 
 pub use findpackage::*;

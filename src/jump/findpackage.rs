@@ -22,7 +22,7 @@ pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec
                         character: 0,
                     },
                 },
-                uri: Url::parse(apath).unwrap(),
+                uri: Url::from_file_path(apath).unwrap(),
             })
             .collect()
     })

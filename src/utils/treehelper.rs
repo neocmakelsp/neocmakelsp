@@ -72,7 +72,7 @@ Packagepath: {}
 PackageVersion: {}
 ",
                     context.name,
-                    context.tojump[0],
+                    context.tojump[0].display(),
                     context.version.clone().unwrap_or("Undefined".to_string())
                 )
             })

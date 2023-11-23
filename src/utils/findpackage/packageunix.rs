@@ -39,11 +39,11 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
                 continue;
             };
-            let mut tojump: Vec<String> = vec![];
+            let mut tojump: Vec<PathBuf> = vec![];
             let mut version: Option<String> = None;
             let mut ispackage = false;
             for f in files.flatten() {
-                tojump.push(format!("file://{}", f.to_str().unwrap()));
+                tojump.push(fs::canonicalize(f.clone()).unwrap());
                 if CMAKECONFIG.is_match(f.to_str().unwrap()) {
                     ispackage = true;
                 }
@@ -81,18 +81,18 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
         };
         for path in paths.flatten() {
             let mut version: Option<String> = None;
-            let mut tojump: Vec<String> = vec![];
+            let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
             let packagepath = path.path().to_str().unwrap().to_string();
             let (packagetype, packagename) = {
                 if path.metadata().unwrap().is_dir() {
                     if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
                         for path in paths.flatten() {
-                            let filepath = path.path().to_str().unwrap().to_string();
+                            let filepath = fs::canonicalize(path.path()).unwrap();
                             if path.metadata().unwrap().is_file() {
                                 let filename = path.file_name().to_str().unwrap().to_string();
                                 if CMAKEREGEX.is_match(&filename) {
-                                    tojump.push(format!("file://{filepath}"));
+                                    tojump.push(filepath.clone());
                                     if CMAKECONFIGVERSION.is_match(&filename) {
                                         if let Ok(context) = fs::read_to_string(&filepath) {
                                             version = get_version(&context);
@@ -104,8 +104,8 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     }
                     (FileType::Dir, pathname)
                 } else {
-                    let filepath = path.path().to_str().unwrap().to_string();
-                    tojump.push(format!("file://{filepath}"));
+                    let filepath = fs::canonicalize(path.path()).unwrap();
+                    tojump.push(filepath);
                     let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
                     (FileType::File, pathname)
                 }
