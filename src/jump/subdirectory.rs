@@ -22,7 +22,7 @@ pub(super) async fn cmpsubdirectory(
                     character: 0,
                 },
             },
-            uri: Url::parse(&format!("file://{}", target.to_str().unwrap())).unwrap(),
+            uri: Url::from_file_path(target).unwrap(),
         }])
     } else {
         client

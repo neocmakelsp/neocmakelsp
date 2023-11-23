@@ -42,7 +42,7 @@ pub(super) async fn cmpinclude(
                     character: 0,
                 },
             },
-            uri: Url::parse(&format!("file://{target}")).unwrap(),
+            uri: Url::from_file_path(target).unwrap(),
         }])
     } else {
         None
