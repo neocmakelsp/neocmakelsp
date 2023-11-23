@@ -119,11 +119,18 @@ fn getsubcomplete(
                 ));
             }
             "function_def" => {
-                let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let ids = ids.child(2).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
+                let Some(function_whole) = child.child(0) else {
+                    continue;
+                };
+                let Some(argument_list) = function_whole.child(2) else {
+                    continue;
+                };
+                let Some(function_name) = argument_list.child(0) else {
+                    continue;
+                };
+                let x = function_name.start_position().column;
+                let y = function_name.end_position().column;
+                let h = function_name.start_position().row;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
@@ -138,11 +145,18 @@ fn getsubcomplete(
                 });
             }
             "macro_def" => {
-                let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let ids = ids.child(2).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
+                let Some(macro_whole) = child.child(0) else {
+                    continue;
+                };
+                let Some(argument_list) = macro_whole.child(2) else {
+                    continue;
+                };
+                let Some(marco_name) = argument_list.child(0) else {
+                    continue;
+                };
+                let x = marco_name.start_position().column;
+                let y = marco_name.end_position().column;
+                let h = marco_name.start_position().row;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };

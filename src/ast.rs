@@ -31,15 +31,18 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
     for child in input.children(&mut course) {
         match child.kind() {
             "function_def" => {
-                let h = child.start_position().row;
                 let Some(ids) = child.child(0) else {
                     continue;
                 };
                 let Some(argumentlists) = ids.child(2) else {
                     continue;
                 };
-                let x = argumentlists.start_position().column;
-                let y = argumentlists.end_position().column;
+                let Some(function_name) = argumentlists.child(0) else {
+                    continue;
+                };
+                let x = function_name.start_position().column;
+                let y = function_name.end_position().column;
+                let h = function_name.start_position().row;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
@@ -77,15 +80,18 @@ fn getsubast(input: tree_sitter::Node, source: &str, simple: bool) -> Option<Vec
                 });
             }
             "macro_def" => {
-                let h = child.start_position().row;
                 let Some(ids) = child.child(0) else {
                     continue;
                 };
                 let Some(argumentlists) = ids.child(2) else {
                     continue;
                 };
-                let x = argumentlists.start_position().column;
-                let y = argumentlists.end_position().column;
+                let Some(marco_name) = argumentlists.child(0) else {
+                    continue;
+                };
+                let x = marco_name.start_position().column;
+                let y = marco_name.end_position().column;
+                let h = marco_name.start_position().row;
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
