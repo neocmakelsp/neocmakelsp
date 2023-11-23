@@ -76,48 +76,49 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
         }
     }
     for lib in get_available_libs() {
-        if let Ok(paths) = std::fs::read_dir(lib) {
-            for path in paths.flatten() {
-                let mut version: Option<String> = None;
-                let mut tojump: Vec<String> = vec![];
-                let pathname = path.file_name().to_str().unwrap().to_string();
-                let packagepath = path.path().to_str().unwrap().to_string();
-                let (packagetype, packagename) = {
-                    if path.metadata().unwrap().is_dir() {
-                        if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
-                            for path in paths.flatten() {
-                                let filepath = path.path().to_str().unwrap().to_string();
-                                if path.metadata().unwrap().is_file() {
-                                    let filename = path.file_name().to_str().unwrap().to_string();
-                                    if CMAKEREGEX.is_match(&filename) {
-                                        tojump.push(format!("file://{filepath}"));
-                                        if CMAKECONFIGVERSION.is_match(&filename) {
-                                            if let Ok(context) = fs::read_to_string(&filepath) {
-                                                version = get_version(&context);
-                                            }
+        let Ok(paths) = std::fs::read_dir(lib) else {
+            continue;
+        };
+        for path in paths.flatten() {
+            let mut version: Option<String> = None;
+            let mut tojump: Vec<String> = vec![];
+            let pathname = path.file_name().to_str().unwrap().to_string();
+            let packagepath = path.path().to_str().unwrap().to_string();
+            let (packagetype, packagename) = {
+                if path.metadata().unwrap().is_dir() {
+                    if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
+                        for path in paths.flatten() {
+                            let filepath = path.path().to_str().unwrap().to_string();
+                            if path.metadata().unwrap().is_file() {
+                                let filename = path.file_name().to_str().unwrap().to_string();
+                                if CMAKEREGEX.is_match(&filename) {
+                                    tojump.push(format!("file://{filepath}"));
+                                    if CMAKECONFIGVERSION.is_match(&filename) {
+                                        if let Ok(context) = fs::read_to_string(&filepath) {
+                                            version = get_version(&context);
                                         }
                                     }
                                 }
                             }
                         }
-                        (FileType::Dir, pathname)
-                    } else {
-                        let filepath = path.path().to_str().unwrap().to_string();
-                        tojump.push(format!("file://{filepath}"));
-                        let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
-                        (FileType::File, pathname)
                     }
-                };
-                packages
-                    .entry(packagename.clone())
-                    .or_insert_with(|| CMakePackage {
-                        name: packagename,
-                        filetype: packagetype,
-                        filepath: packagepath,
-                        version,
-                        tojump,
-                    });
-            }
+                    (FileType::Dir, pathname)
+                } else {
+                    let filepath = path.path().to_str().unwrap().to_string();
+                    tojump.push(format!("file://{filepath}"));
+                    let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
+                    (FileType::File, pathname)
+                }
+            };
+            packages
+                .entry(packagename.clone())
+                .or_insert_with(|| CMakePackage {
+                    name: packagename,
+                    filetype: packagetype,
+                    filepath: packagepath,
+                    version,
+                    tojump,
+                });
         }
     }
     packages
