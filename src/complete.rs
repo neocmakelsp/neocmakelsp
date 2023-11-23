@@ -3,7 +3,7 @@ mod buildin;
 mod findpackage;
 mod includescanner;
 use crate::utils::treehelper::{get_pos_type, PositionType};
-use crate::CompletionResponse;
+use crate::{utils, CompletionResponse};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 use std::path::{Path, PathBuf};
@@ -266,13 +266,19 @@ fn getsubcomplete(
                                 });
                             }
                             if name == "find_package" && child.child_count() >= 3 {
-                                let ids = child.child(2).unwrap();
+                                let Some(ids) = child.child(2) else {
+                                    continue;
+                                };
                                 let h = ids.start_position().row;
                                 //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
+                                if y < x {
+                                    continue;
+                                }
                                 let package_names: Vec<&str> =
                                     newsource[h][x..y].split(' ').collect();
+                                let mut cmakepackages = Vec::new();
                                 let package_name = package_names[0];
                                 let components_packages = {
                                     if package_names.len() >= 2 {
@@ -296,6 +302,16 @@ fn getsubcomplete(
                                         None
                                     }
                                 };
+                                match components_packages {
+                                    Some(ref packages) => {
+                                        for package in packages {
+                                            cmakepackages.push(format!("{package_name}{package}"));
+                                        }
+                                    }
+                                    None => {
+                                        cmakepackages.push(package_name.to_string());
+                                    }
+                                }
                                 // mordern cmake like Qt5::Core
                                 if let Some(components) = components_packages {
                                     for component in components {
@@ -333,6 +349,14 @@ fn getsubcomplete(
                                         detail: Some(format!("package: {package_name}",)),
                                         ..Default::default()
                                     });
+                                }
+                                for package in cmakepackages {
+                                    let Some(mut completeitem) =
+                                        get_cmake_package_complete(package.as_str(), postype)
+                                    else {
+                                        continue;
+                                    };
+                                    complete.append(&mut completeitem);
                                 }
                             }
                             #[cfg(unix)]
@@ -395,4 +419,21 @@ fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(error) => Err(error),
     }
+}
+
+fn get_cmake_package_complete(
+    package_name: &str,
+    postype: PositionType,
+) -> Option<Vec<CompletionItem>> {
+    let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
+    let mut complete_infos = Vec::new();
+
+    for path in packageinfo.tojump.iter() {
+        let Some(mut packages) = includescanner::scanner_include_complete(path, postype) else {
+            continue;
+        };
+        complete_infos.append(&mut packages);
+    }
+
+    Some(complete_infos)
 }
