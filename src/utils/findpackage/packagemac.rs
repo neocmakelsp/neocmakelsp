@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use crate::utils::{CMakePackage, FileType};
 
-use super::{get_version, CMAKECONFIGVERSION, CMAKEREGEX};
+use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
