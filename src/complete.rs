@@ -280,6 +280,7 @@ fn getsubcomplete(
                                     newsource[h][x..y].split(' ').collect();
                                 let mut cmakepackages = Vec::new();
                                 let package_name = package_names[0];
+                                let mut component_part = Vec::new();
                                 let components_packages = {
                                     if package_names.len() >= 2 {
                                         let mut support_commponent = false;
@@ -288,6 +289,7 @@ fn getsubcomplete(
                                             if *component == "COMPONENTS" {
                                                 support_commponent = true;
                                             } else if *component != "REQUIRED" {
+                                                component_part.push(component.to_string());
                                                 components_packages
                                                     .push(format!("{package_name}::{component}"));
                                             }
@@ -302,15 +304,12 @@ fn getsubcomplete(
                                         None
                                     }
                                 };
-                                match components_packages {
-                                    Some(ref packages) => {
-                                        for package in packages {
-                                            cmakepackages.push(format!("{package_name}{package}"));
-                                        }
+                                if components_packages.is_some() {
+                                    for package in component_part {
+                                        cmakepackages.push(format!("{package_name}{package}"));
                                     }
-                                    None => {
-                                        cmakepackages.push(package_name.to_string());
-                                    }
+                                } else {
+                                    cmakepackages.push(package_name.to_string());
                                 }
                                 // mordern cmake like Qt5::Core
                                 if let Some(components) = components_packages {
