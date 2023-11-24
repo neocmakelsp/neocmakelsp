@@ -87,6 +87,7 @@ pub async fn getcomplete(
 }
 /// get the variable from the loop
 /// use position to make only can complete which has show before
+#[allow(clippy::too_many_arguments)]
 fn getsubcomplete(
     input: tree_sitter::Node,
     source: &str,
