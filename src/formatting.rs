@@ -161,6 +161,7 @@ fn format_content(
         endline = end_position.row;
         lastendline = end_position.row;
 
+        // TODO: use tree_sitter handle it
         for (index, currentline) in newsource
             .iter()
             .take(end_row + 1)
