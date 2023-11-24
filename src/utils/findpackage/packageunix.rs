@@ -12,9 +12,9 @@ use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
-pub const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
+const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
 
-pub const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
+const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
