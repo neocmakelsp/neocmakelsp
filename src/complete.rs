@@ -48,6 +48,8 @@ pub async fn getcomplete(
                 Path::new(local_path),
                 postype,
                 Some(location),
+                &mut Vec::new(),
+                true,
             ) {
                 complete.append(&mut message);
             }
@@ -89,6 +91,8 @@ fn getsubcomplete(
     local_path: &Path,
     postype: PositionType,
     location: Option<Position>,
+    complete_packages: &mut Vec<String>,
+    should_in: bool,
 ) -> Option<Vec<CompletionItem>> {
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
@@ -171,16 +175,28 @@ fn getsubcomplete(
                 });
             }
             "body" => {
-                if let Some(mut message) =
-                    getsubcomplete(child, source, local_path, postype, location)
-                {
+                if let Some(mut message) = getsubcomplete(
+                    child,
+                    source,
+                    local_path,
+                    postype,
+                    location,
+                    complete_packages,
+                    true,
+                ) {
                     complete.append(&mut message);
                 }
             }
             "if_condition" | "foreach_loop" => {
-                if let Some(mut message) =
-                    getsubcomplete(child, source, local_path, postype, location)
-                {
+                if let Some(mut message) = getsubcomplete(
+                    child,
+                    source,
+                    local_path,
+                    postype,
+                    location,
+                    complete_packages,
+                    true,
+                ) {
                     complete.append(&mut message);
                 }
             }
@@ -190,7 +206,7 @@ fn getsubcomplete(
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = newsource[h][x..y].to_lowercase();
-                if name == "include" && child.child_count() >= 3 {
+                if name == "include" && child.child_count() >= 3 && should_in {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
@@ -214,9 +230,11 @@ fn getsubcomplete(
                             }
                         };
                         if let Ok(true) = cmake_try_exists(&subpath) {
-                            if let Some(mut comps) =
-                                includescanner::scanner_include_complete(&subpath, postype)
-                            {
+                            if let Some(mut comps) = includescanner::scanner_include_complete(
+                                &subpath,
+                                postype,
+                                complete_packages,
+                            ) {
                                 complete.append(&mut comps);
                             }
                         }
@@ -279,12 +297,12 @@ fn getsubcomplete(
                                     ..Default::default()
                                 });
                             }
-                            if name == "find_package" && child.child_count() >= 3 {
+                            if name == "find_package" && child.child_count() >= 3 && should_in {
                                 let Some(ids) = child.child(2) else {
                                     continue;
                                 };
+                                // FIXME: this is not good enough
                                 let h = ids.start_position().row;
-                                //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
                                 if y < x {
@@ -364,9 +382,15 @@ fn getsubcomplete(
                                     });
                                 }
                                 for package in cmakepackages {
-                                    let Some(mut completeitem) =
-                                        get_cmake_package_complete(package.as_str(), postype)
-                                    else {
+                                    if complete_packages.contains(&package) {
+                                        continue;
+                                    }
+                                    complete_packages.push(package.clone());
+                                    let Some(mut completeitem) = get_cmake_package_complete(
+                                        package.as_str(),
+                                        postype,
+                                        complete_packages,
+                                    ) else {
                                         continue;
                                     };
                                     complete.append(&mut completeitem);
@@ -375,7 +399,6 @@ fn getsubcomplete(
                             #[cfg(unix)]
                             if name == "pkg_check_modules" && child.child_count() >= 3 {
                                 let ids = child.child(2).unwrap();
-                                //let ids = ids.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
                                 let package_names: Vec<&str> =
@@ -437,12 +460,15 @@ fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
 fn get_cmake_package_complete(
     package_name: &str,
     postype: PositionType,
+    complete_packages: &mut Vec<String>,
 ) -> Option<Vec<CompletionItem>> {
     let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {
-        let Some(mut packages) = includescanner::scanner_include_complete(path, postype) else {
+        let Some(mut packages) =
+            includescanner::scanner_package_complete(path, postype, complete_packages)
+        else {
             continue;
         };
         complete_infos.append(&mut packages);
