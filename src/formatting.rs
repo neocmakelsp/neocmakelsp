@@ -266,7 +266,6 @@ fn strip_newline_works() {
     assert_eq!(strip_trailing_newline("Test3"), "Test3");
 }
 
-#[cfg(unix)]
 #[test]
 fn tst_format_function() {
     let source = include_str!("../assert/function/formatbefore.cmake");
@@ -275,7 +274,6 @@ fn tst_format_function() {
     assert_eq!(formatstr.as_str(), sourceafter);
 }
 
-#[cfg(unix)]
 #[test]
 fn tst_format_base() {
     let source = include_str!("../assert/base/formatbefore.cmake");
@@ -284,7 +282,6 @@ fn tst_format_base() {
     assert_eq!(formatstr.as_str(), sourceafter);
 }
 
-#[cfg(unix)]
 #[test]
 fn tst_format_lastline() {
     let source = include_str!("../assert/lastline/before.cmake");
