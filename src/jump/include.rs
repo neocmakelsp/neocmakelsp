@@ -15,7 +15,16 @@ pub(super) async fn cmpinclude(
         let root_dir = path.parent().unwrap();
         root_dir.join(subpath)
     } else {
-        let Some(path) = glob::glob(format!("/usr/share/cmake*/Modules/{subpath}.cmake").as_str())
+        #[cfg(unix)]
+        let glob_pattern = format!("/usr/share/cmake*/Modules/{subpath}.cmake");
+        #[cfg(not(unix))]
+        let glob_pattern = {
+            let Ok(prefix) = std::env::var("CMAKE_PREFIX_PATH") else {
+                return None;
+            };
+            format!("{prefix}/cmake*/Modules/{subpath}.cmake")
+        };
+        let Some(path) = glob::glob(glob_pattern.as_str())
             .into_iter()
             .flatten()
             .flatten()

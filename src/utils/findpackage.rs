@@ -11,7 +11,6 @@ mod packagemac;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
 
-pub use cmakepackage::PREFIX;
 use once_cell::sync::Lazy;
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: Lazy<regex::Regex> =
