@@ -35,6 +35,7 @@ if not configs.neocmake then
                 format = {
                     enable = true
                 }
+                scan_cmake_in_package = true -- default is true
             }
         }
     }
