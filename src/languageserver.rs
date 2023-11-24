@@ -73,6 +73,11 @@ impl LanguageServer for Backend {
 
         let do_format = inital_config.is_format_enabled();
 
+        let find_cmake_in_package = inital_config.is_scan_cmake_in_package();
+
+        let mut init_info = self.init_info.lock().await;
+        init_info.scan_cmake_in_package = find_cmake_in_package;
+
         if let Some(workspace) = inital.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {
                 if let (Some(true), Some(true)) = (
@@ -315,9 +320,14 @@ impl LanguageServer for Backend {
         let uri = input.text_document_position.text_document.uri;
         let storemap = self.buffers.lock().await;
         match storemap.get(&uri) {
-            Some(context) => {
-                Ok(complete::getcomplete(context, location, &self.client, uri.path()).await)
-            }
+            Some(context) => Ok(complete::getcomplete(
+                context,
+                location,
+                &self.client,
+                uri.path(),
+                self.init_info.lock().await.scan_cmake_in_package,
+            )
+            .await),
             None => Ok(None),
         }
     }

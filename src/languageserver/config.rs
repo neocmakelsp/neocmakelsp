@@ -3,6 +3,7 @@ use serde::Deserialize;
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
     pub format: Option<FormatConfig>,
+    pub scan_cmake_in_package: Option<bool>,
 }
 
 impl Config {
@@ -12,12 +13,16 @@ impl Config {
             .map(|config| config.enable.unwrap_or(true))
             .unwrap_or(true)
     }
+    pub fn is_scan_cmake_in_package(&self) -> bool {
+        self.scan_cmake_in_package.unwrap_or(true)
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             format: Some(FormatConfig::default()),
+            scan_cmake_in_package: Some(true),
         }
     }
 }

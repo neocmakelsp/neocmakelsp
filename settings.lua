@@ -21,8 +21,10 @@ return {
             },
             init_options = {
                 format = {
-                    enable = true
-                }
+                    enable = true,
+
+                },
+                scan_cmake_in_package = false,
             }
         }
     }

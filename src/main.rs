@@ -27,6 +27,11 @@ mod scansubs;
 mod search;
 mod utils;
 
+#[derive(Debug)]
+struct BackendInitInfo {
+    pub scan_cmake_in_package: bool,
+}
+
 /// Beckend
 #[derive(Debug)]
 struct Backend {
@@ -34,6 +39,7 @@ struct Backend {
     client: Client,
     /// Storage the message of buffers
     buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
+    init_info: Arc<Mutex<BackendInitInfo>>,
 }
 
 fn gitignore() -> Vec<String> {
@@ -310,6 +316,9 @@ async fn main() {
             let (service, socket) = LspService::new(|client| Backend {
                 client,
                 buffers: Arc::new(Mutex::new(HashMap::new())),
+                init_info: Arc::new(Mutex::new(BackendInitInfo {
+                    scan_cmake_in_package: true,
+                })),
             });
             Server::new(stdin, stdout, socket).serve(service).await;
         }
@@ -348,6 +357,9 @@ async fn main() {
             let (service, socket) = LspService::new(|client| Backend {
                 client,
                 buffers: Arc::new(Mutex::new(HashMap::new())),
+                init_info: Arc::new(Mutex::new(BackendInitInfo {
+                    scan_cmake_in_package: true,
+                })),
             });
             Server::new(read, write, socket).serve(service).await;
         }

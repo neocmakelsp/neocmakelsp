@@ -8,6 +8,7 @@ pub fn scanner_include_complete(
     path: &PathBuf,
     postype: PositionType,
     complete_packages: &mut Vec<String>,
+    find_cmake_in_package: bool,
 ) -> Option<Vec<CompletionItem>> {
     match fs::read_to_string(path) {
         Ok(content) => {
@@ -23,6 +24,7 @@ pub fn scanner_include_complete(
                 None,
                 complete_packages,
                 true,
+                find_cmake_in_package
             )
         }
         Err(_) => None,
@@ -48,6 +50,7 @@ pub fn scanner_package_complete(
                 None,
                 complete_packages,
                 false,
+                true
             )
         }
         Err(_) => None,

@@ -31,6 +31,7 @@ pub async fn getcomplete(
     location: Position,
     client: &tower_lsp::Client,
     local_path: &str,
+    find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
     //let mut course2 = course.clone();
     //let mut hasid = false;
@@ -50,6 +51,7 @@ pub async fn getcomplete(
                 Some(location),
                 &mut Vec::new(),
                 true,
+                find_cmake_in_package,
             ) {
                 complete.append(&mut message);
             }
@@ -93,6 +95,7 @@ fn getsubcomplete(
     location: Option<Position>,
     complete_packages: &mut Vec<String>,
     should_in: bool,
+    find_cmake_in_package: bool,
 ) -> Option<Vec<CompletionItem>> {
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
@@ -183,6 +186,7 @@ fn getsubcomplete(
                     location,
                     complete_packages,
                     true,
+                    find_cmake_in_package,
                 ) {
                     complete.append(&mut message);
                 }
@@ -196,6 +200,7 @@ fn getsubcomplete(
                     location,
                     complete_packages,
                     true,
+                    find_cmake_in_package,
                 ) {
                     complete.append(&mut message);
                 }
@@ -234,6 +239,7 @@ fn getsubcomplete(
                                 &subpath,
                                 postype,
                                 complete_packages,
+                                find_cmake_in_package,
                             ) {
                                 complete.append(&mut comps);
                             }
@@ -297,7 +303,11 @@ fn getsubcomplete(
                                     ..Default::default()
                                 });
                             }
-                            if name == "find_package" && child.child_count() >= 3 && should_in {
+                            if name == "find_package"
+                                && child.child_count() >= 3
+                                && should_in
+                                && find_cmake_in_package
+                            {
                                 let Some(ids) = child.child(2) else {
                                     continue;
                                 };
