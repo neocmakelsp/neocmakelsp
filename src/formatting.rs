@@ -9,6 +9,37 @@ fn strip_trailing_newline(input: &str) -> &str {
         .unwrap_or(input)
 }
 
+fn reformat_with_comment(line: &str) -> String {
+    let comment_chars: Vec<usize> = line
+        .chars()
+        .enumerate()
+        .filter(|(_, c)| *c == '#')
+        .map(|(i, _)| i)
+        .collect();
+
+    if comment_chars.is_empty() {
+        return line.to_owned();
+    }
+
+    if line.trim_start().chars().next().is_some_and(|c| c == '#') {
+        return line.to_owned();
+    }
+
+    for comment in comment_chars {
+        let before = line.chars().nth(comment - 1).unwrap();
+        if before == ' ' {
+            break;
+        }
+        if before != '\\' {
+            let linebefore = &line[..comment];
+            let lineafter = &line[comment..];
+            return format!("{linebefore} {lineafter}");
+        }
+    }
+
+    line.to_owned()
+}
+
 // remove all \r to normal one
 fn strip_trailing_newline_document(input: &str) -> String {
     let cll: Vec<&str> = input.lines().map(strip_trailing_newline).collect();
@@ -105,7 +136,7 @@ fn format_content(
         if child.kind() == "line_comment"
             && endline == start_row
             && (!isfirstunit || start_row == lastendline)
-            && start_row != 0
+            && !(start_row == 0 && isfirstunit)
         {
             continue;
         }
@@ -190,7 +221,7 @@ fn format_content(
                 newline.push_str(unit);
                 newline.push(' ');
             }
-            let newline = newline.trim_end();
+            let newline = &reformat_with_comment(newline.trim_end());
             new_text.push_str(newline);
             new_text.push('\n');
         }
@@ -260,4 +291,22 @@ fn tst_format_lastline() {
     let sourceafter = include_str!("../assert/lastline/after.cmake");
     let formatstr = get_format_cli(source, 4, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
+}
+
+#[test]
+fn tst_format_comment() {
+    let origin = "hello####ss";
+    let after = reformat_with_comment(origin);
+
+    assert_eq!("hello ####ss", after);
+
+    let origin = "set(A 'hello\\#')###ss";
+    let after = reformat_with_comment(origin);
+
+    assert_eq!("set(A 'hello\\#') ###ss", after);
+
+    let origin = "##  it is all   comments";
+    let after = reformat_with_comment(origin);
+
+    assert_eq!(origin, after);
 }
