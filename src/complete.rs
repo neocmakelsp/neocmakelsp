@@ -95,7 +95,7 @@ fn getsubcomplete(
     postype: PositionType,
     location: Option<Position>,
     complete_packages: &mut Vec<String>,
-    should_in: bool,
+    should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
 ) -> Option<Vec<CompletionItem>> {
     if let Some(location) = location {
@@ -304,11 +304,7 @@ fn getsubcomplete(
                                     ..Default::default()
                                 });
                             }
-                            if name == "find_package"
-                                && child.child_count() >= 3
-                                && should_in
-                                && find_cmake_in_package
-                            {
+                            if name == "find_package" && child.child_count() >= 3 && should_in {
                                 let Some(ids) = child.child(2) else {
                                     continue;
                                 };
@@ -347,7 +343,7 @@ fn getsubcomplete(
                                         None
                                     }
                                 };
-                                if components_packages.is_some() {
+                                if find_cmake_in_package && components_packages.is_some() {
                                     for package in component_part {
                                         cmakepackages.push(format!("{package_name}{package}"));
                                     }
