@@ -219,9 +219,9 @@ fn getsubcomplete(
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &newsource[h][x..y];
-                        let subpath = {
+                        let (is_buildin, subpath) = {
                             if name.split('.').count() != 1 {
-                                local_path.parent().unwrap().join(name)
+                                (false, local_path.parent().unwrap().join(name))
                             } else {
                                 let Some(path) = glob::glob(
                                     format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
@@ -232,7 +232,7 @@ fn getsubcomplete(
                                 .next() else {
                                     continue;
                                 };
-                                path
+                                (true, path)
                             }
                         };
                         if let Ok(true) = cmake_try_exists(&subpath) {
@@ -241,6 +241,7 @@ fn getsubcomplete(
                                 postype,
                                 complete_packages,
                                 find_cmake_in_package,
+                                is_buildin,
                             ) {
                                 complete.append(&mut comps);
                             }
