@@ -14,7 +14,6 @@ use clap::{arg, Arg, ArgAction, Command};
 // color
 use nu_ansi_term::Color::LightYellow;
 
-use std::collections::HashMap;
 use tokio::net::TcpListener;
 mod ast;
 mod complete;
@@ -38,7 +37,6 @@ struct Backend {
     /// client
     client: Client,
     /// Storage the message of buffers
-    buffers: Arc<Mutex<HashMap<lsp_types::Url, String>>>,
     init_info: Arc<Mutex<BackendInitInfo>>,
 }
 
@@ -315,7 +313,6 @@ async fn main() {
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
             let (service, socket) = LspService::new(|client| Backend {
                 client,
-                buffers: Arc::new(Mutex::new(HashMap::new())),
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
                 })),
@@ -356,7 +353,6 @@ async fn main() {
 
             let (service, socket) = LspService::new(|client| Backend {
                 client,
-                buffers: Arc::new(Mutex::new(HashMap::new())),
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
                 })),
