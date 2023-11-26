@@ -316,10 +316,11 @@ impl LanguageServer for Backend {
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        let mut storemap = BUFFERS.lock().await;
-        storemap.remove(&params.text_document.uri);
         self.client
-            .log_message(MessageType::INFO, "file closed!")
+            .log_message(
+                MessageType::INFO,
+                format!("file {:?} closed!", params.text_document.uri),
+            )
             .await;
         //notify_send("file closed", Type::Info);
     }
