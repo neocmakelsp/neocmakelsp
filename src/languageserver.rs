@@ -9,6 +9,7 @@ use crate::filewatcher;
 use crate::formatting::getformat;
 use crate::gammar::checkerror;
 use crate::jump;
+use crate::scansubs;
 use crate::utils::treehelper;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -93,7 +94,7 @@ impl LanguageServer for Backend {
                     watch_file.dynamic_registration,
                     watch_file.relative_pattern_support,
                 ) {
-                    if let Some(uri) = inital.root_uri {
+                    if let Some(ref uri) = inital.root_uri {
                         let path = std::path::Path::new(uri.path())
                             .join("build")
                             .join("CMakeCache.txt");
@@ -104,6 +105,11 @@ impl LanguageServer for Backend {
                 }
             }
         }
+
+        if let Some(ref uri) = inital.root_uri {
+            scansubs::scan_all(uri.path()).await;
+        }
+
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {

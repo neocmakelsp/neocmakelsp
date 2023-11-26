@@ -1,9 +1,86 @@
 use std::{
+    collections::HashMap,
     fmt,
     path::{Path, PathBuf},
 };
 
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+pub type TreeKey = HashMap<PathBuf, Option<PathBuf>>;
+
+// here get the struct of the tree
+pub static TREE_MAP: Lazy<Arc<Mutex<TreeKey>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+pub async fn scan_all<P: AsRef<Path>>(project_root: P) {
+    let root_cmake = project_root.as_ref().join("CMakeLists.txt");
+    let mut to_scan: Vec<PathBuf> = vec![root_cmake];
+    while !to_scan.is_empty() {
+        let mut next_to_scan = Vec::new();
+        for scan_cmake in to_scan.iter() {
+            let mut out = scan_dir(scan_cmake).await;
+            next_to_scan.append(&mut out);
+        }
+        to_scan = next_to_scan;
+    }
+}
+
+pub async fn scan_dir<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
+    let bufs = scan_dir_inner(path.as_ref());
+    let mut tree = TREE_MAP.lock().await;
+    for subpath in bufs.iter() {
+        tree.insert(subpath.to_path_buf(), Some(path.as_ref().into()));
+    }
+
+    bufs
+}
+
+pub fn scan_dir_inner<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
+    let Ok(source) = std::fs::read_to_string(path.as_ref()) else {
+        return Vec::new();
+    };
+
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let tree = tree.root_node();
+    let newsource: Vec<&str> = source.lines().collect();
+    if tree.is_error() {
+        return Vec::new();
+    }
+    let mut bufs = Vec::new();
+    let mut course = tree.walk();
+    for node in tree.children(&mut course) {
+        if node.kind() == "normal_command" {
+            let h = node.start_position().row;
+            let ids = node.child(0).unwrap();
+            //let ids = ids.child(2).unwrap();
+            let x = ids.start_position().column;
+            let y = ids.end_position().column;
+            let command_name = &newsource[h][x..y];
+            if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
+                let ids = node.child(2).unwrap();
+                if ids.start_position().row == ids.end_position().row {
+                    let h = ids.start_position().row;
+                    let x = ids.start_position().column;
+                    let y = ids.end_position().column;
+                    let name = &newsource[h][x..y];
+                    let name = remove_quotation(name);
+                    let subpath = path
+                        .as_ref()
+                        .parent()
+                        .unwrap()
+                        .join(name)
+                        .join("CMakeLists.txt");
+                    bufs.push(subpath)
+                }
+            }
+        }
+    }
+    bufs
+}
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TreeDir {
