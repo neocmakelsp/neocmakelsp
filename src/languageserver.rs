@@ -23,7 +23,7 @@ use tree_sitter::Parser;
 
 use once_cell::sync::Lazy;
 
-static BUFFERS: Lazy<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
+pub static BUFFERS_CACHE: Lazy<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 impl Backend {
@@ -65,7 +65,7 @@ impl Backend {
         }
     }
     async fn update_diagnostics(&self) {
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         for (uri, context) in storemap.iter() {
             self.publish_diagnostics(uri.clone(), context.to_string())
                 .await;
@@ -238,7 +238,7 @@ impl LanguageServer for Backend {
         parse.set_language(tree_sitter_cmake::language()).unwrap();
         let uri = input.text_document.uri.clone();
         let context = input.text_document.text.clone();
-        let mut storemap = BUFFERS.lock().await;
+        let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
         self.publish_diagnostics(uri, context).await;
         self.client
@@ -250,7 +250,7 @@ impl LanguageServer for Backend {
         // create a parse
         let uri = input.text_document.uri.clone();
         let context = input.content_changes[0].text.clone();
-        let mut storemap = BUFFERS.lock().await;
+        let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
         if context.lines().count() < 500 {
             self.publish_diagnostics(uri, context).await;
@@ -262,19 +262,24 @@ impl LanguageServer for Backend {
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
 
-        if self.root_path.lock().await.is_some() {
+        let has_root = self.root_path.lock().await.is_some();
+        if has_root {
             scansubs::scan_dir(uri.path()).await;
         };
 
         if let Some(context) = storemap.get(&uri) {
+            if has_root {
+                complete::update_cache(uri.path(), context).await;
+            }
             self.publish_diagnostics(uri, context.to_string()).await;
         }
         self.client
             .log_message(MessageType::INFO, "file saved!")
             .await;
     }
+
     async fn signature_help(&self, _: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
         Ok(Some(SignatureHelp {
             signatures: vec![SignatureInformation {
@@ -287,10 +292,11 @@ impl LanguageServer for Backend {
             active_parameter: None,
         }))
     }
+
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         self.client.log_message(MessageType::INFO, "Hovered!").await;
         //notify_send("test", Type::Error);
         match storemap.get(&uri) {
@@ -322,7 +328,7 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "formating")
             .await;
         let uri = input.text_document.uri;
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         tracing::info!(input.options.insert_spaces);
         let space_line = if input.options.insert_spaces {
             input.options.tab_size
@@ -354,10 +360,12 @@ impl LanguageServer for Backend {
         self.client.log_message(MessageType::INFO, "Complete").await;
         let location = input.text_document_position.position;
         let uri = input.text_document_position.text_document.uri;
-        let storemap = BUFFERS.lock().await;
-        match storemap.get(&uri) {
+        let storemap = BUFFERS_CACHE.lock().await;
+        let urlconent = storemap.get(&uri).cloned();
+        drop(storemap);
+        match urlconent {
             Some(context) => Ok(complete::getcomplete(
-                context,
+                &context,
                 location,
                 &self.client,
                 uri.path(),
@@ -371,7 +379,7 @@ impl LanguageServer for Backend {
         let uri = input.text_document_position.text_document.uri;
         //println!("{:?}", uri);
         let location = input.text_document_position.position;
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
@@ -387,9 +395,8 @@ impl LanguageServer for Backend {
         input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
-        //println!("{:?}", uri);
         let location = input.text_document_position_params.position;
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
@@ -430,7 +437,7 @@ impl LanguageServer for Backend {
         input: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri.clone();
-        let storemap = BUFFERS.lock().await;
+        let storemap = BUFFERS_CACHE.lock().await;
         match storemap.get(&uri) {
             Some(context) => Ok(ast::getast(&self.client, context).await),
             None => Ok(None),

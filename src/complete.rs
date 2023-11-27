@@ -1,12 +1,24 @@
-// todo compelete type
 mod buildin;
 mod findpackage;
 mod includescanner;
+use crate::languageserver::BUFFERS_CACHE;
+use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::{utils, CompletionResponse};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::fs;
+use tokio::sync::Mutex;
+
+use once_cell::sync::Lazy;
+
+pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
+
+pub static COMPLETE_CACHE: Lazy<Arc<Mutex<CompleteKV>>> =
+    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
@@ -25,6 +37,55 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
+pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let thetree = parse.parse(context, None);
+    let tree = thetree.unwrap();
+    let Some(result_data) = getsubcomplete(
+        tree.root_node(),
+        context,
+        path.as_ref(),
+        PositionType::Variable,
+        None,
+        &mut Vec::new(),
+        true,
+        true,
+    ) else {
+        return Vec::new();
+    };
+    let mut cache = COMPLETE_CACHE.lock().await;
+    cache.insert(path.as_ref().to_path_buf(), result_data.clone());
+    result_data
+}
+
+pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionItem> {
+    let mut path = path.as_ref().to_path_buf();
+    let mut completions = Vec::new();
+
+    let tree_map = TREE_MAP.lock().await;
+
+    while let Some(parent) = tree_map.get(&path) {
+        let complet_cache = COMPLETE_CACHE.lock().await;
+        if let Some(datas) = complet_cache.get(parent) {
+            completions.append(&mut datas.clone());
+        } else if let Ok(context) = fs::read_to_string(parent).await {
+            let mut buffer_cache = BUFFERS_CACHE.lock().await;
+            buffer_cache.insert(
+                lsp_types::Url::from_file_path(parent).unwrap(),
+                context.clone(),
+            );
+            drop(complet_cache);
+            completions.append(&mut update_cache(parent, context.as_str()).await);
+            path = parent.clone();
+            continue;
+        }
+        path = parent.clone();
+    }
+
+    completions
+}
+
 /// get the complet messages
 pub async fn getcomplete(
     source: &str,
@@ -33,13 +94,15 @@ pub async fn getcomplete(
     local_path: &str,
     find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
-    //let mut course2 = course.clone();
-    //let mut hasid = false;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
+    let mut cached_compeletion = get_cached_completion(local_path).await;
+    if !cached_compeletion.is_empty() {
+        complete.append(&mut cached_compeletion);
+    }
     let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
     match postype {
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
@@ -143,12 +206,9 @@ fn getsubcomplete(
                     continue;
                 };
                 complete.push(CompletionItem {
-                    label: format!("{name}()"),
+                    label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!(
-                        "defined function\nfrom: {}",
-                        local_path.file_name().unwrap().to_str().unwrap()
-                    )),
+                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
                     ..Default::default()
                 });
             }
@@ -168,13 +228,11 @@ fn getsubcomplete(
                 let Some(name) = &newsource[h][x..y].split(' ').next() else {
                     continue;
                 };
+
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!(
-                        "defined function\nfrom: {}",
-                        local_path.file_name().unwrap().to_str().unwrap()
-                    )),
+                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
                     ..Default::default()
                 });
             }
@@ -266,7 +324,7 @@ fn getsubcomplete(
                                 kind: Some(CompletionItemKind::VARIABLE),
                                 detail: Some(format!(
                                     "defined var\nfrom: {}",
-                                    local_path.file_name().unwrap().to_str().unwrap()
+                                    local_path.display()
                                 )),
                                 ..Default::default()
                             });
@@ -300,7 +358,7 @@ fn getsubcomplete(
                                     kind: Some(CompletionItemKind::VALUE),
                                     detail: Some(format!(
                                         "defined variable\nfrom: {}",
-                                        local_path.file_name().unwrap().to_str().unwrap()
+                                        local_path.display()
                                     )),
                                     ..Default::default()
                                 });
