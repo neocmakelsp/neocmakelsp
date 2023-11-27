@@ -109,7 +109,7 @@ impl LanguageServer for Backend {
         if let Some(ref uri) = inital.root_uri {
             scansubs::scan_all(uri.path()).await;
             let mut root_path = self.root_path.lock().await;
-            *root_path = Some(uri.path().into());
+            root_path.replace(uri.path().into());
         }
 
         Ok(InitializeResult {
