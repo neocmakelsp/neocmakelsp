@@ -354,34 +354,31 @@ fn getsubcomplete(
                                 // mordern cmake like Qt5::Core
                                 if let Some(components) = components_packages {
                                     for component in components {
-                                        if let PositionType::TargetLink = postype {
-                                            complete.push(CompletionItem {
-                                                label: component,
-                                                kind: Some(CompletionItemKind::VARIABLE),
-                                                detail: Some(format!(
-                                                    "package from: {package_name}",
-                                                )),
-                                                ..Default::default()
-                                            });
-                                        } else {
-                                            complete.push(CompletionItem {
-                                                label: component,
-                                                kind: Some(CompletionItemKind::VARIABLE),
-                                                detail: Some(format!(
-                                                    "package from: {package_name}",
-                                                )),
-                                                ..Default::default()
-                                            });
-                                        }
+                                        complete.push(CompletionItem {
+                                            label: component,
+                                            kind: Some(CompletionItemKind::VARIABLE),
+                                            detail: Some(format!("package from: {package_name}",)),
+                                            ..Default::default()
+                                        });
                                     }
-                                } else if let PositionType::TargetLink = postype {
+                                }
+
+                                if matches!(
+                                    postype,
+                                    PositionType::TargetLink | PositionType::Variable
+                                ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
                                         detail: Some(format!("package: {package_name}",)),
                                         ..Default::default()
                                     });
-                                } else {
+                                }
+
+                                if matches!(
+                                    postype,
+                                    PositionType::TargetInclude | PositionType::Variable
+                                ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
@@ -414,26 +411,35 @@ fn getsubcomplete(
                                 let package_name = package_names[0];
 
                                 let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
-                                if modernpkgconfig {
-                                    if matches!(
+                                if modernpkgconfig
+                                    && matches!(
                                         postype,
                                         PositionType::Variable | PositionType::TargetLink
-                                    ) {
-                                        complete.push(CompletionItem {
-                                            label: format!("PkgConfig::{package_name}"),
-                                            kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some(format!("package: {package_name}",)),
-                                            ..Default::default()
-                                        });
-                                    }
-                                } else if let PositionType::TargetLink = postype {
+                                    )
+                                {
+                                    complete.push(CompletionItem {
+                                        label: format!("PkgConfig::{package_name}"),
+                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        detail: Some(format!("package: {package_name}",)),
+                                        ..Default::default()
+                                    });
+                                }
+
+                                if matches!(
+                                    postype,
+                                    PositionType::TargetLink | PositionType::Variable
+                                ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
                                         detail: Some(format!("package: {package_name}",)),
                                         ..Default::default()
                                     });
-                                } else {
+                                }
+                                if matches!(
+                                    postype,
+                                    PositionType::TargetInclude | PositionType::Variable
+                                ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
