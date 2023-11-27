@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub type TreeKey = HashMap<PathBuf, Option<PathBuf>>;
+pub type TreeKey = HashMap<PathBuf, PathBuf>;
 
 // here get the struct of the tree
 pub static TREE_MAP: Lazy<Arc<Mutex<TreeKey>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -31,9 +31,8 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     let bufs = scan_dir_inner(path.as_ref());
     let mut tree = TREE_MAP.lock().await;
     for subpath in bufs.iter() {
-        tree.insert(subpath.to_path_buf(), Some(path.as_ref().into()));
+        tree.insert(subpath.to_path_buf(), path.as_ref().into());
     }
-
     bufs
 }
 

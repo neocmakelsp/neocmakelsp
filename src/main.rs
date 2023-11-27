@@ -38,6 +38,7 @@ struct Backend {
     client: Client,
     /// Storage the message of buffers
     init_info: Arc<Mutex<BackendInitInfo>>,
+    root_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 fn gitignore() -> Vec<String> {
@@ -316,6 +317,7 @@ async fn main() {
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
                 })),
+                root_path: Arc::new(Mutex::new(None)),
             });
             Server::new(stdin, stdout, socket).serve(service).await;
         }
@@ -356,6 +358,7 @@ async fn main() {
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
                 })),
+                root_path: Arc::new(Mutex::new(None)),
             });
             Server::new(read, write, socket).serve(service).await;
         }

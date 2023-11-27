@@ -108,6 +108,8 @@ impl LanguageServer for Backend {
 
         if let Some(ref uri) = inital.root_uri {
             scansubs::scan_all(uri.path()).await;
+            let mut root_path = self.root_path.lock().await;
+            *root_path = Some(uri.path().into());
         }
 
         Ok(InitializeResult {
@@ -150,10 +152,16 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _: InitializedParams) {
         let cachefilechangeparms = DidChangeWatchedFilesRegistrationOptions {
-            watchers: vec![FileSystemWatcher {
-                glob_pattern: GlobPattern::String("**/CMakeCache.txt".to_string()),
-                kind: Some(lsp_types::WatchKind::all()),
-            }],
+            watchers: vec![
+                FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/CMakeCache.txt".to_string()),
+                    kind: Some(lsp_types::WatchKind::all()),
+                },
+                FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/CMakeLists.txt".to_string()),
+                    kind: Some(lsp_types::WatchKind::Create | lsp_types::WatchKind::Delete),
+                },
+            ],
         };
 
         let cmakecache_watcher = Registration {
@@ -189,8 +197,15 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        tracing::info!("CMakeCache changed");
         for change in params.changes {
+            if let Some("CMakeLists.txt") = change.uri.path().split('/').last() {
+                let Some(ref path) = *self.root_path.lock().await else {
+                    continue;
+                };
+                scansubs::scan_all(path).await;
+                continue;
+            }
+            tracing::info!("CMakeCache changed");
             if let FileChangeType::DELETED = change.typ {
                 filewatcher::clear_error_packages();
             } else {
@@ -248,6 +263,11 @@ impl LanguageServer for Backend {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
         let storemap = BUFFERS.lock().await;
+
+        if self.root_path.lock().await.is_some() {
+            scansubs::scan_dir(uri.path()).await;
+        };
+
         if let Some(context) = storemap.get(&uri) {
             self.publish_diagnostics(uri, context.to_string()).await;
         }
