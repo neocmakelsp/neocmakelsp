@@ -49,33 +49,43 @@ pub fn scan_dir_inner<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     if tree.is_error() {
         return Vec::new();
     }
+    scan_node(&newsource, tree, path)
+}
+
+fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: P) -> Vec<PathBuf> {
     let mut bufs = Vec::new();
     let mut course = tree.walk();
     for node in tree.children(&mut course) {
-        if node.kind() == "normal_command" {
-            let h = node.start_position().row;
-            let ids = node.child(0).unwrap();
-            //let ids = ids.child(2).unwrap();
-            let x = ids.start_position().column;
-            let y = ids.end_position().column;
-            let command_name = &newsource[h][x..y];
-            if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
-                let ids = node.child(2).unwrap();
-                if ids.start_position().row == ids.end_position().row {
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let name = &newsource[h][x..y];
-                    let name = remove_quotation(name);
-                    let subpath = path
-                        .as_ref()
-                        .parent()
-                        .unwrap()
-                        .join(name)
-                        .join("CMakeLists.txt");
-                    bufs.push(subpath)
+        match node.kind() {
+            "normal_command" => {
+                let h = node.start_position().row;
+                let ids = node.child(0).unwrap();
+                //let ids = ids.child(2).unwrap();
+                let x = ids.start_position().column;
+                let y = ids.end_position().column;
+                let command_name = &source[h][x..y];
+                if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
+                    let ids = node.child(2).unwrap();
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &source[h][x..y];
+                        let name = remove_quotation(name);
+                        let subpath = path
+                            .as_ref()
+                            .parent()
+                            .unwrap()
+                            .join(name)
+                            .join("CMakeLists.txt");
+                        bufs.push(subpath.to_path_buf())
+                    }
                 }
             }
+            "if_condition" | "foreach_loop" | "body" => {
+                bufs.append(&mut scan_node(source, node, path.as_ref()));
+            }
+            _ => {}
         }
     }
     bufs
