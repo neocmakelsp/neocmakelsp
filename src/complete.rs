@@ -169,7 +169,7 @@ fn getsubcomplete(
                     continue;
                 };
                 complete.push(CompletionItem {
-                    label: format!("{name}()"),
+                    label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some(format!(
                         "defined function\nfrom: {}",
