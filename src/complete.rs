@@ -27,9 +27,8 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
     doc.lines()
         .filter(|line| line.starts_with(".. command:: "))
         .map(|line| &line[13..])
-        .map(|line| format!("{line}()"))
         .map(|line| CompletionItem {
-            label: line,
+            label: line.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
             detail: Some(format!("defined command from {filename}\n{doc}")),
             ..Default::default()
