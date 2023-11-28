@@ -49,6 +49,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
         PositionType::Variable,
         None,
         &mut Vec::new(),
+        &mut Vec::new(),
         true,
         true,
     ) else {
@@ -113,6 +114,7 @@ pub async fn getcomplete(
                 postype,
                 Some(location),
                 &mut Vec::new(),
+                &mut Vec::new(),
                 true,
                 find_cmake_in_package,
             ) {
@@ -157,6 +159,7 @@ fn getsubcomplete(
     local_path: &Path,
     postype: PositionType,
     location: Option<Position>,
+    include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
@@ -243,6 +246,7 @@ fn getsubcomplete(
                     local_path,
                     postype,
                     location,
+                    include_files,
                     complete_packages,
                     true,
                     find_cmake_in_package,
@@ -257,6 +261,7 @@ fn getsubcomplete(
                     local_path,
                     postype,
                     location,
+                    include_files,
                     complete_packages,
                     true,
                     find_cmake_in_package,
@@ -293,16 +298,21 @@ fn getsubcomplete(
                                 (true, path)
                             }
                         };
+                        if include_files.contains(&subpath) {
+                            continue;
+                        }
                         if let Ok(true) = cmake_try_exists(&subpath) {
                             if let Some(mut comps) = includescanner::scanner_include_complete(
                                 &subpath,
                                 postype,
+                                include_files,
                                 complete_packages,
                                 find_cmake_in_package,
                                 is_buildin,
                             ) {
                                 complete.append(&mut comps);
                             }
+                            include_files.push(subpath);
                         }
                     }
                 } else if name == "mark_as_advanced" {
@@ -452,6 +462,7 @@ fn getsubcomplete(
                                     let Some(mut completeitem) = get_cmake_package_complete(
                                         package.as_str(),
                                         postype,
+                                        include_files,
                                         complete_packages,
                                     ) else {
                                         continue;
@@ -532,15 +543,19 @@ fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
 fn get_cmake_package_complete(
     package_name: &str,
     postype: PositionType,
+    include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
 ) -> Option<Vec<CompletionItem>> {
     let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {
-        let Some(mut packages) =
-            includescanner::scanner_package_complete(path, postype, complete_packages)
-        else {
+        let Some(mut packages) = includescanner::scanner_package_complete(
+            path,
+            postype,
+            include_files,
+            complete_packages,
+        ) else {
             continue;
         };
         complete_infos.append(&mut packages);

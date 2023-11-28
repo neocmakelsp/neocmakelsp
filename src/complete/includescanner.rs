@@ -18,6 +18,7 @@ static PACKAGE_COMPLETE_CACHE: Lazy<Arc<Mutex<CacheData>>> =
 pub fn scanner_include_complete(
     path: &PathBuf,
     postype: PositionType,
+    include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
     is_buildin: bool,
@@ -41,6 +42,7 @@ pub fn scanner_include_complete(
                 path,
                 postype,
                 None,
+                include_files,
                 complete_packages,
                 true,
                 find_cmake_in_package,
@@ -62,6 +64,7 @@ pub fn scanner_include_complete(
 pub fn scanner_package_complete(
     path: &PathBuf,
     postype: PositionType,
+    include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
 ) -> Option<Vec<CompletionItem>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
@@ -81,6 +84,7 @@ pub fn scanner_package_complete(
                 path,
                 postype,
                 None,
+                include_files,
                 complete_packages,
                 false,
                 true,
