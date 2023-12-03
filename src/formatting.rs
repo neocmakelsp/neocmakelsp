@@ -30,7 +30,7 @@ fn reformat_with_comment(line: &str) -> String {
         if before == ' ' {
             break;
         }
-        if before != '\\' {
+        if before != '\\' && before != '"' {
             let linebefore = &line[..comment];
             let lineafter = &line[comment..];
             return format!("{linebefore} {lineafter}");
@@ -306,6 +306,11 @@ fn tst_format_comment() {
     assert_eq!("set(A 'hello\\#') ###ss", after);
 
     let origin = "##  it is all   comments";
+    let after = reformat_with_comment(origin);
+
+    assert_eq!(origin, after);
+
+    let origin = "\"#it is all  comments";
     let after = reformat_with_comment(origin);
 
     assert_eq!(origin, after);
