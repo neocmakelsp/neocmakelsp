@@ -2,6 +2,7 @@
 use super::Location;
 use crate::utils;
 use lsp_types::{MessageType, Url};
+use tower_lsp::lsp_types;
 use tower_lsp::Client;
 pub(super) async fn cmpfindpackage(input: String, client: &Client) -> Option<Vec<Location>> {
     client

@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types;
 use tower_lsp::lsp_types::*;
 use tower_lsp::LanguageServer;
 use tree_sitter::Parser;

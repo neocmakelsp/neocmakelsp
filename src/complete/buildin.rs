@@ -1,9 +1,9 @@
 /// buildin Commands and vars
 use anyhow::Result;
-use lsp_types::{CompletionItem, CompletionItemKind};
 use once_cell::sync::Lazy;
 use std::iter::zip;
 use std::process::Command;
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
 /// CMake build in commands
 pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {

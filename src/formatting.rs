@@ -1,4 +1,5 @@
 use lsp_types::{MessageType, Position, TextEdit};
+use tower_lsp::lsp_types;
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
 

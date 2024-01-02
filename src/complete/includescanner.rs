@@ -5,6 +5,7 @@ use lsp_types::CompletionItem;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use tower_lsp::lsp_types;
 
 use std::sync::{Arc, Mutex};
 

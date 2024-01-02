@@ -6,12 +6,13 @@ use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::{utils, CompletionResponse};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
-use lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::Mutex;
+use tower_lsp::lsp_types;
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 
 use once_cell::sync::Lazy;
 

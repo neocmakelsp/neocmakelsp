@@ -1,6 +1,6 @@
-use lsp_types::DiagnosticSeverity;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tower_lsp::lsp_types::DiagnosticSeverity;
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
 pub struct ErrorInfo {

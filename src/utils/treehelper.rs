@@ -1,4 +1,5 @@
 /// Some tools for treesitter  to lsp_types
+use tower_lsp::lsp_types;
 use lsp_types::Position;
 use lsp_types::Range;
 use once_cell::sync::Lazy;

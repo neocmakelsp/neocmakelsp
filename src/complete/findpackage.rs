@@ -1,6 +1,7 @@
 use crate::utils;
 use lsp_types::{CompletionItem, CompletionItemKind};
 use once_cell::sync::Lazy;
+use tower_lsp::lsp_types;
 pub static CMAKE_SOURCE: Lazy<Vec<CompletionItem>> = Lazy::new(|| {
     utils::CMAKE_PACKAGES
         .iter()

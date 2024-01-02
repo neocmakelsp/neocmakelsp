@@ -1,6 +1,7 @@
 /// Get the tree of ast
 use crate::utils::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
+use tower_lsp::lsp_types;
 use tower_lsp::Client;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
