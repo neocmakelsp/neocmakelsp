@@ -20,6 +20,7 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
+          - ubuntu-latest
           - windows-latest
         include:
           - os: macos-latest
