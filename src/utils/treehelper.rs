@@ -1,11 +1,11 @@
-/// Some tools for treesitter  to lsp_types
-use tower_lsp::lsp_types;
 use lsp_types::Position;
 use lsp_types::Range;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
+/// Some tools for treesitter  to lsp_types
+use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};
 
 const SPECIALCOMMANDS: [&str; 3] = [
@@ -232,6 +232,44 @@ pub enum PositionType {
     TargetLink,
 }
 
+fn location_range_contain(start_point: Point, end_point: Point, location: Point) -> bool {
+    if start_point.row > location.row || end_point.row < location.row {
+        return false;
+    }
+    if start_point.row == end_point.row {
+        return start_point.column <= location.column && end_point.column >= location.column;
+    }
+    if start_point.row == location.row {
+        return start_point.column <= location.column;
+    }
+    if end_point.row == location.row {
+        return end_point.column >= location.column;
+    }
+    true
+}
+
+pub fn is_comment(location: Point, root: Node) -> bool {
+    if !location_range_contain(root.start_position(), root.end_position(), location) {
+        return false;
+    }
+    if root.kind() == "line_comment" {
+        return true;
+    }
+    let mut cursor = root.walk();
+    for child in root.children(&mut cursor) {
+        if !location_range_contain(child.start_position(), child.end_position(), location) {
+            continue;
+        }
+        if child.kind() == "line_comment" {
+            return true;
+        }
+        if child.child_count() != 0 {
+            return is_comment(location, child);
+        }
+    }
+    false
+}
+
 // FIXME: there is bug
 // find_package(SS)
 // cannot get the type of find_package
@@ -331,4 +369,16 @@ pub fn get_pos_type(
         }
     }
     PositionType::NotFind
+}
+
+#[test]
+fn tst_line_comment() {
+    let source = "set(A \"
+A#ss\" #sss)";
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let input = tree.root_node();
+    assert!(!is_comment(Point { row: 1, column: 1 }, input));
+    assert!(is_comment(Point { row: 1, column: 8 }, input));
 }

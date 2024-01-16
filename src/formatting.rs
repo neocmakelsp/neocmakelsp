@@ -1,6 +1,8 @@
 use lsp_types::{MessageType, Position, TextEdit};
 use tower_lsp::lsp_types;
 
+use crate::utils::treehelper::is_comment;
+
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
 
 fn strip_trailing_newline(input: &str) -> &str {
@@ -10,35 +12,31 @@ fn strip_trailing_newline(input: &str) -> &str {
         .unwrap_or(input)
 }
 
-fn reformat_with_comment(line: &str) -> String {
+fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
     let comment_chars: Vec<usize> = line
         .chars()
         .enumerate()
         .filter(|(_, c)| *c == '#')
         .map(|(i, _)| i)
         .collect();
-
-    if comment_chars.is_empty() {
-        return line.to_owned();
-    }
-
-    if line.trim_start().chars().next().is_some_and(|c| c == '#') {
-        return line.to_owned();
-    }
-
-    for comment in comment_chars {
-        let before = line.chars().nth(comment - 1).unwrap();
-        if before == ' ' {
-            break;
+    for column in comment_chars {
+        if column == 0 {
+            continue;
         }
-        if before != '\\' && before != '"' {
-            let linebefore = &line[..comment];
-            let lineafter = &line[comment..];
+        if is_comment(
+            tree_sitter::Point {
+                row,
+                column: column + 1,
+            },
+            input,
+        ) && line.chars().nth(column - 1).unwrap() != ' '
+        {
+            let linebefore = &line[..column];
+            let lineafter = &line[column..];
             return format!("{linebefore} {lineafter}");
         }
     }
-
-    line.to_owned()
+    line.to_string()
 }
 
 // remove all \r to normal one
@@ -200,6 +198,7 @@ fn format_content(
             .skip(start_row)
             .enumerate()
         {
+            let currentline = pre_format(&currentline, start_row + index, input);
             let currentline = currentline.trim_end();
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
@@ -222,8 +221,8 @@ fn format_content(
                 newline.push_str(unit);
                 newline.push(' ');
             }
-            let newline = &reformat_with_comment(newline.trim_end());
-            new_text.push_str(newline);
+            let newline = newline.trim_end();
+            new_text.push_str(&newline);
             new_text.push('\n');
         }
         new_text = new_text.trim_end().to_string();
@@ -292,27 +291,4 @@ fn tst_format_lastline() {
     let sourceafter = include_str!("../assert/lastline/after.cmake");
     let formatstr = get_format_cli(source, 4, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
-}
-
-#[test]
-fn tst_format_comment() {
-    let origin = "hello####ss";
-    let after = reformat_with_comment(origin);
-
-    assert_eq!("hello ####ss", after);
-
-    let origin = "set(A 'hello\\#')###ss";
-    let after = reformat_with_comment(origin);
-
-    assert_eq!("set(A 'hello\\#') ###ss", after);
-
-    let origin = "##  it is all   comments";
-    let after = reformat_with_comment(origin);
-
-    assert_eq!(origin, after);
-
-    let origin = "\"#it is all  comments";
-    let after = reformat_with_comment(origin);
-
-    assert_eq!(origin, after);
 }
