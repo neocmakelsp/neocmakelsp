@@ -264,7 +264,9 @@ pub fn is_comment(location: Point, root: Node) -> bool {
             return true;
         }
         if child.child_count() != 0 {
-            return is_comment(location, child);
+            if is_comment(location, child) {
+                return true;
+            }
         }
     }
     false

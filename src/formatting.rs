@@ -23,13 +23,10 @@ fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
         if column == 0 {
             continue;
         }
-        if is_comment(
-            tree_sitter::Point {
-                row,
-                column: column + 1,
-            },
-            input,
-        ) && line.chars().nth(column - 1).unwrap() != ' '
+        if (is_comment(tree_sitter::Point { row, column }, input)
+            // this means it is the extra line, so should think it should be comment line
+            || (row == input.end_position().row && column >= input.end_position().column))
+            && line.chars().nth(column - 1).unwrap() != ' '
         {
             let linebefore = &line[..column];
             let lineafter = &line[column..];
