@@ -195,7 +195,7 @@ fn format_content(
             .skip(start_row)
             .enumerate()
         {
-            let currentline = pre_format(&currentline, start_row + index, input);
+            let currentline = pre_format(currentline, start_row + index, input);
             let currentline = currentline.trim_end();
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
@@ -219,7 +219,7 @@ fn format_content(
                 newline.push(' ');
             }
             let newline = newline.trim_end();
-            new_text.push_str(&newline);
+            new_text.push_str(newline);
             new_text.push('\n');
         }
         new_text = new_text.trim_end().to_string();

@@ -263,10 +263,8 @@ pub fn is_comment(location: Point, root: Node) -> bool {
         if child.kind() == "line_comment" {
             return true;
         }
-        if child.child_count() != 0 {
-            if is_comment(location, child) {
-                return true;
-            }
+        if child.child_count() != 0 && is_comment(location, child) {
+            return true;
         }
     }
     false
