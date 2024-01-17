@@ -379,6 +379,11 @@ fn getsubcomplete(
                                 };
                                 // FIXME: this is not good enough
                                 let h = ids.start_position().row;
+                                let h_end = ids.end_position().row;
+                                // TODO: just fixit like this
+                                if h != h_end {
+                                    continue;
+                                }
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
                                 if y < x {
