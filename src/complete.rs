@@ -374,40 +374,40 @@ fn getsubcomplete(
                                 });
                             }
                             if name == "find_package" && child.child_count() >= 3 && should_in {
-                                let Some(ids) = child.child(2) else {
+                                let Some(argumentlist) = child.child(2) else {
                                     continue;
                                 };
-                                // FIXME: this is not good enough
-                                let h = ids.start_position().row;
-                                let h_end = ids.end_position().row;
-                                // TODO: just fixit like this
-                                if h != h_end {
+                                // use tree_sitter to find all packages
+                                let argument_count = argumentlist.child_count();
+                                if argument_count == 0 {
                                     continue;
                                 }
-                                let x = ids.start_position().column;
-                                let y = ids.end_position().column;
-                                if y < x {
-                                    continue;
-                                }
-                                let package_names: Vec<&str> =
-                                    newsource[h][x..y].split(' ').collect();
-                                let mut cmakepackages = Vec::new();
-                                let package_name = package_names[0];
+                                let package_prefix_node = argumentlist.child(0).unwrap();
+                                let h = package_prefix_node.start_position().row;
+                                let x = package_prefix_node.start_position().column;
+                                let y = package_prefix_node.end_position().column;
+                                let package_name = &newsource[h][x..y];
                                 let mut component_part = Vec::new();
+                                let mut cmakepackages = Vec::new();
                                 let components_packages = {
-                                    if package_names.len() >= 2 {
+                                    if argument_count >= 2 {
                                         let mut support_commponent = false;
                                         let mut components_packages = Vec::new();
-                                        for component in package_names.iter().skip(1) {
-                                            if *component == "COMPONENTS" {
+                                        for index in 1..argument_count {
+                                            let package_prefix_node =
+                                                argumentlist.child(index).unwrap();
+                                            let h = package_prefix_node.start_position().row;
+                                            let x = package_prefix_node.start_position().column;
+                                            let y = package_prefix_node.end_position().column;
+                                            let component = &newsource[h][x..y];
+                                            if component == "COMPONENTS" {
                                                 support_commponent = true;
-                                            } else if *component != "REQUIRED" {
+                                            } else if component != "REQUIRED" {
                                                 component_part.push(component.to_string());
                                                 components_packages
                                                     .push(format!("{package_name}::{component}"));
                                             }
                                         }
-
                                         if support_commponent {
                                             Some(components_packages)
                                         } else {
@@ -417,6 +417,7 @@ fn getsubcomplete(
                                         None
                                     }
                                 };
+
                                 if find_cmake_in_package && components_packages.is_some() {
                                     for package in component_part {
                                         cmakepackages.push(format!("{package_name}{package}"));
