@@ -25,7 +25,7 @@ static CMAKECONFIGVERSION: Lazy<regex::Regex> =
 fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let input = tree.root_node();

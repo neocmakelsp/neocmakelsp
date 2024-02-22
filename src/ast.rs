@@ -19,7 +19,7 @@ pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResp
             .await;
     }
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
     getsubast(tree.root_node(), context, line > 10000).map(DocumentSymbolResponse::Nested)

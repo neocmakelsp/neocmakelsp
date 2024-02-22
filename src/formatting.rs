@@ -66,7 +66,7 @@ pub async fn getformat(
 ) -> Option<Vec<TextEdit>> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(source.as_str(), None).unwrap();
 
     if tree.root_node().has_error() {
@@ -170,7 +170,8 @@ fn format_content(
             lastendline = newend;
             new_text.push_str(&text);
             continue;
-        } else if child.kind() == "body" {
+        }
+        if child.kind() == "body" {
             let (text, newend) = format_content(
                 child,
                 source,
@@ -231,7 +232,7 @@ fn format_content(
 pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let input = tree.root_node();
     if input.has_error() {

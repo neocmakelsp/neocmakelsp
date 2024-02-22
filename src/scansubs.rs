@@ -42,7 +42,7 @@ pub fn scan_dir_inner<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     };
 
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let tree = tree.root_node();
     let newsource: Vec<&str> = source.lines().collect();
@@ -125,7 +125,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
         subdirs: None,
     };
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let tree = parse.parse(&content, None).unwrap();
     let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
     if !subdirs.is_empty() {

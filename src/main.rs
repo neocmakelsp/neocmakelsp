@@ -221,7 +221,7 @@ async fn main() {
                     let mut buf = String::new();
                     file.read_to_string(&mut buf).unwrap();
                     let mut parse = tree_sitter::Parser::new();
-                    parse.set_language(tree_sitter_cmake::language()).unwrap();
+                    parse.set_language(&tree_sitter_cmake::language()).unwrap();
                     match formatting::get_format_cli(&buf, spacelen, usespace) {
                         Some(mut context) => {
                             context.push('\n');

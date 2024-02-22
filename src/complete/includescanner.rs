@@ -34,7 +34,7 @@ pub fn scanner_include_complete(
     match fs::read_to_string(path) {
         Ok(content) => {
             let mut parse = tree_sitter::Parser::new();
-            parse.set_language(tree_sitter_cmake::language()).unwrap();
+            parse.set_language(&tree_sitter_cmake::language()).unwrap();
             let thetree = parse.parse(content.clone(), None);
             let tree = thetree.unwrap();
             let result_data = getsubcomplete(
@@ -76,7 +76,7 @@ pub fn scanner_package_complete(
     match fs::read_to_string(path) {
         Ok(content) => {
             let mut parse = tree_sitter::Parser::new();
-            parse.set_language(tree_sitter_cmake::language()).unwrap();
+            parse.set_language(&tree_sitter_cmake::language()).unwrap();
             let thetree = parse.parse(content.clone(), None);
             let tree = thetree.unwrap();
             let result_data = getsubcomplete(
