@@ -30,7 +30,7 @@ pub static BUFFERS_CACHE: Lazy<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
 impl Backend {
     async fn publish_diagnostics(&self, uri: Url, context: String) {
         let mut parse = Parser::new();
-        parse.set_language(tree_sitter_cmake::language()).unwrap();
+        parse.set_language(&tree_sitter_cmake::language()).unwrap();
         let thetree = parse.parse(&context, None);
         let Some(tree) = thetree else {
             return;
@@ -236,7 +236,7 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, input: DidOpenTextDocumentParams) {
         let mut parse = Parser::new();
-        parse.set_language(tree_sitter_cmake::language()).unwrap();
+        parse.set_language(&tree_sitter_cmake::language()).unwrap();
         let uri = input.text_document.uri.clone();
         let context = input.text_document.text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
@@ -303,7 +303,7 @@ impl LanguageServer for Backend {
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
-                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                parse.set_language(&tree_sitter_cmake::language()).unwrap();
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
                 let output = treehelper::get_cmake_doc(position, tree.root_node(), context);
@@ -384,7 +384,7 @@ impl LanguageServer for Backend {
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
-                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                parse.set_language(&tree_sitter_cmake::language()).unwrap();
                 //notify_send(context, Type::Error);
                 Ok(jump::godef(location, context, uri.path().to_string(), &self.client).await)
             }
@@ -401,7 +401,7 @@ impl LanguageServer for Backend {
         match storemap.get(&uri) {
             Some(context) => {
                 let mut parse = Parser::new();
-                parse.set_language(tree_sitter_cmake::language()).unwrap();
+                parse.set_language(&tree_sitter_cmake::language()).unwrap();
                 let thetree = parse.parse(context.clone(), None);
                 let tree = thetree.unwrap();
                 let origin_selection_range =

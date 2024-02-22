@@ -16,7 +16,7 @@ pub async fn godef(
     client: &tower_lsp::Client,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let positionstring = get_position_string(location, tree.root_node(), source);
