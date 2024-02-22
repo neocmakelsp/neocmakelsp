@@ -1039,7 +1039,8 @@ dependencies = [
 [[package]]
 name = "tree-sitter-cmake"
 version = "0.4.2"
-source = "git+https://github.com/Decodetalkers/tree-sitter-cmake?branch=bumptreesitter#d3ba935ec6ce85945d1338e178e2aed82fa6ce26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2233c3a7a6d6d216b72d694e89982a2cc4f8422e9f3acd58bc42d094b651cac"
 dependencies = [
  "cc",
  "tree-sitter",
