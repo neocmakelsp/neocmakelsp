@@ -63,40 +63,86 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                 }
                 if name == "include" && node.child_count() >= 4 {
                     let ids = node.child(2).unwrap();
+                    let first_arg_node = ids.child(0).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let mut name = &newsource[h][x..y];
-                        if name.split('"').count() != 1 {
-                            let namesplit: Vec<&str> = name.split('"').collect();
-                            name = namesplit[1];
-                        }
-                        if name.contains('$') {
+                        let x = first_arg_node.start_position().column;
+                        let y = first_arg_node.end_position().column;
+                        let first_arg = newsource[h][x..y].trim();
+                        let first_arg = if first_arg.contains('"') {
+                            first_arg.split('"').collect::<Vec<&str>>()[1].trim()
+                        } else {
+                            first_arg
+                        };
+                        let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
+                        if first_arg.is_empty() {
+                            output.push((
+                                first_arg_node.start_position(),
+                                first_arg_node.end_position(),
+                                "Argument is empty".to_string(),
+                                Some(DiagnosticSeverity::ERROR),
+                            ));
                             continue;
                         }
-                        if name.split('.').count() != 1 {
-                            let subpath = local_path.parent().unwrap().join(name);
-                            match cmake_try_exists(&subpath) {
-                                Ok(true) => {
-                                    if scanner_include_error(&subpath) {
+                        if first_arg.contains('$') {
+                            continue;
+                        }
+                        {
+                            let path = Path::new(&first_arg);
+                            let is_last_char_sep = std::path::is_separator(
+                                first_arg.as_bytes()[first_arg.len() - 1] as char,
+                            );
+                            if !is_last_char_sep && path.extension().is_none() {
+                                // first_arg could be a module
+                                continue;
+                            }
+                        }
+                        let include_path = if cfg!(windows) {
+                            let path = local_path.parent().unwrap().join(&first_arg);
+                            let path_str = path.to_str().unwrap();
+                            let path_str =
+                                if !first_arg.starts_with('/') && path_str.starts_with('/') {
+                                    &path.to_str().unwrap()[1..] // remove first slash
+                                } else {
+                                    &path.to_str().unwrap()
+                                };
+                            PathBuf::from(path_str)
+                        } else {
+                            local_path.parent().unwrap().join(&first_arg)
+                        };
+                        match include_path.try_exists() {
+                            Ok(true) => {
+                                if include_path.is_file() {
+                                    if scanner_include_error(&include_path) {
                                         output.push((
-                                            node.start_position(),
-                                            node.end_position(),
+                                            first_arg_node.start_position(),
+                                            first_arg_node.end_position(),
                                             "Error in include file".to_string(),
                                             Some(DiagnosticSeverity::ERROR),
                                         ));
                                     }
-                                }
-                                _ => {
+                                } else {
                                     output.push((
-                                        node.start_position(),
-                                        node.end_position(),
-                                        "include file does not exist or is inaccessible"
-                                            .to_string(),
-                                        Some(DiagnosticSeverity::WARNING),
+                                        first_arg_node.start_position(),
+                                        first_arg_node.end_position(),
+                                        format!(
+                                            "\"{}\" is a directory",
+                                            include_path.to_str().unwrap()
+                                        ),
+                                        Some(DiagnosticSeverity::ERROR),
                                     ));
                                 }
+                            }
+                            _ => {
+                                output.push((
+                                    first_arg_node.start_position(),
+                                    first_arg_node.end_position(),
+                                    format!(
+                                        "File \"{}\" does not exist or is inaccessible",
+                                        include_path.to_str().unwrap()
+                                    ),
+                                    Some(DiagnosticSeverity::WARNING),
+                                ));
                             }
                         }
                     }
@@ -111,13 +157,6 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
     }
 }
 
-fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
-    match std::fs::metadata(input) {
-        Ok(_) => Ok(true),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error),
-    }
-}
 fn scanner_include_error(path: &PathBuf) -> bool {
     match fs::read_to_string(path) {
         Ok(content) => {
