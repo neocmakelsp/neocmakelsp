@@ -103,7 +103,7 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                                 if !first_arg.starts_with('/') && path_str.starts_with('/') {
                                     &path.to_str().unwrap()[1..] // remove first slash
                                 } else {
-                                    &path.to_str().unwrap()
+                                    path.to_str().unwrap()
                                 };
                             PathBuf::from(path_str)
                         } else {
