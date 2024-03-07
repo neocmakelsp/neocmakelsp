@@ -89,9 +89,8 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                         }
                         {
                             let path = Path::new(&first_arg);
-                            let is_last_char_sep = std::path::is_separator(
-                                first_arg.as_bytes()[first_arg.len() - 1] as char,
-                            );
+                            let is_last_char_sep =
+                                std::path::is_separator(first_arg.chars().last().unwrap());
                             if !is_last_char_sep && path.extension().is_none() {
                                 // first_arg could be a module
                                 continue;
