@@ -137,9 +137,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cc"
-version = "1.0.89"
+version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0ba8f7aaa012f30d5b2861462f6708eccd49c3c39863fe083a308035f63d723"
+checksum = "8cd6604a82acf3039f1144f54b8eb34e91ffba622051189e71b781822d5ee1f5"
 
 [[package]]
 name = "cfg-if"
@@ -1029,9 +1029,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
-version = "0.21.0"
+version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "705bf7c0958d0171dd7d3a6542f2f4f21d87ed5f1dc8db52919d3a6bed9a359a"
+checksum = "bdb9c9f15eae91dcd00ee0d86a281d16e6263786991b662b34fa9632c21a046b"
 dependencies = [
  "cc",
  "regex",
@@ -1039,9 +1039,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-cmake"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2233c3a7a6d6d216b72d694e89982a2cc4f8422e9f3acd58bc42d094b651cac"
+checksum = "967b71465943374b08cff7d638e1a0ca57c3e2ecabe24c102bff4038f4c304aa"
 dependencies = [
  "cc",
  "tree-sitter",
