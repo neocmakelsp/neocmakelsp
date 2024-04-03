@@ -1,0 +1,11 @@
+---
+- id: neocmakelsp-format
+  name: neocmakelsp format
+  language: rust
+  description: >
+    the lsp for cmake
+  entry: neocmakelsp
+  args:
+    - format
+  types:
+    - cmake
