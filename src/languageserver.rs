@@ -326,11 +326,13 @@ impl LanguageServer for Backend {
 
     async fn formatting(&self, input: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
         self.client
-            .log_message(MessageType::INFO, "formating")
+            .log_message(
+                MessageType::INFO,
+                format!("formating, space is {}", input.options.insert_spaces),
+            )
             .await;
         let uri = input.text_document.uri;
         let storemap = BUFFERS_CACHE.lock().await;
-        tracing::info!(input.options.insert_spaces);
         let space_line = if input.options.insert_spaces {
             input.options.tab_size
         } else {
