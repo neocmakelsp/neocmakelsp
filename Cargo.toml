@@ -1,6 +1,6 @@
 [package]
 name = "neocmakelsp"
-version = "0.6.21"
+version = "0.6.22"
 edition = "2021"
 license = "MIT"
 description = "The Lsp for cmake"
