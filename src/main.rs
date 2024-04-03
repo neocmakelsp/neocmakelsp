@@ -63,9 +63,7 @@ fn editconfig_setting() -> Option<(bool, u32)> {
     }
     let conf = Ini::load_from_file(editconfig_path).unwrap();
 
-    let Some(cmakesession) = conf.section(Some("CMakeLists.txt")) else {
-        return None;
-    };
+    let cmakesession = conf.section(Some("CMakeLists.txt"))?;
 
     let indent_style = cmakesession.get("indent_style").unwrap_or("space");
     let usespace = indent_style == "space";

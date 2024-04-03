@@ -25,15 +25,11 @@ pub(super) async fn cmpinclude(
             };
             format!("{prefix}/cmake*/Modules/{subpath}.cmake")
         };
-        let Some(path) = glob::glob(glob_pattern.as_str())
+        glob::glob(glob_pattern.as_str())
             .into_iter()
             .flatten()
             .flatten()
-            .next()
-        else {
-            return None;
-        };
-        path
+            .next()?
     };
 
     if target.exists() {

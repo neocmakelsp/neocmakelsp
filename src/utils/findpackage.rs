@@ -38,15 +38,9 @@ fn get_version(source: &str) -> Option<String> {
             let y = ids.end_position().column;
             let name = &newsource[h][x..y];
             if name == "set" || name == "SET" {
-                let Some(argumentlist) = child.child(2) else {
-                    return None;
-                };
-                let Some(id) = argumentlist.child(0) else {
-                    return None;
-                };
-                let Some(version) = argumentlist.child(1) else {
-                    return None;
-                };
+                let argumentlist = child.child(2)?;
+                let id = argumentlist.child(0)?;
+                let version = argumentlist.child(1)?;
                 let h = id.start_position().row;
                 let x = id.start_position().column;
                 let y = id.end_position().column;
