@@ -3,9 +3,10 @@
   name: neocmakelsp format
   language: rust
   description: >
-    the lsp for cmake
+    use neocmakelsp as a formatter
   entry: neocmakelsp
   args:
     - format
+    - -o
   types:
     - cmake
