@@ -1,8 +1,8 @@
 /// buildin Commands and vars
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use std::iter::zip;
 use std::process::Command;
+use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
 
 /// CMake build in commands
@@ -13,35 +13,39 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);
-    let key: Vec<_> = re
+    let keys: Vec<_> = re
         .find_iter(&temp)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).collect();
-    let context = &content[1..];
+    let contents: Vec<_> = re.split(&temp).collect();
+    let contents = &contents[1..].to_vec();
+
+    let mut completes = HashMap::new();
+    for (key, content) in keys.iter().zip(contents) {
+        let small_key = key.to_lowercase();
+        let big_key = key.to_uppercase();
+        completes.insert(small_key, content.to_string());
+        completes.insert(big_key, content.to_string());
+    }
     #[cfg(unix)]
     {
-        let mut key = key.clone();
-        key.push("pkg_check_modules");
-        let mut context = context.to_vec();
-        context.push("please findpackage PkgConfig first");
-        Ok(zip(key, context)
-            .map(|(akey, message)| CompletionItem {
-                label: akey.to_string(),
-                kind: Some(CompletionItemKind::MODULE),
-                detail: Some(message.to_string()),
-                ..Default::default()
-            })
-            .collect())
+        completes.insert(
+            "pkg_check_modules".to_string(),
+            "please findpackage PkgConfig first".to_string(),
+        );
+        completes.insert(
+            "PKG_CHECK_MODULES".to_string(),
+            "please findpackage PkgConfig first".to_string(),
+        );
     }
-    #[cfg(not(unix))]
-    Ok(zip(key, context)
+    Ok(completes
+        .iter()
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
+            kind: Some(CompletionItemKind::MODULE),
             detail: Some(message.to_string()),
             ..Default::default()
         })
