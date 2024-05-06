@@ -78,10 +78,10 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
             );
             drop(complet_cache);
             completions.append(&mut update_cache(parent, context.as_str()).await);
-            path = parent.clone();
+            path.clone_from(parent);
             continue;
         }
-        path = parent.clone();
+        path.clone_from(parent);
     }
 
     completions
