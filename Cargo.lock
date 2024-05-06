@@ -484,7 +484,7 @@ dependencies = [
 
 [[package]]
 name = "neocmakelsp"
-version = "0.6.23"
+version = "0.6.24"
 dependencies = [
  "anyhow",
  "clap",
