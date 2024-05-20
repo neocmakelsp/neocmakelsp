@@ -221,8 +221,7 @@ async fn main() {
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(&tree_sitter_cmake::language()).unwrap();
                     match formatting::get_format_cli(&buf, spacelen, usespace) {
-                        Some(mut context) => {
-                            context.push('\n');
+                        Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
                                     println!("Cannot clear the file: {e}");
