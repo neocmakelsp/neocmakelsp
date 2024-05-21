@@ -18,16 +18,11 @@ jobs:
     strategy:
       matrix:
         os:
-          - macos-latest-large
           - macos-latest
           - ubuntu-latest
           - windows-latest
         include:
           - os: macos-latest
-            target: arm64-apple-darwin
-            main_target: arm64-apple-darwin
-            artifact_name: neocmakelsp
-          - os: macos-latest-large
             target: x86_64-apple-darwin
             main_target: x86_64-apple-darwin
             artifact_name: neocmakelsp
@@ -86,7 +81,6 @@ jobs:
       - name: Copy files
         run: |
           mkdir out
-          mv arm64-apple-darwin/neocmakelsp out/neocmakelsp-arm64-apple-darwin
           mv x86_64-apple-darwin/neocmakelsp out/neocmakelsp-x86_64-apple-darwin
           mv x86_64-pc-windows-msvc/neocmakelsp.exe out/neocmakelsp-x86_64-pc-windows-msvc.exe
           mv x86_64-unknown-linux-gnu/neocmakelsp out/neocmakelsp-x86_64-unknown-linux-gnu
