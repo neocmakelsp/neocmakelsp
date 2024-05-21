@@ -11,6 +11,7 @@ use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
 use clap::{arg, Arg, ArgAction, Command};
 
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 // color
 use nu_ansi_term::Color::LightYellow;
 
@@ -41,19 +42,14 @@ struct Backend {
     root_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
-fn gitignore() -> Vec<String> {
+fn gitignore() -> Option<Gitignore> {
     let gitignore = std::path::Path::new(".gitignore");
     if !gitignore.exists() {
-        return Vec::new();
+        return None;
     }
-    let Ok(mut file) = std::fs::File::open(gitignore) else {
-        return Vec::new();
-    };
-    let mut buf = String::new();
-    if file.read_to_string(&mut buf).is_err() {
-        return Vec::new();
-    }
-    buf.lines().map(|iter| iter.to_string()).collect()
+    let mut builder = GitignoreBuilder::new("ROOT");
+    builder.add(gitignore)?;
+    builder.build().ok()
 }
 
 fn editconfig_setting() -> Option<(bool, u32)> {
@@ -170,30 +166,7 @@ async fn main() {
             let hasoverride = sub_matches.get_flag("override");
             let (usespace, spacelen) = editconfig_setting().unwrap_or((true, 2));
             let ignorepatterns = gitignore();
-            let isinpattern = |path: &str| -> bool {
-                let Ok(currentdir) = std::env::current_dir() else {
-                    return false;
-                };
-                let Ok(currentdir) = fs::canonicalize(currentdir) else {
-                    return false;
-                };
-                let Some(currentdir) = currentdir.to_str() else {
-                    return false;
-                };
-                ignorepatterns.iter().any(|pattern| {
-                    let pattern = {
-                        if let Some(pattern) = pattern.strip_prefix('/') {
-                            format!("{currentdir}/{pattern}")
-                        } else {
-                            pattern.to_string()
-                        }
-                    };
-                    glob::Pattern::new(&pattern).unwrap().matches(path)
-                        || glob::Pattern::new(&format!("{}/*", pattern))
-                            .unwrap()
-                            .matches(path)
-                })
-            };
+
             let formatpattern = |pattern: &str| {
                 for filepath in glob::glob(pattern)
                     .unwrap_or_else(|_| panic!("error pattern"))
@@ -202,9 +175,13 @@ async fn main() {
                     let Ok(filepath) = fs::canonicalize(filepath) else {
                         continue;
                     };
-                    if isinpattern(filepath.to_str().unwrap()) {
-                        continue;
+
+                    if let Some(ref ignorepatterns) = ignorepatterns {
+                        if ignorepatterns.matched(&filepath, false).is_ignore() {
+                            continue;
+                        }
                     }
+
                     let mut file = match std::fs::OpenOptions::new()
                         .read(true)
                         .write(hasoverride)
