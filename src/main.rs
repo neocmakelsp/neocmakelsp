@@ -47,7 +47,7 @@ fn gitignore() -> Option<Gitignore> {
     if !gitignore.exists() {
         return None;
     }
-    let mut builder = GitignoreBuilder::new("ROOT");
+    let mut builder = GitignoreBuilder::new(std::env::current_dir().ok()?);
     builder.add(gitignore)?;
     builder.build().ok()
 }
