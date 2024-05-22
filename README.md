@@ -98,7 +98,8 @@ args = ["--stdio"]
 
 ## Help needed
 
-new version will not work on mac and windows, so I need your help
+* I do not know if all features will work on mac and windows, so if someone use mac or windows, please help me and send pr for this project.
+* I want a comaintainer, who is familiar with mac, windows, and lsp.
 
 ## Features
 
