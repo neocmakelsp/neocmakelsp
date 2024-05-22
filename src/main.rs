@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -48,7 +47,7 @@ fn gitignore() -> Option<Gitignore> {
         return None;
     }
     let mut builder = GitignoreBuilder::new(std::env::current_dir().ok()?);
-    builder.add(gitignore)?;
+    builder.add(gitignore);
     builder.build().ok()
 }
 
@@ -172,12 +171,9 @@ async fn main() {
                     .unwrap_or_else(|_| panic!("error pattern"))
                     .flatten()
                 {
-                    let Ok(filepath) = fs::canonicalize(filepath) else {
-                        continue;
-                    };
-
                     if let Some(ref ignorepatterns) = ignorepatterns {
                         if ignorepatterns.matched(&filepath, false).is_ignore() {
+                            println!("eee, {filepath:?}");
                             continue;
                         }
                     }
