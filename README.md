@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
 
-It is a CMake lsp based on tower-lsp and treesitter 
+It is a CMake lsp based on tower-lsp and treesitter
 
 ## Install
 
@@ -30,11 +30,11 @@ if not configs.neocmake then
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
             single_file_support = true,-- suggested
-            on_attach = on_attach -- on_attach is the on_attach function you defined
+            on_attach = on_attach, -- on_attach is the on_attach function you defined
             init_options = {
                 format = {
                     enable = true
-                }
+                },
                 scan_cmake_in_package = true -- default is true
             }
         }
@@ -42,6 +42,7 @@ if not configs.neocmake then
     nvim_lsp.neocmake.setup({})
 end
 ```
+
 ### Tcp
 
 ```lua
@@ -54,7 +55,7 @@ if not configs.neocmake then
                 return nvim_lsp.util.find_git_ancestor(fname)
             end,
             single_file_support = true,-- suggested
-            on_attach = on_attach -- on_attach is the on_attach function you defined
+            on_attach = on_attach, -- on_attach is the on_attach function you defined
             init_options = {
                 format = {
                     enable = true
@@ -81,6 +82,7 @@ language-servers = [{ name = "neocmakelsp" }]
 command = "nc"
 args = ["localhost", "9257"]
 ```
+
 ### Stdio
 
 ```toml
@@ -98,24 +100,23 @@ args = ["--stdio"]
 
 new version will not work on mac and windows, so I need your help
 
-
 ## Features
 
-* watchfile
-* complete
-* symbol\_provider
-* On hover
-* Format
-* GO TO Definitation
-	* find\_package
-	* include
-* Search cli
-* Get the project struct
-* It is also a cli tool to format
+-   watchfile
+-   complete
+-   symbol_provider
+-   On hover
+-   Format
+-   GO TO Definitation
+    -   find_package
+    -   include
+-   Search cli
+-   Get the project struct
+-   It is also a cli tool to format
 
 ### If you want to use watchfile in neovim, use the nightly one, and set
 
-``` lua
+```lua
 capabilities = {
     workspace = {
         didChangeWatchedFiles = {
@@ -128,32 +129,40 @@ capabilities = {
 It will check CMakeCache.txt, and get weather the package is exist
 
 ## TODO
-* Undefined function check
+
+-   Undefined function check
+
 ## Show
 
 ### Search
+
 ![Search](./images/search.png)
 
 ### symbol
+
 ![Symbol](./images/ast.png)
 
 ### Complete and symbol support
+
 ![Complete](./images/findpackage.png)
 ![CompleteFindpackage](./images/complete.png)
 
 ### OnHover
+
 ![onHover](./images/onhover.png)
 
 ### GoToDefinition
+
 ![Show](https://raw.githubusercontent.com/Decodetalkers/utils/master/cmakelsp/definition.png)
 ![JumpToFile](./images/Jump.png)
 
 ### Tree
+
 ![TreeShow](images/tree.png)
 
 ### Format cli
 
-*Note: When formating files, make sure that your .editorconfig file is in your working directory*
+_Note: When formating files, make sure that your .editorconfig file is in your working directory_
 
 ```
 format the file
@@ -183,7 +192,7 @@ The format do the min things, just do `trim` and place the first line to the rig
 ```cmake
 function(A)
 
-        set(A               
+        set(A
         B
             C
         )
