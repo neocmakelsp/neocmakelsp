@@ -173,7 +173,6 @@ async fn main() {
                 {
                     if let Some(ref ignorepatterns) = ignorepatterns {
                         if ignorepatterns.matched(&filepath, false).is_ignore() {
-                            println!("eee, {filepath:?}");
                             continue;
                         }
                     }
