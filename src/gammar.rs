@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types::DiagnosticSeverity;
+
+use crate::config;
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
 pub struct ErrorInfo {
@@ -41,6 +43,14 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let name = &newsource[h][x..y];
+                if !config::CMAKE_LINT.lint_match(name.chars().all(|a| a.is_uppercase())) {
+                    output.push((
+                        ids.start_position(),
+                        ids.end_position(),
+                        config::CMAKE_LINT.hint.clone(),
+                        Some(DiagnosticSeverity::HINT),
+                    ));
+                }
                 if name.to_lowercase() == "find_package" && node.child_count() >= 4 {
                     let mut walk = node.walk();
                     let errorpackages = crate::filewatcher::get_error_packages();
