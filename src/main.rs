@@ -25,6 +25,7 @@ mod languageserver;
 mod scansubs;
 mod search;
 mod utils;
+mod config;
 
 #[derive(Debug)]
 struct BackendInitInfo {
