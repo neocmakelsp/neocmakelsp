@@ -114,6 +114,16 @@ args = ["--stdio"]
 -   Search cli
 -   Get the project struct
 -   It is also a cli tool to format
+-   Lint
+
+## Lint form 6.0.27
+
+Put a file named `.neocmakelint.toml` under the root of the project.
+
+```toml
+command_upcase = "ignore" # "lowcase", "upcase"
+```
+Then it will check whether the command is all upcase.
 
 ### If you want to use watchfile in neovim, use the nightly one, and set
 
