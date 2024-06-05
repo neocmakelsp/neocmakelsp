@@ -13,7 +13,6 @@ use crate::scansubs;
 use crate::semantic_token;
 use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -127,10 +126,6 @@ impl LanguageServer for Backend {
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                     completion_item: None,
-                }),
-                execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["dummy.do_something".to_string()],
-                    work_done_progress_options: Default::default(),
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
@@ -251,20 +246,6 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn execute_command(&self, _: ExecuteCommandParams) -> Result<Option<Value>> {
-        self.client
-            .log_message(MessageType::INFO, "command executed!")
-            .await;
-
-        match self.client.apply_edit(WorkspaceEdit::default()).await {
-            Ok(res) if res.applied => self.client.log_message(MessageType::INFO, "applied").await,
-            Ok(_) => self.client.log_message(MessageType::INFO, "rejected").await,
-            Err(err) => self.client.log_message(MessageType::ERROR, err).await,
-        }
-
-        Ok(None)
-    }
-
     async fn did_open(&self, input: DidOpenTextDocumentParams) {
         let mut parse = Parser::new();
         parse.set_language(&tree_sitter_cmake::language()).unwrap();
@@ -310,19 +291,6 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "file saved!")
             .await;
-    }
-
-    async fn signature_help(&self, _: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
-        Ok(Some(SignatureHelp {
-            signatures: vec![SignatureInformation {
-                label: "Test".to_string(),
-                documentation: None,
-                parameters: None,
-                active_parameter: None,
-            }],
-            active_signature: None,
-            active_parameter: None,
-        }))
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
