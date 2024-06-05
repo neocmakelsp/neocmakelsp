@@ -17,6 +17,7 @@ use nu_ansi_term::Color::LightYellow;
 use tokio::net::TcpListener;
 mod ast;
 mod complete;
+mod config;
 mod filewatcher;
 mod formatting;
 mod gammar;
@@ -24,8 +25,8 @@ mod jump;
 mod languageserver;
 mod scansubs;
 mod search;
+mod semantic_token;
 mod utils;
-mod config;
 
 #[derive(Debug)]
 struct BackendInitInfo {

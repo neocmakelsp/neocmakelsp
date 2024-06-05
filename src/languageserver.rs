@@ -10,6 +10,8 @@ use crate::formatting::getformat;
 use crate::gammar::checkerror;
 use crate::jump;
 use crate::scansubs;
+use crate::semantic_token;
+use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -145,6 +147,35 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
+                semantic_tokens_provider: if inital_config.enable_semantic_token() {
+                    Some(
+                        SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
+                            SemanticTokensRegistrationOptions {
+                                text_document_registration_options: {
+                                    TextDocumentRegistrationOptions {
+                                        document_selector: Some(vec![DocumentFilter {
+                                            language: Some("cmake".to_string()),
+                                            scheme: Some("file".to_string()),
+                                            pattern: None,
+                                        }]),
+                                    }
+                                },
+                                semantic_tokens_options: SemanticTokensOptions {
+                                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                                    legend: SemanticTokensLegend {
+                                        token_types: LEGEND_TYPE.into(),
+                                        token_modifiers: vec![],
+                                    },
+                                    range: None,
+                                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                                },
+                                static_registration_options: StaticRegistrationOptions::default(),
+                            },
+                        ),
+                    )
+                } else {
+                    None
+                },
                 references_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
@@ -443,6 +474,20 @@ impl LanguageServer for Backend {
         let storemap = BUFFERS_CACHE.lock().await;
         match storemap.get(&uri) {
             Some(context) => Ok(ast::getast(&self.client, context).await),
+            None => Ok(None),
+        }
+    }
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = params.text_document.uri.clone();
+        self.client
+            .log_message(MessageType::LOG, "semantic_token_full")
+            .await;
+        let storemap = BUFFERS_CACHE.lock().await;
+        match storemap.get(&uri) {
+            Some(context) => Ok(semantic_token::semantic_token(&self.client, context).await),
             None => Ok(None),
         }
     }

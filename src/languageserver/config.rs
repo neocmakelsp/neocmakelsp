@@ -4,6 +4,7 @@ use serde::Deserialize;
 pub struct Config {
     pub format: Option<FormatConfig>,
     pub scan_cmake_in_package: Option<bool>,
+    pub semantic_token: Option<bool>,
 }
 
 impl Config {
@@ -16,6 +17,10 @@ impl Config {
     pub fn is_scan_cmake_in_package(&self) -> bool {
         self.scan_cmake_in_package.unwrap_or(true)
     }
+
+    pub fn enable_semantic_token(&self) -> bool {
+        self.semantic_token.unwrap_or(true)
+    }
 }
 
 impl Default for Config {
@@ -23,6 +28,7 @@ impl Default for Config {
         Config {
             format: Some(FormatConfig::default()),
             scan_cmake_in_package: Some(true),
+            semantic_token: Some(false),
         }
     }
 }
