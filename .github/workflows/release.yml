@@ -19,7 +19,7 @@ jobs:
             matrix:
                 os:
                     - macos-latest
-                    - macos-12
+                    - macos-13
                     - ubuntu-latest
                     - windows-latest
                 include:
@@ -27,7 +27,7 @@ jobs:
                       target: aarch64-apple-darwin
                       main_target: aarch64-apple-darwin
                       artifact_name: neocmakelsp
-                    - os: macos-12
+                    - os: macos-13
                       target: x86_64-apple-darwin
                       main_target: x86_64-apple-darwin
                       artifact_name: neocmakelsp
