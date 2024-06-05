@@ -59,9 +59,14 @@ fn sub_tokens(
                 let h = id.start_position().row;
                 let x = id.start_position().column;
                 let y = id.end_position().column;
+
+                if h as u32 != *preline {
+                    *prestart = 0;
+                }
+
                 res.push(SemanticToken {
                     delta_line: h as u32 - *preline,
-                    delta_start: x as u32,
+                    delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
                     token_type: get_token_position(SemanticTokenType::METHOD),
                     token_modifiers_bitset: 0,
@@ -69,6 +74,24 @@ fn sub_tokens(
                 *preline = h as u32;
 
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
+            }
+
+            "line_comment" => {
+                let h = child.start_position().row;
+                let x = child.start_position().column;
+                let y = child.end_position().column;
+                if h as u32 != *preline {
+                    *prestart = 0;
+                }
+                res.push(SemanticToken {
+                    delta_line: h as u32 - *preline,
+                    delta_start: x as u32 - *prestart,
+                    length: (y - x) as u32,
+                    token_type: get_token_position(SemanticTokenType::COMMENT),
+                    token_modifiers_bitset: 0,
+                });
+                *preline = h as u32;
+                *prestart = x as u32;
             }
 
             "endmacro_command" | "endif_command" | "endfunction_command" | "else_command" => {
@@ -83,22 +106,22 @@ fn sub_tokens(
                 }
                 res.push(SemanticToken {
                     delta_line: h as u32 - *preline,
-                    delta_start: x as u32,
+                    delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
                     token_type: get_token_position(SemanticTokenType::KEYWORD),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
+                *prestart = x as u32;
             }
             "argument_list" => {
                 let mut argument_course = child.walk();
-                let mut prestart = 0;
                 for argument in child.children(&mut argument_course) {
                     let h = argument.start_position().row;
                     let x = argument.start_position().column;
                     let y = argument.end_position().column;
                     if h as u32 != *preline {
-                        prestart = 0;
+                        *prestart = 0;
                     }
                     if argument
                         .child(0)
@@ -106,12 +129,12 @@ fn sub_tokens(
                     {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
-                            delta_start: x as u32 - prestart,
+                            delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
                             token_type: get_token_position(SemanticTokenType::STRING),
                             token_modifiers_bitset: 0,
                         });
-                        prestart = x as u32;
+                        *prestart = x as u32;
                         *preline = h as u32;
                         continue;
                     }
@@ -119,36 +142,36 @@ fn sub_tokens(
                     if BOOL_VAL.contains(&name) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
-                            delta_start: x as u32 - prestart,
+                            delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
                             token_type: get_token_position(SemanticTokenType::VARIABLE),
                             token_modifiers_bitset: 0,
                         });
-                        prestart = x as u32;
+                        *prestart = x as u32;
                         *preline = h as u32;
                         continue;
                     }
                     if UNIQUE_KEYWORD.contains(&name) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
-                            delta_start: x as u32 - prestart,
+                            delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
                             token_type: get_token_position(SemanticTokenType::KEYWORD),
                             token_modifiers_bitset: 0,
                         });
-                        prestart = x as u32;
+                        *prestart = x as u32;
                         *preline = h as u32;
                         continue;
                     }
                     if name.chars().all(|a| !a.is_lowercase()) && !is_if {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
-                            delta_start: x as u32 - prestart,
+                            delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
                             token_type: get_token_position(SemanticTokenType::KEYWORD),
                             token_modifiers_bitset: 0,
                         });
-                        prestart = x as u32;
+                        *prestart = x as u32;
                         *preline = h as u32;
                     }
                 }
@@ -162,12 +185,13 @@ fn sub_tokens(
                 }
                 res.push(SemanticToken {
                     delta_line: h as u32 - *preline,
-                    delta_start: x as u32,
+                    delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
                     token_type: get_token_position(SemanticTokenType::KEYWORD),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
+                *prestart = x as u32;
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
             "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
