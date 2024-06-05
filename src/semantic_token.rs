@@ -3,6 +3,11 @@ use tower_lsp::{
     Client,
 };
 
+use once_cell::sync::Lazy;
+
+static NUMBERREGEX: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
+
 const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "OFF"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];
 
@@ -168,6 +173,18 @@ fn sub_tokens(
                         *preline = h as u32;
                         continue;
                     }
+                    if NUMBERREGEX.is_match(&name) {
+                        res.push(SemanticToken {
+                            delta_line: h as u32 - *preline,
+                            delta_start: x as u32 - *prestart,
+                            length: (y - x) as u32,
+                            token_type: get_token_position(SemanticTokenType::NUMBER),
+                            token_modifiers_bitset: 0,
+                        });
+                        *prestart = x as u32;
+                        *preline = h as u32;
+                        continue;
+                    }
                     if UNIQUE_KEYWORD.contains(&name) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
@@ -226,4 +243,10 @@ fn sub_tokens(
     }
 
     res
+}
+
+#[test]
+fn test_number() {
+    assert!(NUMBERREGEX.is_match("1.1"));
+    assert!(NUMBERREGEX.is_match("222"));
 }
