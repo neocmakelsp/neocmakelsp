@@ -276,7 +276,7 @@ fn sub_tokens(
             }
             "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
             | "elseif_command" | "function_command" | "macro_command" | "foreach_loop"
-            | "variable_ref" | "normal_var" | "quoted_element" => {
+            | "foreach_command" | "variable_ref" | "normal_var" | "quoted_element" => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
