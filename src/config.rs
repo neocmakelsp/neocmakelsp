@@ -14,20 +14,26 @@ pub struct LintSuggestion {
 }
 
 impl LintSuggestion {
-    pub fn lint_match(&self,upcase: bool) -> bool {
-        match (self.command_upcase.as_str(), upcase) {
-            ("upcase", true) | ("lowcase", false) | ("ignore", _) => true,
-            _ => false
-        }
+    pub fn lint_match(&self, upcase: bool) -> bool {
+        matches!(
+            (self.command_upcase.as_str(), upcase),
+            ("upcase", true) | ("lowcase", false) | ("ignore", _)
+        )
     }
 }
 
 impl From<String> for LintSuggestion {
     fn from(command_upcase: String) -> Self {
         match command_upcase.as_str() {
-            "upcase" => Self { command_upcase, hint: "suggested to use upcase".to_owned() },
-            "lowcase" => Self { command_upcase, hint: "suggested to use lowcase".to_owned() },
-            _ => Self::default()
+            "upcase" => Self {
+                command_upcase,
+                hint: "suggested to use upcase".to_owned(),
+            },
+            "lowcase" => Self {
+                command_upcase,
+                hint: "suggested to use lowcase".to_owned(),
+            },
+            _ => Self::default(),
         }
     }
 }
