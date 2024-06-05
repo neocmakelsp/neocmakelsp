@@ -125,7 +125,7 @@ command_upcase = "ignore" # "lowcase", "upcase"
 ```
 Then it will check whether the command is all upcase.
 
-### If you want to use watchfile in neovim, use the nightly one, and set
+### If you want to use watchfile in neovim, set
 
 ```lua
 capabilities = {
@@ -138,6 +138,22 @@ capabilities = {
 ```
 
 It will check CMakeCache.txt, and get weather the package is exist
+
+
+### lsp init_options
+
+```lua
+init_options = {
+    format = {
+        enable = true, -- to use lsp format
+
+    },
+    scan_cmake_in_package = false, -- it will deeply check the cmake file which found when search cmake packages.
+    semantic_token = false,
+    -- semantic_token heighlight. if you use treesitter highlight, it is suggested to set with false. it can be used to make better highlight for vscode which only has textmate highlight
+}
+
+```
 
 ## TODO
 
