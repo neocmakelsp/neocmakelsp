@@ -72,6 +72,7 @@ fn sub_tokens(
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
+                *prestart = x as u32;
 
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
