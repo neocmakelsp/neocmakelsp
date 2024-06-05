@@ -225,7 +225,7 @@ fn sub_tokens(
                         is_first_val = false;
                         continue;
                     }
-                    if NUMBERREGEX.is_match(&name) {
+                    if NUMBERREGEX.is_match(name) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
