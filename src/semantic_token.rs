@@ -95,7 +95,11 @@ fn sub_tokens(
                 *prestart = x as u32;
             }
 
-            "endmacro_command" | "endif_command" | "endfunction_command" | "else_command" => {
+            "endmacro_command"
+            | "endif_command"
+            | "endfunction_command"
+            | "else_command"
+            | "endforeach_command" => {
                 let Some(id) = child.child(0) else {
                     continue;
                 };
@@ -189,7 +193,7 @@ fn sub_tokens(
                     }
                 }
             }
-            "function" | "macro" | "if" => {
+            "function" | "macro" | "if" | "foreach" => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -208,7 +212,7 @@ fn sub_tokens(
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
             "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
-            | "function_command" | "macro_command" => {
+            | "function_command" | "macro_command" | "foreach_loop" => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
