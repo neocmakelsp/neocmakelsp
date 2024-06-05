@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 static NUMBERREGEX: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
-const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "OFF"];
+const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "FALSE"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];
 
 pub const LEGEND_TYPE: &[SemanticTokenType] = &[
