@@ -25,6 +25,7 @@ return {
 
                 },
                 scan_cmake_in_package = false,
+                semantic_token = false,
             }
         }
     }
