@@ -18,6 +18,8 @@ use once_cell::sync::Lazy;
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
+/// NOTE: collect the all completeitems in this PathBuf
+/// Include the top CMakeList.txt
 pub static COMPLETE_CACHE: Lazy<Arc<Mutex<CompleteKV>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 

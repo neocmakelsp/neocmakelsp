@@ -9,9 +9,12 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// NOTE: key is be included path, value is the top CMakeLists
+/// This is used to find who is on the top of the CMakeLists
 pub type TreeKey = HashMap<PathBuf, PathBuf>;
 
-// here get the struct of the tree
+// NOTE: here get the struct of the tree
+// Cache the data of the struct
 pub static TREE_MAP: Lazy<Arc<Mutex<TreeKey>>> = Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn scan_all<P: AsRef<Path>>(project_root: P) {
