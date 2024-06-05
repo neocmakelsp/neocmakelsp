@@ -11,14 +11,8 @@ static NUMBERREGEX: Lazy<regex::Regex> =
 const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "FALSE"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];
 
-#[inline]
-const fn target_hl() -> SemanticTokenType {
-    SemanticTokenType::new("target")
-}
-
 pub const LEGEND_TYPE: &[SemanticTokenType] = &[
     SemanticTokenType::FUNCTION,
-    target_hl(),
     SemanticTokenType::METHOD,
     SemanticTokenType::VARIABLE,
     SemanticTokenType::STRING,
@@ -215,6 +209,7 @@ fn sub_tokens(
                             false,
                         ));
                         is_first_val = false;
+                        continue;
                     }
                     let name = &newsource[h][x..y];
                     if BOOL_VAL.contains(&name) {
@@ -273,7 +268,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(target_hl()),
+                            token_type: get_token_position(SemanticTokenType::VARIABLE),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
