@@ -123,6 +123,18 @@ fn sub_tokens(
                     if h as u32 != *preline {
                         *prestart = 0;
                     }
+                    if argument.kind() == "line_comment" {
+                        res.push(SemanticToken {
+                            delta_line: h as u32 - *preline,
+                            delta_start: x as u32 - *prestart,
+                            length: (y - x) as u32,
+                            token_type: get_token_position(SemanticTokenType::COMMENT),
+                            token_modifiers_bitset: 0,
+                        });
+                        *preline = h as u32;
+                        *prestart = x as u32;
+                        continue;
+                    }
                     if argument
                         .child(0)
                         .is_some_and(|child| child.kind() == "quoted_argument")
