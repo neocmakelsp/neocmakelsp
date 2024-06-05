@@ -11,8 +11,14 @@ static NUMBERREGEX: Lazy<regex::Regex> =
 const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "FALSE"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];
 
+#[inline]
+const fn target_hl() -> SemanticTokenType {
+    SemanticTokenType::new("target")
+}
+
 pub const LEGEND_TYPE: &[SemanticTokenType] = &[
     SemanticTokenType::FUNCTION,
+    target_hl(),
     SemanticTokenType::METHOD,
     SemanticTokenType::VARIABLE,
     SemanticTokenType::STRING,
@@ -160,6 +166,7 @@ fn sub_tokens(
             }
             "argument_list" => {
                 let mut argument_course = child.walk();
+                let mut is_first_val = !is_if; // NOTE: if is if, not check it
                 for argument in child.children(&mut argument_course) {
                     let h = argument.start_position().row;
                     let x = argument.start_position().column;
@@ -177,6 +184,7 @@ fn sub_tokens(
                         });
                         *preline = h as u32;
                         *prestart = x as u32;
+                        is_first_val = false;
                         continue;
                     }
                     if argument
@@ -192,6 +200,7 @@ fn sub_tokens(
                         });
                         *prestart = x as u32;
                         *preline = h as u32;
+                        is_first_val = false;
                         continue;
                     }
                     if argument
@@ -205,6 +214,7 @@ fn sub_tokens(
                             prestart,
                             false,
                         ));
+                        is_first_val = false;
                     }
                     let name = &newsource[h][x..y];
                     if BOOL_VAL.contains(&name) {
@@ -217,6 +227,7 @@ fn sub_tokens(
                         });
                         *prestart = x as u32;
                         *preline = h as u32;
+                        is_first_val = false;
                         continue;
                     }
                     if NUMBERREGEX.is_match(&name) {
@@ -241,6 +252,7 @@ fn sub_tokens(
                         });
                         *prestart = x as u32;
                         *preline = h as u32;
+                        is_first_val = false;
                         continue;
                     }
                     if name.chars().all(|a| !a.is_lowercase()) && !is_if {
@@ -253,7 +265,21 @@ fn sub_tokens(
                         });
                         *prestart = x as u32;
                         *preline = h as u32;
+                        is_first_val = false;
+                        continue;
                     }
+                    if is_first_val {
+                        res.push(SemanticToken {
+                            delta_line: h as u32 - *preline,
+                            delta_start: x as u32 - *prestart,
+                            length: (y - x) as u32,
+                            token_type: get_token_position(target_hl()),
+                            token_modifiers_bitset: 0,
+                        });
+                        *prestart = x as u32;
+                        *preline = h as u32;
+                    }
+                    is_first_val = false;
                 }
             }
             "function" | "macro" | "if" | "foreach" | "elseif" => {
