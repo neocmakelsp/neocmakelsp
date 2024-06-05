@@ -26,6 +26,7 @@ mod scansubs;
 mod search;
 mod utils;
 mod config;
+mod semantic_token;
 
 #[derive(Debug)]
 struct BackendInitInfo {
