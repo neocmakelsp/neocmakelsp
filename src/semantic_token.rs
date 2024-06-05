@@ -256,7 +256,7 @@ fn sub_tokens(
                     }
                 }
             }
-            "function" | "macro" | "if" | "foreach" => {
+            "function" | "macro" | "if" | "foreach" | "elseif" => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -275,8 +275,8 @@ fn sub_tokens(
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
             "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
-            | "function_command" | "macro_command" | "foreach_loop" | "variable_ref"
-            | "gen_exp" | "normal_var" | "quoted_element" => {
+            | "elseif_command" | "function_command" | "macro_command" | "foreach_loop"
+            | "variable_ref" | "gen_exp" | "normal_var" | "quoted_element" => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
