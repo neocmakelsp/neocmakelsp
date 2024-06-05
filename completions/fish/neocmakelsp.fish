@@ -1,0 +1,7 @@
+complete -c neocmakelsp -s V -l version -d "neocmakelsp version"
+complete -c neocmakelsp -s h -l help -d "help for neocmakelsp"
+complete -c neocmakelsp -s T -l tree -d "show project tree"
+complete -c neocmakelsp -s F -l format -d "format the project"
+complete -c neocmakelsp -l tcp -d "use tcp to start program"
+complete -c neocmakelsp -l stdio -d "use stdio to start program"
+complete -c neocmakelsp -s S -l search -d "search cmake packages"
