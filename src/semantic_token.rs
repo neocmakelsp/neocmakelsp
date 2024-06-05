@@ -55,6 +55,40 @@ fn sub_tokens(
 
     for child in input.children(&mut course) {
         match child.kind() {
+            "$" | "{" | "}" => {
+                let h = child.start_position().row;
+                let x = child.start_position().column;
+                let y = child.end_position().column;
+                if h as u32 != *preline {
+                    *prestart = 0;
+                }
+                res.push(SemanticToken {
+                    delta_line: h as u32 - *preline,
+                    delta_start: x as u32 - *prestart,
+                    length: (y - x) as u32,
+                    token_type: get_token_position(SemanticTokenType::OPERATOR),
+                    token_modifiers_bitset: 0,
+                });
+                *preline = h as u32;
+                *prestart = x as u32;
+            }
+            "variable" => {
+                let h = child.start_position().row;
+                let x = child.start_position().column;
+                let y = child.end_position().column;
+                if h as u32 != *preline {
+                    *prestart = 0;
+                }
+                res.push(SemanticToken {
+                    delta_line: h as u32 - *preline,
+                    delta_start: x as u32 - *prestart,
+                    length: (y - x) as u32,
+                    token_type: get_token_position(SemanticTokenType::VARIABLE),
+                    token_modifiers_bitset: 0,
+                });
+                *preline = h as u32;
+                *prestart = x as u32;
+            }
             "normal_command" => {
                 // NOTE: identifier
                 let Some(id) = child.child(0) else {
@@ -160,6 +194,18 @@ fn sub_tokens(
                         *preline = h as u32;
                         continue;
                     }
+                    if argument
+                        .child(0)
+                        .is_some_and(|child| child.child_count() != 0)
+                    {
+                        res.append(&mut sub_tokens(
+                            argument.child(0).unwrap(),
+                            source,
+                            preline,
+                            prestart,
+                            false,
+                        ));
+                    }
                     let name = &newsource[h][x..y];
                     if BOOL_VAL.contains(&name) {
                         res.push(SemanticToken {
@@ -229,7 +275,8 @@ fn sub_tokens(
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
             "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
-            | "function_command" | "macro_command" | "foreach_loop" => {
+            | "function_command" | "macro_command" | "foreach_loop" | "variable_ref"
+            | "gen_exp" | "normal_var" | "quoted_element" => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
