@@ -147,31 +147,35 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
-                semantic_tokens_provider: Some(
-                    SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
-                        SemanticTokensRegistrationOptions {
-                            text_document_registration_options: {
-                                TextDocumentRegistrationOptions {
-                                    document_selector: Some(vec![DocumentFilter {
-                                        language: Some("cmake".to_string()),
-                                        scheme: Some("file".to_string()),
-                                        pattern: None,
-                                    }]),
-                                }
-                            },
-                            semantic_tokens_options: SemanticTokensOptions {
-                                work_done_progress_options: WorkDoneProgressOptions::default(),
-                                legend: SemanticTokensLegend {
-                                    token_types: LEGEND_TYPE.into(),
-                                    token_modifiers: vec![],
+                semantic_tokens_provider: if inital_config.enable_semantic_token() {
+                    Some(
+                        SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
+                            SemanticTokensRegistrationOptions {
+                                text_document_registration_options: {
+                                    TextDocumentRegistrationOptions {
+                                        document_selector: Some(vec![DocumentFilter {
+                                            language: Some("cmake".to_string()),
+                                            scheme: Some("file".to_string()),
+                                            pattern: None,
+                                        }]),
+                                    }
                                 },
-                                range: None,
-                                full: Some(SemanticTokensFullOptions::Bool(true)),
+                                semantic_tokens_options: SemanticTokensOptions {
+                                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                                    legend: SemanticTokensLegend {
+                                        token_types: LEGEND_TYPE.into(),
+                                        token_modifiers: vec![],
+                                    },
+                                    range: None,
+                                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                                },
+                                static_registration_options: StaticRegistrationOptions::default(),
                             },
-                            static_registration_options: StaticRegistrationOptions::default(),
-                        },
-                    ),
-                ),
+                        ),
+                    )
+                } else {
+                    None
+                },
                 references_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
