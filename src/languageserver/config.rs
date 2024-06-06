@@ -19,7 +19,7 @@ impl Config {
     }
 
     pub fn enable_semantic_token(&self) -> bool {
-        self.semantic_token.unwrap_or(true)
+        self.semantic_token.unwrap_or(false)
     }
 }
 
