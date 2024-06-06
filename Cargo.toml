@@ -13,7 +13,7 @@ keywords = ["lsp"]
 [dependencies]
 clap = { version = "4.5.4", features = ["string"] }
 tower-lsp = "0.20.0"
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = { version = "1.38.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing-subscriber = "0.3.18"
@@ -28,4 +28,4 @@ glob = "0.3.1"
 rust-ini = "0.21.0"
 nu-ansi-term = "0.50.0"
 ignore = "0.4.22"
-toml = "0.8.13"
+toml = "0.8.14"
