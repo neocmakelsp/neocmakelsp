@@ -114,8 +114,12 @@ impl LanguageServer for Backend {
             root_path.replace(uri.path().into());
         }
 
+        let version: String = env!("CARGO_PKG_VERSION").to_string();
         Ok(InitializeResult {
-            server_info: None,
+            server_info: Some(ServerInfo {
+                name: "neocmakelsp".to_string(),
+                version: Some(version),
+            }),
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
