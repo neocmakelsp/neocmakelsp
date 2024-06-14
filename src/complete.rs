@@ -303,7 +303,7 @@ fn getsubcomplete(
                         if include_files.contains(&subpath) {
                             continue;
                         }
-                        if let Ok(true) = cmake_try_exists(&subpath) {
+                        if let Ok(true) = subpath.try_exists() {
                             if let Some(mut comps) = includescanner::scanner_include_complete(
                                 &subpath,
                                 postype,
@@ -537,14 +537,6 @@ fn getsubcomplete(
         None
     } else {
         Some(complete)
-    }
-}
-
-fn cmake_try_exists(input: &PathBuf) -> std::io::Result<bool> {
-    match std::fs::metadata(input) {
-        Ok(_) => Ok(true),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error),
     }
 }
 

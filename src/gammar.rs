@@ -182,3 +182,13 @@ fn scanner_include_error(path: &PathBuf) -> bool {
         Err(_) => true,
     }
 }
+
+#[test]
+fn gammer_passed_check() {
+    let source = include_str!("../assert/gammer/include_check.cmake");
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    let thetree = parse.parse(&source, None).unwrap();
+
+    checkerror(std::path::Path::new("."), source, thetree.root_node());
+}
