@@ -8,12 +8,16 @@ mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use lsp_types::Location;
+
+const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
+
 /// find the definition
 pub async fn godef(
     location: Position,
     source: &str,
     originuri: String,
     client: &tower_lsp::Client,
+    is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&tree_sitter_cmake::language()).unwrap();
@@ -28,7 +32,7 @@ pub async fn godef(
                 match jumptype {
                     // TODO: maybe can hadle Include?
                     PositionType::Variable => {
-                        godefsub(tree.root_node(), source, &tofind, originuri)
+                        godefsub(tree.root_node(), source, &tofind, originuri, is_jump)
                     }
                     PositionType::FindPackage
                     | PositionType::TargetLink
@@ -54,16 +58,28 @@ pub async fn godef(
 }
 
 /// sub get the def
-fn godefsub(root: Node, source: &str, tofind: &str, originuri: String) -> Option<Vec<Location>> {
+fn godefsub(
+    root: Node,
+    source: &str,
+    tofind: &str,
+    originuri: String,
+    is_jump: bool,
+) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
     let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
         // if is inside same line
         //
+        if child.kind() == "identifier" {
+            continue;
+        }
         if child.child_count() != 0 {
+            if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
+                continue;
+            }
             //let range = godefsub(child, source, tofind);
-            if let Some(mut context) = godefsub(child, source, tofind, originuri.clone()) {
+            if let Some(mut context) = godefsub(child, source, tofind, originuri.clone(), is_jump) {
                 definitions.append(&mut context);
             }
         } else if child.start_position().row == child.end_position().row {

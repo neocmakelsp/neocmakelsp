@@ -393,7 +393,14 @@ impl LanguageServer for Backend {
                 let mut parse = Parser::new();
                 parse.set_language(&tree_sitter_cmake::language()).unwrap();
                 //notify_send(context, Type::Error);
-                Ok(jump::godef(location, context, uri.path().to_string(), &self.client).await)
+                Ok(jump::godef(
+                    location,
+                    context,
+                    uri.path().to_string(),
+                    &self.client,
+                    false,
+                )
+                .await)
             }
             None => Ok(None),
         }
@@ -415,7 +422,15 @@ impl LanguageServer for Backend {
                     treehelper::get_position_range(location, tree.root_node());
 
                 //notify_send(context, Type::Error);
-                match jump::godef(location, context, uri.path().to_string(), &self.client).await {
+                match jump::godef(
+                    location,
+                    context,
+                    uri.path().to_string(),
+                    &self.client,
+                    true,
+                )
+                .await
+                {
                     Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                         range
                             .iter()
