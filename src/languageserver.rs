@@ -236,7 +236,9 @@ impl LanguageServer for Backend {
                 scansubs::scan_all(path).await;
                 continue;
             }
-            tracing::info!("CMakeCache changed");
+            self.client
+                .log_message(MessageType::INFO, "CMakeCache changed")
+                .await;
             if let FileChangeType::DELETED = change.typ {
                 filewatcher::clear_error_packages();
             } else {
