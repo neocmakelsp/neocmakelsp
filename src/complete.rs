@@ -484,21 +484,26 @@ fn getsubcomplete(
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
 
-                                let mut row = ids.start_position().row;
                                 let row_start = ids.start_position().row;
                                 let row_end = ids.end_position().row;
-                                let mut names: String = newsource[row][x..].to_string();
-                                row += 1;
-
-                                while row < row_end {
-                                    names = format!("{} {}", names, newsource[row]);
+                                let mut names: String;
+                                if row_start == row_end {
+                                    names = newsource[h][x..y].to_string();
+                                } else {
+                                    let mut row = row_start;
+                                    names = newsource[row][x..].to_string();
                                     row += 1;
-                                }
 
-                                if row != row_start {
-                                    names = format!("{} {}", names, &newsource[row][..y])
-                                }
+                                    while row < row_end {
+                                        names = format!("{} {}", names, newsource[row]);
+                                        row += 1;
+                                    }
 
+                                    if row != row_start {
+                                        assert_eq!(row, row_end);
+                                        names = format!("{} {}", names, &newsource[row][..y])
+                                    }
+                                }
                                 let package_names: Vec<&str> = names.split(' ').collect();
                                 let package_name = package_names[0];
 
