@@ -54,6 +54,10 @@ jobs:
             - name: Build musl
               if: ${{ matrix.os == 'ubuntu-latest' }}
               run: cargo build --target x86_64-unknown-linux-musl --verbose --release
+            - name: Run fmt check
+              run: cargo fmt --all -- --check
+            - name: Run clippy check
+              run: cargo clippy
             - name: Run tests
               run: cargo test --verbose
             - name: Run tests for musl
