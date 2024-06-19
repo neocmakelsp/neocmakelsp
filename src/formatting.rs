@@ -228,7 +228,7 @@ fn format_content<'a>(
     (new_text, endline)
 }
 
-pub fn get_format_cli(source: &str, spacelen: u32, userspace: bool) -> Option<String> {
+pub fn get_format_cli(source: &str, spacelen: u32, use_space: bool) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&tree_sitter_cmake::language()).unwrap();
@@ -241,7 +241,7 @@ pub fn get_format_cli(source: &str, spacelen: u32, userspace: bool) -> Option<St
         tree.root_node(),
         &source.lines().collect(),
         spacelen,
-        userspace,
+        use_space,
         0,
         0,
         0,
