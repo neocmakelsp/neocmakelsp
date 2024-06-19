@@ -29,13 +29,13 @@ NOTE: this feature only enable on unix system which has `nc` command.
 
 ### highlight
 
-![highlight](./images/highlight.png)
+![highlight](https://raw.githubusercontent.com/Decodetalkers/neocmakelsp/master/editor/vscode/images/highlight.png)
 
 ### Ast tree
 
-![ast](./images/ast.png)
+![ast](https://raw.githubusercontent.com/Decodetalkers/neocmakelsp/master/editor/vscode/images/ast.png)
 
 ### Hover
 
-![hover](./images/hover.png)
+![hover](https://raw.githubusercontent.com/Decodetalkers/neocmakelsp/master/editor/vscode/images/hover.png)
 
