@@ -197,9 +197,9 @@ fn sub_tokens(
                             *prestart = x as u32;
                             *preline = h as u32;
                         } else {
-                            // TODO: very base implment, but it is enough for me,
+                            // TODO: very base implement, but it is enough for me,
                             // if you do not very satisfied with this
-                            // implment, I am gald to accept your pr, thanks
+                            // implement, I am glad to accept your pr, thanks
                             // NOTE: highlight variable in string
                             let mut quoted_argument_course = quoted_argument.walk();
                             for element in quoted_argument.children(&mut quoted_argument_course) {

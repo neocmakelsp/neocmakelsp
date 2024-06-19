@@ -63,15 +63,15 @@ fn editconfig_setting() -> Option<(bool, u32)> {
     let cmakesession = conf.section(Some("CMakeLists.txt"))?;
 
     let indent_style = cmakesession.get("indent_style").unwrap_or("space");
-    let usespace = indent_style == "space";
+    let use_space = indent_style == "space";
     let indent_size = cmakesession.get("indent_size").unwrap_or("2");
-    let indent_size: u32 = if usespace {
+    let indent_size: u32 = if use_space {
         indent_size.parse::<u32>().unwrap_or(2)
     } else {
         1
     };
 
-    Some((usespace, indent_size))
+    Some((use_space, indent_size))
 }
 
 #[tokio::main]
@@ -153,7 +153,7 @@ async fn main() {
         Some(("search", sub_matches)) => {
             let packagename = sub_matches
                 .get_one::<String>("Package")
-                .expect("required one pacakge");
+                .expect("required one package");
             if sub_matches.get_flag("tojson") {
                 println!("{}", search::search_result_tojson(packagename));
             } else {
@@ -165,7 +165,7 @@ async fn main() {
                 .get_one::<String>("FormatPath")
                 .expect("Cannot get globpattern");
             let hasoverride = sub_matches.get_flag("override");
-            let (usespace, spacelen) = editconfig_setting().unwrap_or((true, 2));
+            let (use_space, spacelen) = editconfig_setting().unwrap_or((true, 2));
             let ignorepatterns = gitignore();
 
             let formatpattern = |pattern: &str| {
@@ -194,7 +194,7 @@ async fn main() {
                     file.read_to_string(&mut buf).unwrap();
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(&tree_sitter_cmake::language()).unwrap();
-                    match formatting::get_format_cli(&buf, spacelen, usespace) {
+                    match formatting::get_format_cli(&buf, spacelen, use_space) {
                         Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {
@@ -237,7 +237,7 @@ async fn main() {
                     };
                     let mut buf = String::new();
                     file.read_to_string(&mut buf).unwrap();
-                    match formatting::get_format_cli(&buf, spacelen, usespace) {
+                    match formatting::get_format_cli(&buf, spacelen, use_space) {
                         Some(context) => {
                             if hasoverride {
                                 if let Err(e) = file.set_len(0) {

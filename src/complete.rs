@@ -69,16 +69,16 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
     let tree_map = TREE_MAP.lock().await;
 
     while let Some(parent) = tree_map.get(&path) {
-        let complet_cache = COMPLETE_CACHE.lock().await;
-        if let Some(datas) = complet_cache.get(parent) {
-            completions.append(&mut datas.clone());
+        let complete_cache = COMPLETE_CACHE.lock().await;
+        if let Some(data) = complete_cache.get(parent) {
+            completions.append(&mut data.clone());
         } else if let Ok(context) = fs::read_to_string(parent).await {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
                 lsp_types::Url::from_file_path(parent).unwrap(),
                 context.clone(),
             );
-            drop(complet_cache);
+            drop(complete_cache);
             completions.append(&mut update_cache(parent, context.as_str()).await);
             path.clone_from(parent);
             continue;
@@ -89,7 +89,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
     completions
 }
 
-/// get the complet messages
+/// get the complete messages
 pub async fn getcomplete(
     source: &str,
     location: Position,
@@ -393,7 +393,7 @@ fn getsubcomplete(
                                 let mut cmakepackages = Vec::new();
                                 let components_packages = {
                                     if argument_count >= 2 {
-                                        let mut support_commponent = false;
+                                        let mut support_component = false;
                                         let mut components_packages = Vec::new();
                                         for index in 1..argument_count {
                                             let package_prefix_node =
@@ -403,14 +403,14 @@ fn getsubcomplete(
                                             let y = package_prefix_node.end_position().column;
                                             let component = &newsource[h][x..y];
                                             if component == "COMPONENTS" {
-                                                support_commponent = true;
+                                                support_component = true;
                                             } else if component != "REQUIRED" {
                                                 component_part.push(component.to_string());
                                                 components_packages
                                                     .push(format!("{package_name}::{component}"));
                                             }
                                         }
-                                        if support_commponent {
+                                        if support_component {
                                             Some(components_packages)
                                         } else {
                                             None
@@ -427,7 +427,7 @@ fn getsubcomplete(
                                 } else {
                                     cmakepackages.push(package_name.to_string());
                                 }
-                                // mordern cmake like Qt5::Core
+                                // modern cmake like Qt5::Core
                                 if let Some(components) = components_packages {
                                     for component in components {
                                         complete.push(CompletionItem {

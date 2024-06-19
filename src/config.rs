@@ -17,7 +17,7 @@ impl LintSuggestion {
     pub fn lint_match(&self, upcase: bool) -> bool {
         matches!(
             (self.command_upcase.as_str(), upcase),
-            ("upcase", true) | ("lowcase", false) | ("ignore", _)
+            ("upcase", true) | ("lowercase", false) | ("ignore", _)
         )
     }
 }
@@ -29,9 +29,9 @@ impl From<String> for LintSuggestion {
                 command_upcase,
                 hint: "suggested to use upcase".to_owned(),
             },
-            "lowcase" => Self {
+            "lowercase" => Self {
                 command_upcase,
-                hint: "suggested to use lowcase".to_owned(),
+                hint: "suggested to use lowercase".to_owned(),
             },
             _ => Self::default(),
         }

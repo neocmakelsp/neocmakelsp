@@ -17,10 +17,10 @@ export async function activate(context: ExtensionContext) {
   let config = workspace.getConfiguration("neocmakelsp");
   let allAsJson = JSON.parse(JSON.stringify(config));
 
-  let neocmakelspExcutable = undefined;
+  let neocmakelspExecutable = undefined;
 
   if (allAsJson.tcp === true) {
-    neocmakelspExcutable = {
+    neocmakelspExecutable = {
       command: "nc",
       args: ['localhost', '9257']
     }
@@ -37,14 +37,14 @@ export async function activate(context: ExtensionContext) {
     // The server is implemented in node
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
-    neocmakelspExcutable = {
+    neocmakelspExecutable = {
       command: realPath,
       args: ['--stdio'],
     };
   }
   const serverOptions: ServerOptions = {
-    run: neocmakelspExcutable,
-    debug: neocmakelspExcutable
+    run: neocmakelspExecutable,
+    debug: neocmakelspExecutable
   };
 
   // Options to control the language client

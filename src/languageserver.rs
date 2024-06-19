@@ -77,26 +77,26 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, inital: InitializeParams) -> Result<InitializeResult> {
-        let inital_config: Config = inital
+    async fn initialize(&self, initial: InitializeParams) -> Result<InitializeResult> {
+        let initial_config: Config = initial
             .initialization_options
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
 
-        let do_format = inital_config.is_format_enabled();
+        let do_format = initial_config.is_format_enabled();
 
-        let find_cmake_in_package = inital_config.is_scan_cmake_in_package();
+        let find_cmake_in_package = initial_config.is_scan_cmake_in_package();
 
         let mut init_info = self.init_info.lock().await;
         init_info.scan_cmake_in_package = find_cmake_in_package;
 
-        if let Some(workspace) = inital.capabilities.workspace {
+        if let Some(workspace) = initial.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {
                 if let (Some(true), Some(true)) = (
                     watch_file.dynamic_registration,
                     watch_file.relative_pattern_support,
                 ) {
-                    if let Some(ref uri) = inital.root_uri {
+                    if let Some(ref uri) = initial.root_uri {
                         let path = std::path::Path::new(uri.path())
                             .join("build")
                             .join("CMakeCache.txt");
@@ -108,7 +108,7 @@ impl LanguageServer for Backend {
             }
         }
 
-        if let Some(ref uri) = inital.root_uri {
+        if let Some(ref uri) = initial.root_uri {
             scansubs::scan_all(uri.path()).await;
             let mut root_path = self.root_path.lock().await;
             root_path.replace(uri.path().into());
@@ -146,7 +146,7 @@ impl LanguageServer for Backend {
                     }),
                     file_operations: None,
                 }),
-                semantic_tokens_provider: if inital_config.enable_semantic_token() {
+                semantic_tokens_provider: if initial_config.enable_semantic_token() {
                     Some(
                         SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
                             SemanticTokensRegistrationOptions {
@@ -333,7 +333,7 @@ impl LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                format!("formating, space is {}", input.options.insert_spaces),
+                format!("formatting, space is {}", input.options.insert_spaces),
             )
             .await;
         let uri = input.text_document.uri;

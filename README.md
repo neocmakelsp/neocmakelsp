@@ -135,7 +135,7 @@ To use neocmakelsp with eglot:
 Put a file named `.neocmakelint.toml` under the root of the project.
 
 ```toml
-command_upcase = "ignore" # "lowcase", "upcase"
+command_upcase = "ignore" # "lowercase", "upcase"
 ```
 Then it will check whether the command is all upcase.
 
@@ -203,7 +203,7 @@ init_options = {
 
 ### Format cli
 
-_Note: When formating files, make sure that your .editorconfig file is in your working directory_
+_Note: When formatting files, make sure that your .editorconfig file is in your working directory_
 
 ```
 format the file

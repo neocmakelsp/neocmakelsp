@@ -53,7 +53,7 @@ pub fn clear_error_packages() {
 
 pub fn get_error_packages() -> Vec<String> {
     match ERROR_PACKAGES.lock() {
-        Ok(pacakges) => pacakges.to_vec(),
+        Ok(packages) => packages.to_vec(),
         Err(_) => Vec::new(),
     }
 }

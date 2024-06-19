@@ -38,18 +38,18 @@ fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
 
 // remove all \r to normal one
 fn strip_trailing_newline_document(input: &str) -> String {
-    let cll: Vec<&str> = input.lines().map(strip_trailing_newline).collect();
+    let lines: Vec<&str> = input.lines().map(strip_trailing_newline).collect();
     let mut output = String::new();
 
-    for line in cll {
+    for line in lines {
         output.push_str(line);
         output.push('\n');
     }
     output
 }
 
-fn get_space(spacelen: u32, usespace: bool) -> String {
-    let unit = if usespace { ' ' } else { '\t' };
+fn get_space(spacelen: u32, use_space: bool) -> String {
+    let unit = if use_space { ' ' } else { '\t' };
     let mut space = String::new();
     for _ in 0..spacelen {
         space.push(unit);
@@ -62,7 +62,7 @@ pub async fn getformat(
     source: &str,
     client: &tower_lsp::Client,
     spacelen: u32,
-    usespace: bool,
+    use_space: bool,
 ) -> Option<Vec<TextEdit>> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
@@ -79,7 +79,7 @@ pub async fn getformat(
         tree.root_node(),
         source.as_str(),
         spacelen,
-        usespace,
+        use_space,
         0,
         0,
         0,
@@ -88,9 +88,9 @@ pub async fn getformat(
         new_text.push('\n');
     }
 
-    let len_ot = new_text.lines().count();
+    let len_count = new_text.lines().count();
     let len_origin = source.lines().count();
-    let len = std::cmp::max(len_ot, len_origin);
+    let len = std::cmp::max(len_count, len_origin);
     Some(vec![TextEdit {
         range: lsp_types::Range {
             start: Position {
@@ -110,7 +110,7 @@ fn format_content(
     input: tree_sitter::Node,
     source: &str,
     spacelen: u32,
-    usespace: bool,
+    use_space: bool,
     appendtab: u32,
     endline: usize,
     lastendline: usize,
@@ -161,7 +161,7 @@ fn format_content(
                 child,
                 source,
                 spacelen,
-                usespace,
+                use_space,
                 appendtab,
                 endline,
                 lastendline,
@@ -176,7 +176,7 @@ fn format_content(
                 child,
                 source,
                 spacelen,
-                usespace,
+                use_space,
                 appendtab + 1,
                 endline,
                 lastendline,
@@ -201,11 +201,11 @@ fn format_content(
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();
             let mut newline = if index != 0 {
-                get_space(spacesize as u32, usespace)
+                get_space(spacesize as u32, use_space)
             } else {
                 let mut firstline = String::new();
                 for _ in 0..appendtab {
-                    firstline.push_str(&get_space(spacelen, usespace));
+                    firstline.push_str(&get_space(spacelen, use_space));
                 }
                 firstline
             };
@@ -229,7 +229,7 @@ fn format_content(
     (new_text, endline)
 }
 
-pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<String> {
+pub fn get_format_cli(source: &str, spacelen: u32, userspace: bool) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&tree_sitter_cmake::language()).unwrap();
@@ -242,7 +242,7 @@ pub fn get_format_cli(source: &str, spacelen: u32, usespace: bool) -> Option<Str
         tree.root_node(),
         source.as_str(),
         spacelen,
-        usespace,
+        userspace,
         0,
         0,
         0,

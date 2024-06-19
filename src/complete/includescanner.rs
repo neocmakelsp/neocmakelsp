@@ -26,8 +26,8 @@ pub fn scanner_include_complete(
 ) -> Option<Vec<CompletionItem>> {
     if is_buildin {
         if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
-            if let Some(conext) = cache.get(path) {
-                return Some(conext.clone());
+            if let Some(complete_items) = cache.get(path) {
+                return Some(complete_items.clone());
             }
         }
     }
@@ -69,8 +69,8 @@ pub fn scanner_package_complete(
     complete_packages: &mut Vec<String>,
 ) -> Option<Vec<CompletionItem>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
-        if let Some(conext) = cache.get(path) {
-            return Some(conext.clone());
+        if let Some(complete_items) = cache.get(path) {
+            return Some(complete_items.clone());
         }
     }
     match fs::read_to_string(path) {
