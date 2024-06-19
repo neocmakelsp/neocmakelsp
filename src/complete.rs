@@ -491,12 +491,12 @@ fn getsubcomplete(
                                 row += 1;
 
                                 while row < row_end {
-                                    names = format!("{} {}", names, newsource[row].to_string());
+                                    names = format!("{} {}", names, newsource[row]);
                                     row += 1;
                                 }
 
                                 if row != row_start {
-                                    names = format!("{} {}", names, newsource[row][..y].to_string())
+                                    names = format!("{} {}", names, &newsource[row][..y])
                                 }
 
                                 let package_names: Vec<&str> = names.split(' ').collect();
