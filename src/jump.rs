@@ -32,7 +32,8 @@ pub async fn godef(
                 match jumptype {
                     // TODO: maybe can hadle Include?
                     PositionType::Variable => {
-                        godefsub(tree.root_node(), source, &tofind, originuri, is_jump)
+                        let newsource: Vec<&str> = source.lines().collect();
+                        godefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
                     }
                     PositionType::FindPackage
                     | PositionType::TargetLink
@@ -58,15 +59,14 @@ pub async fn godef(
 }
 
 /// sub get the def
-fn godefsub(
+fn godefsub<'a>(
     root: Node,
-    source: &str,
+    newsource: &'a Vec<&str>,
     tofind: &str,
     originuri: String,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
-    let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
         // if is inside same line
@@ -79,7 +79,9 @@ fn godefsub(
                 continue;
             }
             //let range = godefsub(child, source, tofind);
-            if let Some(mut context) = godefsub(child, source, tofind, originuri.clone(), is_jump) {
+            if let Some(mut context) =
+                godefsub(child, newsource, tofind, originuri.clone(), is_jump)
+            {
                 definitions.append(&mut context);
             }
         } else if child.start_position().row == child.end_position().row {

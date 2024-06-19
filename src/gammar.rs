@@ -13,8 +13,16 @@ pub struct ErrorInfo {
         Option<DiagnosticSeverity>,
     )>,
 }
+
 pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> Option<ErrorInfo> {
-    let newsource: Vec<&str> = source.lines().collect();
+    checkerror_inner(local_path, &source.lines().collect(), input)
+}
+
+fn checkerror_inner<'a>(
+    local_path: &Path,
+    newsource: &'a Vec<&str>,
+    input: tree_sitter::Node,
+) -> Option<ErrorInfo> {
     if input.is_error() {
         return Some(ErrorInfo {
             inner: vec![(
@@ -28,7 +36,7 @@ pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> 
     let mut course = input.walk();
     let mut output = vec![];
     for node in input.children(&mut course) {
-        if let Some(mut tran) = checkerror(local_path, source, node) {
+        if let Some(mut tran) = checkerror_inner(local_path, newsource, node) {
             output.append(&mut tran.inner);
         }
         if node.kind() != "normal_command" {
@@ -183,5 +191,9 @@ fn gammer_passed_check() {
     parse.set_language(&tree_sitter_cmake::language()).unwrap();
     let thetree = parse.parse(&source, None).unwrap();
 
-    checkerror(std::path::Path::new("."), source, thetree.root_node());
+    checkerror_inner(
+        std::path::Path::new("."),
+        &source.lines().collect(),
+        thetree.root_node(),
+    );
 }

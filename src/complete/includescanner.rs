@@ -39,7 +39,7 @@ pub fn scanner_include_complete(
             let tree = thetree.unwrap();
             let result_data = getsubcomplete(
                 tree.root_node(),
-                content.as_str(),
+                &content.lines().collect(),
                 path,
                 postype,
                 None,
@@ -81,7 +81,7 @@ pub fn scanner_package_complete(
             let tree = thetree.unwrap();
             let result_data = getsubcomplete(
                 tree.root_node(),
-                content.as_str(),
+                &content.lines().collect(),
                 path,
                 postype,
                 None,
