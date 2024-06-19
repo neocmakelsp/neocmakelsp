@@ -15,6 +15,9 @@ use tower_lsp::lsp_types;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
 
 use once_cell::sync::Lazy;
+use substring::Substring;
+
+use self::buildin::detail_or_abbr_s;
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
@@ -33,7 +36,7 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
         .map(|line| CompletionItem {
             label: line.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(format!("defined command from {filename}\n{doc}")),
+            detail: detail_or_abbr_s(format!("defined command from {filename}\n{doc}"), "Command"),
             ..Default::default()
         })
         .collect()
@@ -106,6 +109,12 @@ pub async fn getcomplete(
     if !cached_compeletion.is_empty() {
         complete.append(&mut cached_compeletion);
     }
+
+    let lines: Vec<&str> = source.lines().collect();
+    let line = lines.get(location.line as usize)?.to_string();
+    let subline = line.substring(0, location.character as usize).to_string();
+    let text = subline.split_whitespace().next_back().unwrap_or("");
+
     let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
     match postype {
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
@@ -148,6 +157,13 @@ pub async fn getcomplete(
     if complete.is_empty() {
         client.log_message(MessageType::INFO, "Empty").await;
         None
+    } else if *buildin::CMAKE_MINIMAL && !text.is_empty() {
+        Some(CompletionResponse::Array(
+            complete
+                .into_iter()
+                .filter(|item| item.label.starts_with(text))
+                .collect(),
+        ))
     } else {
         Some(CompletionResponse::Array(complete))
     }
@@ -213,7 +229,10 @@ fn getsubcomplete(
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
+                    detail: detail_or_abbr_s(
+                        format!("defined function\nfrom: {}", local_path.display()),
+                        "Function",
+                    ),
                     ..Default::default()
                 });
             }
@@ -237,7 +256,10 @@ fn getsubcomplete(
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
+                    detail: detail_or_abbr_s(
+                        format!("defined function\nfrom: {}", local_path.display()),
+                        "Function",
+                    ),
                     ..Default::default()
                 });
             }
@@ -334,10 +356,10 @@ fn getsubcomplete(
                             complete.push(CompletionItem {
                                 label: variable.to_string(),
                                 kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some(format!(
-                                    "defined var\nfrom: {}",
-                                    local_path.display()
-                                )),
+                                detail: detail_or_abbr_s(
+                                    format!("defined var\nfrom: {}", local_path.display()),
+                                    "Variable",
+                                ),
                                 ..Default::default()
                             });
                         }
@@ -368,10 +390,10 @@ fn getsubcomplete(
                                 complete.push(CompletionItem {
                                     label: name.to_string(),
                                     kind: Some(CompletionItemKind::VALUE),
-                                    detail: Some(format!(
-                                        "defined variable\nfrom: {}",
-                                        local_path.display()
-                                    )),
+                                    detail: detail_or_abbr_s(
+                                        format!("defined variable\nfrom: {}", local_path.display()),
+                                        "Variable",
+                                    ),
                                     ..Default::default()
                                 });
                             }
@@ -433,7 +455,10 @@ fn getsubcomplete(
                                         complete.push(CompletionItem {
                                             label: component,
                                             kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some(format!("package from: {package_name}",)),
+                                            detail: detail_or_abbr_s(
+                                                format!("package from: {package_name}",),
+                                                "Package",
+                                            ),
                                             ..Default::default()
                                         });
                                     }
@@ -446,7 +471,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: detail_or_abbr_s(
+                                            format!("package: {package_name}",),
+                                            "Package",
+                                        ),
                                         ..Default::default()
                                     });
                                 }
@@ -458,7 +486,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: detail_or_abbr_s(
+                                            format!("package: {package_name}",),
+                                            "Package",
+                                        ),
                                         ..Default::default()
                                     });
                                 }
@@ -512,7 +543,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("PkgConfig::{package_name}"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: detail_or_abbr_s(
+                                            format!("package: {package_name}",),
+                                            "Package",
+                                        ),
                                         ..Default::default()
                                     });
                                 }
@@ -524,7 +558,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: detail_or_abbr_s(
+                                            format!("package: {package_name}",),
+                                            "Package",
+                                        ),
                                         ..Default::default()
                                     });
                                 }
@@ -535,7 +572,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: detail_or_abbr_s(
+                                            format!("package: {package_name}",),
+                                            "Package",
+                                        ),
                                         ..Default::default()
                                     });
                                 }

@@ -1,9 +1,36 @@
 /// buildin Commands and vars
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use std::env;
 use std::process::Command;
 use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
+
+pub static CMAKE_MINIMAL: Lazy<bool> = Lazy::new(|| {
+    let key = "NEOCMAKELSP_MINIMAL";
+    if let Ok(val) = env::var(key) {
+        val == "1"
+    } else {
+        false
+    }
+});
+
+pub fn detail_or_abbr(detail: &str, abbr: &str) -> Option<String> {
+    if *CMAKE_MINIMAL {
+        Some(abbr.to_string())
+    } else {
+        Some(detail.to_string())
+    }
+}
+
+pub fn detail_or_abbr_s(detail: String, abbr: &str) -> Option<String> {
+    if *CMAKE_MINIMAL {
+        Some(abbr.to_string())
+    } else {
+        Some(detail)
+    }
+}
+
 
 /// CMake build in commands
 pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
@@ -46,7 +73,7 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::MODULE),
-            detail: Some(message.to_string()),
+            detail: detail_or_abbr(message, "Function"),
             ..Default::default()
         })
         .collect())
@@ -69,11 +96,12 @@ pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .collect();
     let content: Vec<_> = re.split(&temp).collect();
     let context = &content[1..];
+
     Ok(zip(key, context)
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::VARIABLE),
-            detail: Some(message.to_string()),
+            detail: detail_or_abbr(message, "Variable"),
             ..Default::default()
         })
         .collect())
@@ -97,7 +125,7 @@ pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::MODULE),
-            detail: Some(message.to_string()),
+            detail: detail_or_abbr(message, "Module"),
             ..Default::default()
         })
         .collect())

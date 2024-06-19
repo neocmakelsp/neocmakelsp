@@ -4,6 +4,7 @@ use std::path::PathBuf;
 //use std::process::Command;
 use ini::Ini;
 use std::sync::Arc;
+use std::env;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService, Server};
@@ -90,7 +91,14 @@ async fn main() {
         .subcommand(
             Command::new("stdio")
                 .long_flag("stdio")
-                .about("run with stdio"),
+                .about("run with stdio")
+                .arg(
+                    Arg::new("minimal")
+                        .long("minimal")
+                        .short('m')
+                        .action(ArgAction::SetTrue)
+                        .help("minimal mode, return less data to client"),
+                ),
         )
         .subcommand(
             Command::new("tcp")
@@ -280,8 +288,12 @@ async fn main() {
                 None => println!("Nothing find"),
             };
         }
-        Some(("stdio", _)) => {
+        Some(("stdio", sub_matches)) => {
             tracing_subscriber::fmt().init();
+            if sub_matches.get_flag("minimal") {
+                env::set_var("NEOCMAKELSP_MINIMAL", "1");
+            }
+
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
             let (service, socket) = LspService::new(|client| Backend {
                 client,
