@@ -146,7 +146,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
 }
 
 fn get_subdir_from_tree<'a>(
-    newsource: &'a Vec<&str>,
+    source: &'a Vec<&str>,
     tree: tree_sitter::Node,
     parent: &Path,
 ) -> Vec<PathBuf> {
@@ -156,7 +156,7 @@ fn get_subdir_from_tree<'a>(
         let mut course = tree.walk();
         let mut output = vec![];
         for node in tree.children(&mut course) {
-            let mut innodepath = get_subdir_from_tree(newsource, node, parent);
+            let mut innodepath = get_subdir_from_tree(source, node, parent);
             if !innodepath.is_empty() {
                 output.append(&mut innodepath);
             }
@@ -166,14 +166,14 @@ fn get_subdir_from_tree<'a>(
                 //let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let command_name = &newsource[h][x..y];
+                let command_name = &source[h][x..y];
                 if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
                     let ids = node.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let name = &newsource[h][x..y];
+                        let name = &source[h][x..y];
                         let name = remove_quotation(name);
                         let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
                         if subpath.exists() {
