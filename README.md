@@ -96,6 +96,20 @@ command = "neocmakelsp"
 args = ["--stdio"]
 ```
 
+## Setup for emacs
+
+To use neocmakelsp with eglot:
+
+``` emacs-lisp
+(use-package cmake-ts-mode
+  :config
+  (add-hook 'cmake-ts-mode-hook
+    (defun setup-neocmakelsp ()
+      (require 'eglot)
+      (add-to-list 'eglot-server-programs `((cmake-ts-mode) . ("neocmakelsp" "--stdio")))
+      (eglot-ensure))))
+```
+
 ## Help needed
 
 * I do not know if all features will work on mac and windows, so if someone use mac or windows, please help me and send pr for this project.
