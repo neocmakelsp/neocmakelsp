@@ -483,8 +483,23 @@ fn getsubcomplete(
                                 let ids = child.child(2).unwrap();
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
-                                let package_names: Vec<&str> =
-                                    newsource[h][x..y].split(' ').collect();
+
+                                let mut row = ids.start_position().row;
+                                let row_start = ids.start_position().row;
+                                let row_end = ids.end_position().row;
+                                let mut names: String = newsource[row][x..].to_string();
+                                row += 1;
+
+                                while row < row_end {
+                                    names = format!("{} {}", names, newsource[row].to_string());
+                                    row += 1;
+                                }
+
+                                if row != row_start {
+                                    names = format!("{} {}", names, newsource[row][..y].to_string())
+                                }
+
+                                let package_names: Vec<&str> = names.split(' ').collect();
                                 let package_name = package_names[0];
 
                                 let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
