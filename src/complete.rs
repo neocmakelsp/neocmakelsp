@@ -46,7 +46,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
     let tree = thetree.unwrap();
     let Some(result_data) = getsubcomplete(
         tree.root_node(),
-        context,
+        &context.lines().collect(),
         path.as_ref(),
         PositionType::Variable,
         None,
@@ -111,7 +111,7 @@ pub async fn getcomplete(
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) = getsubcomplete(
                 tree.root_node(),
-                source,
+                &source.lines().collect(),
                 Path::new(local_path),
                 postype,
                 Some(location),
@@ -155,9 +155,9 @@ pub async fn getcomplete(
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
-fn getsubcomplete(
+fn getsubcomplete<'a>(
     input: tree_sitter::Node,
-    source: &str,
+    source: &'a Vec<&str>,
     local_path: &Path,
     postype: PositionType,
     location: Option<Position>,
@@ -171,7 +171,6 @@ fn getsubcomplete(
             return None;
         }
     }
-    let newsource: Vec<&str> = source.lines().collect();
     let mut course = input.walk();
     let mut complete: Vec<CompletionItem> = vec![];
     for child in input.children(&mut course) {
@@ -186,7 +185,7 @@ fn getsubcomplete(
                 let start_y = child.start_position().row;
                 let end_y = child.end_position().row;
                 let mut output = String::new();
-                for item in newsource.iter().take(end_y).skip(start_y + 1) {
+                for item in source.iter().take(end_y).skip(start_y + 1) {
                     output.push_str(&format!("{item}\n"));
                 }
                 complete.append(&mut rst_doc_read(
@@ -207,7 +206,7 @@ fn getsubcomplete(
                 let x = function_name.start_position().column;
                 let y = function_name.end_position().column;
                 let h = function_name.start_position().row;
-                let Some(name) = &newsource[h][x..y].split(' ').next() else {
+                let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
                 complete.push(CompletionItem {
@@ -230,7 +229,7 @@ fn getsubcomplete(
                 let x = marco_name.start_position().column;
                 let y = marco_name.end_position().column;
                 let h = marco_name.start_position().row;
-                let Some(name) = &newsource[h][x..y].split(' ').next() else {
+                let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
 
@@ -276,14 +275,14 @@ fn getsubcomplete(
                 let ids = child.child(0).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
-                let name = newsource[h][x..y].to_lowercase();
+                let name = source[h][x..y].to_lowercase();
                 if name == "include" && child.child_count() >= 3 && should_in {
                     let ids = child.child(2).unwrap();
                     if ids.start_position().row == ids.end_position().row {
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let name = &newsource[h][x..y];
+                        let name = &source[h][x..y];
                         let (is_buildin, subpath) = {
                             if name.split('.').count() != 1 {
                                 (false, local_path.parent().unwrap().join(name))
@@ -330,7 +329,7 @@ fn getsubcomplete(
                             let startx = identifier.start_position().column;
                             let endx = identifier.end_position().column;
                             let row = identifier.start_position().row;
-                            let variable = &newsource[row][startx..endx];
+                            let variable = &source[row][startx..endx];
                             complete.push(CompletionItem {
                                 label: variable.to_string(),
                                 kind: Some(CompletionItemKind::VARIABLE),
@@ -360,7 +359,7 @@ fn getsubcomplete(
                                 let h = ids.start_position().row;
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
-                                let name = &newsource[h][x..y].split(' ').next();
+                                let name = &source[h][x..y].split(' ').next();
 
                                 let Some(name) = name.map(|name| name.to_string()) else {
                                     continue;
@@ -388,7 +387,7 @@ fn getsubcomplete(
                                 let h = package_prefix_node.start_position().row;
                                 let x = package_prefix_node.start_position().column;
                                 let y = package_prefix_node.end_position().column;
-                                let package_name = &newsource[h][x..y];
+                                let package_name = &source[h][x..y];
                                 let mut component_part = Vec::new();
                                 let mut cmakepackages = Vec::new();
                                 let components_packages = {
@@ -401,7 +400,7 @@ fn getsubcomplete(
                                             let h = package_prefix_node.start_position().row;
                                             let x = package_prefix_node.start_position().column;
                                             let y = package_prefix_node.end_position().column;
-                                            let component = &newsource[h][x..y];
+                                            let component = &source[h][x..y];
                                             if component == "COMPONENTS" {
                                                 support_component = true;
                                             } else if component != "REQUIRED" {
@@ -488,20 +487,20 @@ fn getsubcomplete(
                                 let row_end = ids.end_position().row;
                                 let mut names: String;
                                 if row_start == row_end {
-                                    names = newsource[h][x..y].to_string();
+                                    names = source[h][x..y].to_string();
                                 } else {
                                     let mut row = row_start;
-                                    names = newsource[row][x..].to_string();
+                                    names = source[row][x..].to_string();
                                     row += 1;
 
                                     while row < row_end {
-                                        names = format!("{} {}", names, newsource[row]);
+                                        names = format!("{} {}", names, source[row]);
                                         row += 1;
                                     }
 
                                     if row != row_start {
                                         assert_eq!(row, row_end);
-                                        names = format!("{} {}", names, &newsource[row][..y])
+                                        names = format!("{} {}", names, &source[row][..y])
                                     }
                                 }
                                 let package_names: Vec<&str> = names.split(' ').collect();

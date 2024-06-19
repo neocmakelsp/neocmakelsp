@@ -77,7 +77,7 @@ pub async fn getformat(
     }
     let (mut new_text, endline) = format_content(
         tree.root_node(),
-        source.as_str(),
+        &source.lines().collect(),
         spacelen,
         use_space,
         0,
@@ -106,9 +106,9 @@ pub async fn getformat(
     }])
 }
 
-fn format_content(
+fn format_content<'a>(
     input: tree_sitter::Node,
-    source: &str,
+    newsource: &'a Vec<&str>,
     spacelen: u32,
     use_space: bool,
     appendtab: u32,
@@ -118,7 +118,6 @@ fn format_content(
     // lastendline is to check if if(A) is the sameline with comment
     let mut lastendline = lastendline;
     let mut endline = endline;
-    let newsource: Vec<&str> = source.lines().collect();
     let mut new_text = String::new();
     let mut course = input.walk();
     // when in body, the firstline is also the firstline of the child
@@ -159,7 +158,7 @@ fn format_content(
         if CLOSURE.contains(&child.kind()) {
             let (text, newend) = format_content(
                 child,
-                source,
+                newsource,
                 spacelen,
                 use_space,
                 appendtab,
@@ -174,7 +173,7 @@ fn format_content(
         if child.kind() == "body" {
             let (text, newend) = format_content(
                 child,
-                source,
+                newsource,
                 spacelen,
                 use_space,
                 appendtab + 1,
@@ -229,7 +228,7 @@ fn format_content(
     (new_text, endline)
 }
 
-pub fn get_format_cli(source: &str, spacelen: u32, userspace: bool) -> Option<String> {
+pub fn get_format_cli(source: &str, spacelen: u32, use_space: bool) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&tree_sitter_cmake::language()).unwrap();
@@ -240,9 +239,9 @@ pub fn get_format_cli(source: &str, spacelen: u32, userspace: bool) -> Option<St
     }
     let (mut new_text, endline) = format_content(
         tree.root_node(),
-        source.as_str(),
+        &source.lines().collect(),
         spacelen,
-        userspace,
+        use_space,
         0,
         0,
         0,
