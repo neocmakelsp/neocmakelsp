@@ -1,7 +1,7 @@
 {
   "name": "neocmake-lsp-vscode",
   "description": "vscode extension for neocmake-lsp",
-  "author": "Microsoft Corporation",
+  "author": "Decodetalkers",
   "license": "MIT",
   "version": "0.0.13",
   "publisher": "Decodetalkers",
