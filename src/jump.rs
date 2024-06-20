@@ -1,5 +1,5 @@
 /// provide go to definition
-use crate::utils::treehelper::{get_position_string, point_to_position};
+use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::{get_position_string, point_to_position}};
 use lsp_types::{MessageType, Position, Range, Url};
 use tower_lsp::lsp_types;
 use tree_sitter::Node;
@@ -20,7 +20,7 @@ pub async fn godef(
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let positionstring = get_position_string(location, tree.root_node(), source);
@@ -59,9 +59,9 @@ pub async fn godef(
 }
 
 /// sub get the def
-fn godefsub<'a>(
+fn godefsub(
     root: Node,
-    newsource: &'a Vec<&str>,
+    newsource: &Vec<&str>,
     tofind: &str,
     originuri: String,
     is_jump: bool,

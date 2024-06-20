@@ -1,6 +1,7 @@
 mod buildin;
 mod findpackage;
 mod includescanner;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
@@ -41,7 +42,7 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
     let Some(result_data) = getsubcomplete(
@@ -98,7 +99,7 @@ pub async fn getcomplete(
     find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
@@ -155,9 +156,9 @@ pub async fn getcomplete(
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
-fn getsubcomplete<'a>(
+fn getsubcomplete(
     input: tree_sitter::Node,
-    source: &'a Vec<&str>,
+    source: &Vec<&str>,
     local_path: &Path,
     postype: PositionType,
     location: Option<Position>,

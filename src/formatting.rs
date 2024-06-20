@@ -1,7 +1,7 @@
 use lsp_types::{MessageType, Position, TextEdit};
 use tower_lsp::lsp_types;
 
-use crate::utils::treehelper::is_comment;
+use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::is_comment};
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
 
@@ -66,7 +66,7 @@ pub async fn getformat(
 ) -> Option<Vec<TextEdit>> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source.as_str(), None).unwrap();
 
     if tree.root_node().has_error() {
@@ -106,9 +106,9 @@ pub async fn getformat(
     }])
 }
 
-fn format_content<'a>(
+fn format_content(
     input: tree_sitter::Node,
-    newsource: &'a Vec<&str>,
+    newsource: &Vec<&str>,
     spacelen: u32,
     use_space: bool,
     appendtab: u32,
@@ -231,7 +231,7 @@ fn format_content<'a>(
 pub fn get_format_cli(source: &str, spacelen: u32, use_space: bool) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let input = tree.root_node();
     if input.has_error() {

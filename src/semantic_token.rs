@@ -5,6 +5,8 @@ use tower_lsp::{
 
 use once_cell::sync::Lazy;
 
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
 static NUMBERREGEX: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
@@ -32,7 +34,7 @@ fn get_token_position(tokentype: SemanticTokenType) -> u32 {
 
 pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticTokensResult> {
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree?;
     Some(SemanticTokensResult::Tokens(SemanticTokens {

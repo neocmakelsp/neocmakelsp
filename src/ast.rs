@@ -1,3 +1,4 @@
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
 use crate::utils::treehelper::point_to_position;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
@@ -19,16 +20,16 @@ pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResp
             .await;
     }
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
     getsubast(tree.root_node(), &context.lines().collect(), line > 10000)
         .map(DocumentSymbolResponse::Nested)
 }
 #[allow(deprecated)]
-fn getsubast<'a>(
+fn getsubast(
     input: tree_sitter::Node,
-    source: &'a Vec<&str>,
+    source: &Vec<&str>,
     simple: bool,
 ) -> Option<Vec<DocumentSymbol>> {
     let mut course = input.walk();

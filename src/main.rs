@@ -1,6 +1,7 @@
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use consts::TREESITTER_CMAKE_LANGUAGE;
 //use std::process::Command;
 use ini::Ini;
 use std::sync::Arc;
@@ -26,6 +27,7 @@ mod languageserver;
 mod scansubs;
 mod search;
 mod semantic_token;
+mod consts;
 mod utils;
 
 #[derive(Debug)]
@@ -193,7 +195,7 @@ async fn main() {
                     let mut buf = String::new();
                     file.read_to_string(&mut buf).unwrap();
                     let mut parse = tree_sitter::Parser::new();
-                    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+                    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
                     match formatting::get_format_cli(&buf, spacelen, use_space) {
                         Some(context) => {
                             if hasoverride {

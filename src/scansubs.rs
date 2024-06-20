@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
 pub type TreeKey = HashMap<PathBuf, PathBuf>;
@@ -45,7 +47,7 @@ pub fn scan_dir_inner<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     };
 
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let tree = tree.root_node();
     let newsource: Vec<&str> = source.lines().collect();
@@ -128,7 +130,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
         subdirs: None,
     };
     let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&tree_sitter_cmake::language()).unwrap();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None).unwrap();
     let subdirs = get_subdir_from_tree(&content.lines().collect(), tree.root_node(), path);
     if !subdirs.is_empty() {
@@ -145,8 +147,8 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
     Some(top)
 }
 
-fn get_subdir_from_tree<'a>(
-    source: &'a Vec<&str>,
+fn get_subdir_from_tree(
+    source: &Vec<&str>,
     tree: tree_sitter::Node,
     parent: &Path,
 ) -> Vec<PathBuf> {
