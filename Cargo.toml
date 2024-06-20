@@ -8,8 +8,10 @@ repository = "https://github.com/Decodetalkers/neocmakelsp"
 authors = ["Decodertalkers <aakari@tutanota.com>"]
 keywords = ["lsp"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-#[features]
-#tcp = []
+
+[features]
+runtime-agnostic = []
+
 [dependencies]
 clap = { version = "4.5.6", features = ["string"] }
 tower-lsp = "0.20.0"
