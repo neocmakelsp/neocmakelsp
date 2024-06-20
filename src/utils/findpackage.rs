@@ -21,6 +21,7 @@ mod packagemac;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
 
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use once_cell::sync::Lazy;
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: Lazy<regex::Regex> =
@@ -136,7 +137,6 @@ pub mod packagepkgconfig {
 }
 pub use cmakepackage::*;
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 #[test]
 fn regextest() {
     assert!(CMAKEREGEX.is_match("CMakeLists.txt"));

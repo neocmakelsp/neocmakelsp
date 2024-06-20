@@ -1,7 +1,7 @@
+use consts::TREESITTER_CMAKE_LANGUAGE;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use consts::TREESITTER_CMAKE_LANGUAGE;
 //use std::process::Command;
 use ini::Ini;
 use std::sync::Arc;
@@ -19,6 +19,7 @@ use tokio::net::TcpListener;
 mod ast;
 mod complete;
 mod config;
+mod consts;
 mod filewatcher;
 mod formatting;
 mod gammar;
@@ -27,7 +28,6 @@ mod languageserver;
 mod scansubs;
 mod search;
 mod semantic_token;
-mod consts;
 mod utils;
 
 #[derive(Debug)]
