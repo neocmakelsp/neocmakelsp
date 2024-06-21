@@ -9,11 +9,9 @@ use tokio::sync::Mutex;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
-use clap::{arg, Arg, ArgAction, Command};
+use clap::{arg, Parser};
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-// color
-use nu_ansi_term::Color::LightYellow;
 
 use tokio::net::TcpListener;
 mod ast;
@@ -29,6 +27,8 @@ mod scansubs;
 mod search;
 mod semantic_token;
 mod utils;
+
+const LSP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug)]
 struct BackendInitInfo {
@@ -76,97 +76,123 @@ fn editconfig_setting() -> Option<(bool, u32)> {
     Some((use_space, indent_size))
 }
 
+#[derive(Debug, Parser)]
+#[command(
+    name = "neocmakelsp",
+    about="CMake Lsp implementation based on Tower and Tree-sitter", 
+    long_about = None,
+    author = "Cris",
+    version=LSP_VERSION
+)]
+enum NeocmakeCli {
+    #[command(long_flag = "stdio", about = "run with stdio")]
+    Stdio,
+    #[command(long_flag = "tcp", about = "run with tcp")]
+    Tcp {
+        #[arg(long, value_name = "port")]
+        port: Option<u16>,
+    },
+    #[command(long_flag = "search", short_flag = 'S', about = "search the packages")]
+    Search {
+        #[arg(required = true)]
+        package: String,
+        #[arg(value_name = "tojson", short = 'j')]
+        tojson: bool,
+    },
+    #[command(long_flag = "format", short_flag = 'F', about = "Format the file")]
+    Format {
+        #[arg(required = true)]
+        format_path: String,
+        #[arg(value_name = "override", long = "override", short = 'o')]
+        hasoverride: bool,
+    },
+    #[command(long_flag = "tree", short_flag = 'T', about = "show the file tree")]
+    Tree {
+        #[arg(required = true)]
+        tree_path: PathBuf,
+        #[arg(value_name = "tojson", short = 'j')]
+        tojson: bool,
+    },
+}
+
 #[tokio::main]
 async fn main() {
-    const VERSION: &str = env!("CARGO_PKG_VERSION");
-    let matches = Command::new("neocmakelsp")
-        .about(
-            LightYellow
-                .paint("CMake LSP implementation based on Tower and Tree-sitter")
-                .to_string(),
-        )
-        .version(VERSION)
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .author("Cris")
-        .subcommand(
-            Command::new("stdio")
-                .long_flag("stdio")
-                .about("run with stdio"),
-        )
-        .subcommand(
-            Command::new("tcp")
-                .long_flag("tcp")
-                .about("run with tcp")
-                .arg(
-                    Arg::new("port")
-                        .long("port")
-                        .short('P')
-                        .help("listen to port"),
-                ),
-        )
-        .subcommand(
-            Command::new("search")
-                .long_flag("search")
-                .short_flag('S')
-                .about("Search packages")
-                .arg(arg!(<Package> ... "Packages"))
-                .arg(
-                    Arg::new("tojson")
-                        .long("tojson")
-                        .short('j')
-                        .action(ArgAction::SetTrue)
-                        .help("tojson"),
-                ),
-        )
-        .subcommand(
-            Command::new("format")
-                .long_flag("format")
-                .short_flag('F')
-                .about("format the file")
-                .arg(
-                    arg!(<FormatPath> ... "file or folder to format")
-                        .value_parser(clap::value_parser!(String)),
-                )
-                .arg(
-                    Arg::new("override")
-                        .long("override")
-                        .short('o')
-                        .action(ArgAction::SetTrue)
-                        .help("override"),
-                ),
-        )
-        .subcommand(
-            Command::new("tree")
-                .long_flag("tree")
-                .short_flag('T')
-                .about("Tree the file")
-                .arg(arg!(<PATH> ... "tree").value_parser(clap::value_parser!(PathBuf)))
-                .arg(
-                    Arg::new("tojson")
-                        .long("tojson")
-                        .short('j')
-                        .action(ArgAction::SetTrue)
-                        .help("tojson"),
-                ),
-        )
-        .get_matches();
-    match matches.subcommand() {
-        Some(("search", sub_matches)) => {
-            let packagename = sub_matches
-                .get_one::<String>("Package")
-                .expect("required one package");
-            if sub_matches.get_flag("tojson") {
-                println!("{}", search::search_result_tojson(packagename));
+    let args = NeocmakeCli::parse();
+    match args {
+        NeocmakeCli::Stdio => {
+            tracing_subscriber::fmt().init();
+            let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+            let (service, socket) = LspService::new(|client| Backend {
+                client,
+                init_info: Arc::new(Mutex::new(BackendInitInfo {
+                    scan_cmake_in_package: true,
+                })),
+                root_path: Arc::new(Mutex::new(None)),
+            });
+            Server::new(stdin, stdout, socket).serve(service).await;
+        }
+        NeocmakeCli::Tcp { port } => {
+            #[cfg(feature = "runtime-agnostic")]
+            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+            tracing_subscriber::fmt().init();
+            let stream = {
+                if let Some(port) = port {
+                    let listener = TcpListener::bind(SocketAddr::new(
+                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                        port,
+                    ))
+                    .await
+                    .unwrap();
+                    let (stream, _) = listener.accept().await.unwrap();
+                    stream
+                } else {
+                    let listener = TcpListener::bind(SocketAddr::new(
+                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                        9257,
+                    ))
+                    .await
+                    .unwrap();
+                    let (stream, _) = listener.accept().await.unwrap();
+                    stream
+                }
+            };
+
+            let (read, write) = tokio::io::split(stream);
+            #[cfg(feature = "runtime-agnostic")]
+            let (read, write) = (read.compat(), write.compat_write());
+
+            let (service, socket) = LspService::new(|client| Backend {
+                client,
+                init_info: Arc::new(Mutex::new(BackendInitInfo {
+                    scan_cmake_in_package: true,
+                })),
+                root_path: Arc::new(Mutex::new(None)),
+            });
+            Server::new(read, write, socket).serve(service).await;
+        }
+        NeocmakeCli::Tree { tree_path, tojson } => {
+            match scansubs::get_treedir(&tree_path) {
+                Some(tree) => {
+                    if tojson {
+                        println!("{}", serde_json::to_string(&tree).unwrap())
+                    } else {
+                        println!("{tree}")
+                    }
+                }
+                None => println!("Nothing find"),
+            };
+        }
+        NeocmakeCli::Search { package, tojson } => {
+            if tojson {
+                println!("{}", search::search_result_tojson(package.as_str()));
             } else {
-                println!("{}", search::search_result(packagename));
+                println!("{}", search::search_result(package.as_str()));
             }
         }
-        Some(("format", sub_matches)) => {
-            let filepath = sub_matches
-                .get_one::<String>("FormatPath")
-                .expect("Cannot get globpattern");
-            let hasoverride = sub_matches.get_flag("override");
+        NeocmakeCli::Format {
+            format_path,
+            hasoverride,
+        } => {
             let (use_space, spacelen) = editconfig_setting().unwrap_or((true, 2));
             let ignorepatterns = gitignore();
 
@@ -223,17 +249,17 @@ async fn main() {
                     }
                 }
             };
-            let toformatpath = std::path::Path::new(filepath);
+            let toformatpath = std::path::Path::new(format_path.as_str());
             if toformatpath.exists() {
                 if toformatpath.is_file() {
                     let mut file = match std::fs::OpenOptions::new()
                         .read(true)
                         .write(hasoverride)
-                        .open(filepath)
+                        .open(&format_path)
                     {
                         Ok(file) => file,
                         Err(e) => {
-                            println!("cannot read file {} :{e}", filepath);
+                            println!("cannot read file {} :{e}", format_path);
                             return;
                         }
                     };
@@ -249,7 +275,7 @@ async fn main() {
                                     println!("Cannot jump to end: {e}");
                                 };
                                 let Ok(_) = file.write_all(context.as_bytes()) else {
-                                    println!("cannot write in {}", filepath);
+                                    println!("cannot write in {}", format_path);
                                     return;
                                 };
                                 let _ = file.flush();
@@ -258,83 +284,14 @@ async fn main() {
                             }
                         }
                         None => {
-                            println!("There is error in file: {}", filepath);
+                            println!("There is error in file: {}", format_path);
                         }
                     }
                 } else {
-                    formatpattern(&format!("./{}/**/*.cmake", filepath));
-                    formatpattern(&format!("./{}/**/CMakeLists.txt", filepath));
+                    formatpattern(&format!("./{}/**/*.cmake", format_path));
+                    formatpattern(&format!("./{}/**/CMakeLists.txt", format_path));
                 }
             }
         }
-        Some(("tree", sub_matches)) => {
-            let path = sub_matches
-                .get_one::<PathBuf>("PATH")
-                .expect("Cannot get path");
-            match scansubs::get_treedir(path) {
-                Some(tree) => {
-                    if sub_matches.get_flag("tojson") {
-                        println!("{}", serde_json::to_string(&tree).unwrap())
-                    } else {
-                        println!("{tree}")
-                    }
-                }
-                None => println!("Nothing find"),
-            };
-        }
-        Some(("stdio", _)) => {
-            tracing_subscriber::fmt().init();
-            let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-            let (service, socket) = LspService::new(|client| Backend {
-                client,
-                init_info: Arc::new(Mutex::new(BackendInitInfo {
-                    scan_cmake_in_package: true,
-                })),
-                root_path: Arc::new(Mutex::new(None)),
-            });
-            Server::new(stdin, stdout, socket).serve(service).await;
-        }
-        Some(("tcp", sync_matches)) => {
-            #[cfg(feature = "runtime-agnostic")]
-            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-            tracing_subscriber::fmt().init();
-            let stream = {
-                if sync_matches.contains_id("port") {
-                    let port = sync_matches.get_one::<String>("port").expect("error");
-                    let port: u16 = port.parse().unwrap();
-                    let listener = TcpListener::bind(SocketAddr::new(
-                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                        port,
-                    ))
-                    .await
-                    .unwrap();
-                    let (stream, _) = listener.accept().await.unwrap();
-                    stream
-                } else {
-                    let listener = TcpListener::bind(SocketAddr::new(
-                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                        9257,
-                    ))
-                    .await
-                    .unwrap();
-                    let (stream, _) = listener.accept().await.unwrap();
-                    stream
-                }
-            };
-
-            let (read, write) = tokio::io::split(stream);
-            #[cfg(feature = "runtime-agnostic")]
-            let (read, write) = (read.compat(), write.compat_write());
-
-            let (service, socket) = LspService::new(|client| Backend {
-                client,
-                init_info: Arc::new(Mutex::new(BackendInitInfo {
-                    scan_cmake_in_package: true,
-                })),
-                root_path: Arc::new(Mutex::new(None)),
-            });
-            Server::new(read, write, socket).serve(service).await;
-        }
-        _ => unimplemented!(),
     }
 }

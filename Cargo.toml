@@ -13,7 +13,7 @@ keywords = ["lsp"]
 runtime-agnostic = []
 
 [dependencies]
-clap = { version = "4.5.6", features = ["string"] }
+clap = { version = "4.5.6", features = ["derive"] }
 tower-lsp = "0.20.0"
 tokio = { version = "1.38.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
