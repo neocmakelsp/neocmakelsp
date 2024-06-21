@@ -1,6 +1,6 @@
 {
   "name": "neocmake-lsp-vscode",
-  "description": "vscode extension for neocmake-lsp",
+  "description": "vscode extension for neocmakelsp",
   "author": "Decodetalkers",
   "license": "MIT",
   "version": "0.0.13",
