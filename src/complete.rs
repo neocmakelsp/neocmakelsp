@@ -448,7 +448,7 @@ fn getsubcomplete(
                                         complete.push(CompletionItem {
                                             label: component,
                                             kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some("Package".to_string()),
+                                            detail: Some("Variable".to_string()),
                                             documentation: Some(Documentation::String(format!(
                                                 "package from: {package_name}",
                                             ))),
@@ -464,7 +464,7 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Package".to_string()),
+                                        detail: Some("Variable".to_string()),
                                         documentation: Some(Documentation::String(format!(
                                             "package: {package_name}",
                                         ))),
