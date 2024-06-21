@@ -3,7 +3,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::process::Command;
 use std::{collections::HashMap, iter::zip};
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind};
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
 
 /// CMake build in commands
 pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
@@ -45,8 +45,9 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .iter()
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
-            kind: Some(CompletionItemKind::MODULE),
-            detail: Some(message.to_string()),
+            kind: Some(CompletionItemKind::FUNCTION),
+            detail: Some("Function".to_string()),
+            documentation: Some(Documentation::String(message.to_string())),
             ..Default::default()
         })
         .collect())
@@ -73,7 +74,8 @@ pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::VARIABLE),
-            detail: Some(message.to_string()),
+            detail: Some("Variable".to_string()),
+            documentation: Some(Documentation::String(message.to_string())),
             ..Default::default()
         })
         .collect())
@@ -97,7 +99,8 @@ pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::MODULE),
-            detail: Some(message.to_string()),
+            detail: Some("Module".to_string()),
+            documentation: Some(Documentation::String(message.to_string())),
             ..Default::default()
         })
         .collect())
