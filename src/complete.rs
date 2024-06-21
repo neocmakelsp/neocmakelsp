@@ -13,7 +13,9 @@ use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types;
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, MessageType, Position};
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, Documentation, MessageType, Position,
+};
 
 use once_cell::sync::Lazy;
 
@@ -34,7 +36,10 @@ pub fn rst_doc_read(doc: String, filename: &str) -> Vec<CompletionItem> {
         .map(|line| CompletionItem {
             label: line.to_string(),
             kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some(format!("defined command from {filename}\n{doc}")),
+            detail: Some("Command".to_string()),
+            documentation: Some(Documentation::String(format!(
+                "defined command from {filename}\n{doc}"
+            ))),
             ..Default::default()
         })
         .collect()
@@ -213,7 +218,11 @@ fn getsubcomplete(
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined function\nfrom: {}",
+                        local_path.display()
+                    ))),
                     ..Default::default()
                 });
             }
@@ -237,7 +246,11 @@ fn getsubcomplete(
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(format!("defined function\nfrom: {}", local_path.display())),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined function\nfrom: {}",
+                        local_path.display()
+                    ))),
                     ..Default::default()
                 });
             }
@@ -334,10 +347,11 @@ fn getsubcomplete(
                             complete.push(CompletionItem {
                                 label: variable.to_string(),
                                 kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some(format!(
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
                                     "defined var\nfrom: {}",
                                     local_path.display()
-                                )),
+                                ))),
                                 ..Default::default()
                             });
                         }
@@ -368,10 +382,11 @@ fn getsubcomplete(
                                 complete.push(CompletionItem {
                                     label: name.to_string(),
                                     kind: Some(CompletionItemKind::VALUE),
-                                    detail: Some(format!(
+                                    detail: Some("Value".to_string()),
+                                    documentation: Some(Documentation::String(format!(
                                         "defined variable\nfrom: {}",
                                         local_path.display()
-                                    )),
+                                    ))),
                                     ..Default::default()
                                 });
                             }
@@ -433,7 +448,10 @@ fn getsubcomplete(
                                         complete.push(CompletionItem {
                                             label: component,
                                             kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some(format!("package from: {package_name}",)),
+                                            detail: Some("Variable".to_string()),
+                                            documentation: Some(Documentation::String(format!(
+                                                "package from: {package_name}",
+                                            ))),
                                             ..Default::default()
                                         });
                                     }
@@ -446,7 +464,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: Some("Variable".to_string()),
+                                        documentation: Some(Documentation::String(format!(
+                                            "package: {package_name}",
+                                        ))),
                                         ..Default::default()
                                     });
                                 }
@@ -458,7 +479,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: Some("Variable".to_string()),
+                                        documentation: Some(Documentation::String(format!(
+                                            "package: {package_name}",
+                                        ))),
                                         ..Default::default()
                                     });
                                 }
@@ -517,7 +541,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("PkgConfig::{package_name}"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: Some("Package".to_string()),
+                                        documentation: Some(Documentation::String(format!(
+                                            "package: {package_name}",
+                                        ))),
                                         ..Default::default()
                                     });
                                 }
@@ -529,7 +556,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: Some("Package".to_string()),
+                                        documentation: Some(Documentation::String(format!(
+                                            "package: {package_name}",
+                                        ))),
                                         ..Default::default()
                                     });
                                 }
@@ -540,7 +570,10 @@ fn getsubcomplete(
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
                                         kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some(format!("package: {package_name}",)),
+                                        detail: Some("Package".to_string()),
+                                        documentation: Some(Documentation::String(format!(
+                                            "package: {package_name}",
+                                        ))),
                                         ..Default::default()
                                     });
                                 }
