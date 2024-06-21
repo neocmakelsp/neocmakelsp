@@ -1,3 +1,11 @@
+[workspace]
+resolver = "2"
+members = [".", "neocmake_complete_generator"]
+
+[workspace.dependencies]
+clap = { version = "4.5.6", features = ["derive"] }
+clap_complete = "4.5.6"
+
 [package]
 name = "neocmakelsp"
 version = "0.7.5"
@@ -13,7 +21,7 @@ keywords = ["lsp"]
 runtime-agnostic = []
 
 [dependencies]
-clap = { version = "4.5.6", features = ["derive"] }
+clap.workspace = true
 tower-lsp = "0.20.0"
 tokio = { version = "1.38.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
