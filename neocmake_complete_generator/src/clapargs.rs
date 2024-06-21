@@ -42,4 +42,3 @@ pub enum NeocmakeCli {
         tojson: bool,
     },
 }
-
