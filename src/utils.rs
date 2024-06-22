@@ -31,3 +31,32 @@ pub struct CMakePackage {
 }
 
 pub use findpackage::*;
+use tree_sitter::Node;
+
+pub fn get_node_content(source: &Vec<&str>, node: &Node) -> String {
+    let mut content: String;
+    let x = node.start_position().column;
+    let y = node.end_position().column;
+
+    let row_start = node.start_position().row;
+    let row_end = node.end_position().row;
+
+    if row_start == row_end {
+        content = source[row_start][x..y].to_string();
+    } else {
+        let mut row = row_start;
+        content = source[row][x..].to_string();
+        row += 1;
+
+        while row < row_end {
+            content = format!("{} {}", content, source[row]);
+            row += 1;
+        }
+
+        if row != row_start {
+            assert_eq!(row, row_end);
+            content = format!("{} {}", content, &source[row][..y])
+        }
+    }
+    content
+}

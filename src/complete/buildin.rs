@@ -3,11 +3,51 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::process::Command;
 use std::{collections::HashMap, iter::zip};
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
+
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::languageserver::get_client_capabilities;
+use crate::utils::get_node_content;
+
+/// following constants are declared in tree-sitter-cmake:
+///   https://github.com/uyha/tree-sitter-cmake/blob/master/src/parser.c#L66
+const SYM_ARGUMENT_LIST: u16 = 57;
+const SYM_NORMAL_COMMAND: u16 = 78;
+const SYM_ARGUMENT: u16 = 48;
+
+/// convert input text to a snippet, if possible.
+fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let tree = parse.parse(input, None).unwrap();
+    let mut node = tree.root_node().child(0).unwrap();
+    if node.kind_id() == SYM_NORMAL_COMMAND {
+        let mut v: Vec<String> = vec![];
+        let mut i = 0;
+        node = node.child(2).unwrap();
+        if node.kind_id() == SYM_ARGUMENT_LIST {
+            // argument_list
+            let source: Vec<&str> = input.split('\n').collect();
+            node = node.child(0).unwrap();
+            loop {
+                if node.kind_id() == SYM_ARGUMENT {
+                    i += 1;
+                    v.push(format!("${{{}:{}}}", i, get_node_content(&source, &node)));
+                }
+                match node.next_sibling() {
+                    Some(c) => node = c,
+                    _ => break,
+                };
+            }
+            return format!("{}({})", key, v.join(" "));
+        }
+    }
+    input.to_string()
+}
 
 /// CMake build in commands
 pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
         .arg("--help-commands")
         .output()?
@@ -41,14 +81,54 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
             "please findpackage PkgConfig first".to_string(),
         );
     }
+
+    let client_support_snippet = match get_client_capabilities() {
+        Some(c) => c
+            .completion
+            .unwrap()
+            .completion_item
+            .unwrap()
+            .snippet_support
+            .unwrap_or(false),
+        _ => false,
+    };
+
     Ok(completes
         .iter()
-        .map(|(akey, message)| CompletionItem {
-            label: akey.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
-            detail: Some("Function".to_string()),
-            documentation: Some(Documentation::String(message.to_string())),
-            ..Default::default()
+        .map(|(akey, message)| {
+            let mut kind = CompletionItemKind::FUNCTION;
+            let mut insert_text_format = InsertTextFormat::PLAIN_TEXT;
+            let mut insert_text = akey.to_string();
+            let mut detail = "Function".to_string();
+            let s = format!(r"\n\s+(?P<signature>{}\([^)]*\))", akey);
+            let r_match_signature = regex::Regex::new(s.as_str()).unwrap();
+
+            // snippets only work for lower case for now...
+            if client_support_snippet
+                && insert_text
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '_')
+            {
+                insert_text = match r_match_signature.captures(message) {
+                    Some(m) => {
+                        insert_text_format = InsertTextFormat::SNIPPET;
+                        kind = CompletionItemKind::SNIPPET;
+                        detail += " (Snippet)";
+                        convert_to_lsp_snippet(akey, m.name("signature").unwrap().as_str())
+                    }
+                    _ => akey.to_string(),
+                }
+            };
+
+            CompletionItem {
+                label: akey.to_string(),
+                kind: Some(kind),
+                detail: Some(detail),
+                documentation: Some(Documentation::String(message.to_string())),
+                insert_text: Some(insert_text),
+                insert_text_format: Some(insert_text_format),
+                ..Default::default()
+            }
         })
         .collect())
 });
@@ -121,12 +201,30 @@ mod tests {
         }
     }
     use std::process::Command;
+
+    use tower_lsp::lsp_types::CompletionItem;
+
+    use super::BUILDIN_COMMAND;
     #[test]
     fn tst_cmakecommand_buildin() {
         // NOTE: In case the command fails, ignore test
         let Ok(output) = Command::new("cmake").arg("--help-commands").output() else {
             return;
         };
+
+        if let Ok(messages) = &*BUILDIN_COMMAND {
+            let mut complete: Vec<CompletionItem> = vec![];
+            complete.append(&mut messages.clone());
+            for var in complete {
+                println!(
+                    "{} -- {:?} -- {:?} -- {:?}",
+                    var.label, var.kind, var.insert_text, var.insert_text_format
+                );
+            }
+        } else {
+            assert!(false);
+        }
+
         let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
         let output = output.stdout;
         let temp = String::from_utf8_lossy(&output);

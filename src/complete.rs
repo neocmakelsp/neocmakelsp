@@ -4,6 +4,7 @@ mod includescanner;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
+use crate::utils::get_node_content;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::{utils, CompletionResponse};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
@@ -505,29 +506,7 @@ fn getsubcomplete(
                             #[cfg(unix)]
                             if name == "pkg_check_modules" && child.child_count() >= 3 {
                                 let ids = child.child(2).unwrap();
-                                let x = ids.start_position().column;
-                                let y = ids.end_position().column;
-
-                                let row_start = ids.start_position().row;
-                                let row_end = ids.end_position().row;
-                                let mut names: String;
-                                if row_start == row_end {
-                                    names = source[h][x..y].to_string();
-                                } else {
-                                    let mut row = row_start;
-                                    names = source[row][x..].to_string();
-                                    row += 1;
-
-                                    while row < row_end {
-                                        names = format!("{} {}", names, source[row]);
-                                        row += 1;
-                                    }
-
-                                    if row != row_start {
-                                        assert_eq!(row, row_end);
-                                        names = format!("{} {}", names, &source[row][..y])
-                                    }
-                                }
+                                let names = get_node_content(source, &ids);
                                 let package_names: Vec<&str> = names.split(' ').collect();
                                 let package_name = package_names[0];
 

@@ -17,6 +17,7 @@ use crate::utils::treehelper;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::RwLock;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types;
@@ -28,6 +29,18 @@ use once_cell::sync::Lazy;
 
 pub static BUFFERS_CACHE: Lazy<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
+
+fn set_client_text_document(text_document: Option<TextDocumentClientCapabilities>) {
+    let mut data = CLIENT_CAPABILITIES.write().unwrap();
+    *data = text_document;
+}
+
+pub fn get_client_capabilities() -> Option<TextDocumentClientCapabilities> {
+    let data = CLIENT_CAPABILITIES.read().unwrap();
+    data.clone()
+}
 
 impl Backend {
     async fn publish_diagnostics(&self, uri: Url, context: String) {
@@ -114,6 +127,8 @@ impl LanguageServer for Backend {
             let mut root_path = self.root_path.lock().await;
             root_path.replace(uri.path().into());
         }
+
+        set_client_text_document(initial.capabilities.text_document);
 
         let version: String = env!("CARGO_PKG_VERSION").to_string();
         Ok(InitializeResult {
