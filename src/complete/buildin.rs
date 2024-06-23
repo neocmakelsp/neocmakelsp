@@ -6,7 +6,7 @@ use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::languageserver::get_client_capabilities;
+use crate::languageserver::client_support_snippet;
 use crate::utils::get_node_content;
 
 /// following constants are declared in tree-sitter-cmake:
@@ -82,16 +82,7 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
         );
     }
 
-    let client_support_snippet = match get_client_capabilities() {
-        Some(c) => c
-            .completion
-            .unwrap()
-            .completion_item
-            .unwrap()
-            .snippet_support
-            .unwrap_or(false),
-        _ => false,
-    };
+    let client_support_snippet = client_support_snippet();
 
     Ok(completes
         .iter()

@@ -42,6 +42,17 @@ pub fn get_client_capabilities() -> Option<TextDocumentClientCapabilities> {
     data.clone()
 }
 
+pub fn client_support_snippet() -> bool {
+    match get_client_capabilities() {
+        Some(c) => c
+            .completion
+            .and_then(|item| item.completion_item)
+            .and_then(|item| item.snippet_support)
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
 impl Backend {
     async fn publish_diagnostics(&self, uri: Url, context: String) {
         let mut parse = Parser::new();
