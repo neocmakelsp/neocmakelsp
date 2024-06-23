@@ -33,7 +33,7 @@ pub struct CMakePackage {
 pub use findpackage::*;
 use tree_sitter::Node;
 
-pub fn get_node_content(source: &Vec<&str>, node: &Node) -> String {
+pub fn get_node_content(source: &[&str], node: &Node) -> String {
     let mut content: String;
     let x = node.start_position().column;
     let y = node.end_position().column;
