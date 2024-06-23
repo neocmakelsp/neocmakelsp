@@ -247,6 +247,12 @@ fn sub_tokens(
                     }
                     if argument
                         .child(0)
+                        .is_some_and(|child| child.kind() == "bracket_argument")
+                    {
+                        continue;
+                    }
+                    if argument
+                        .child(0)
                         .is_some_and(|child| child.child_count() != 0)
                     {
                         res.append(&mut sub_tokens(
@@ -365,4 +371,19 @@ fn sub_tokens(
 fn test_number() {
     assert!(NUMBERREGEX.is_match("1.1"));
     assert!(NUMBERREGEX.is_match("222"));
+}
+
+#[test]
+fn test_hl() {
+    fn semantic_token_test(context: &str) -> Option<SemanticTokensResult> {
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context, None);
+        let tree = thetree?;
+        Some(SemanticTokensResult::Tokens(SemanticTokens {
+            result_id: None,
+            data: sub_tokens(tree.root_node(), context, &mut 0, &mut 0, false),
+        }))
+    }
+    semantic_token_test(include_str!("../assert/highlight/bracket_argument.cmake"));
 }
