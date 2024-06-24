@@ -249,6 +249,50 @@ fn sub_tokens(
                         .child(0)
                         .is_some_and(|child| child.kind() == "bracket_argument")
                     {
+                        let bracket_argument = argument.child(0).unwrap();
+                        let h = bracket_argument.start_position().row;
+                        let h2 = bracket_argument.end_position().row;
+                        let x = bracket_argument.start_position().column;
+                        let y = bracket_argument.end_position().column;
+                        for column in h..=h2 {
+                            if column == h {
+                                let content = &newsource[h][x..];
+                                res.push(SemanticToken {
+                                    delta_line: h as u32 - *preline,
+                                    delta_start: x as u32 - *prestart,
+                                    length: content.len() as u32,
+                                    token_type: get_token_position(SemanticTokenType::STRING),
+                                    token_modifiers_bitset: 0,
+                                });
+                                *prestart = x as u32;
+                                *preline = h as u32;
+                                continue;
+                            }
+                            if column == h2 {
+                                let content = &newsource[h2][..y];
+                                res.push(SemanticToken {
+                                    delta_line: h2 as u32 - *preline,
+                                    delta_start: 0,
+                                    length: content.len() as u32,
+                                    token_type: get_token_position(SemanticTokenType::STRING),
+                                    token_modifiers_bitset: 0,
+                                });
+                                *prestart = 0;
+                                *preline = h2 as u32;
+                                continue;
+                            }
+                            let content = &newsource[column];
+                            res.push(SemanticToken {
+                                delta_line: column as u32 - *preline,
+                                delta_start: 0,
+                                length: content.len() as u32,
+                                token_type: get_token_position(SemanticTokenType::STRING),
+                                token_modifiers_bitset: 0,
+                            });
+                            *prestart = 0;
+                            *preline = column as u32;
+                        }
+                        is_first_val = false;
                         continue;
                     }
                     if argument
