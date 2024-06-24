@@ -1,8 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use tower_lsp::lsp_types::DiagnosticSeverity;
+use tree_sitter::Point;
 
-use crate::config;
+use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
@@ -15,8 +17,66 @@ pub struct ErrorInfo {
     )>,
 }
 
-pub fn checkerror(local_path: &Path, source: &str, input: tree_sitter::Node) -> Option<ErrorInfo> {
-    checkerror_inner(local_path, &source.lines().collect(), input)
+pub async fn checkerror<'a>(
+    local_path: &Path,
+    source: &str,
+    input: tree_sitter::Node<'a>,
+    whole: bool,
+) -> Option<ErrorInfo> {
+    let future_cmake_lint = if whole {
+        run_cmake_lint(local_path).await
+    } else {
+        None
+    };
+
+    let mut result = checkerror_inner(local_path, &source.lines().collect(), input);
+    if let Some(v) = future_cmake_lint {
+        let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
+        for item in v.inner {
+            error_info.inner.push(item);
+        }
+    };
+
+    result
+}
+
+async fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
+    if !path.exists() || !CMAKE_LINT_CONFIG.enable_external_cmake_lint {
+        return None;
+    }
+
+    let output = Command::new("cmake-lint").arg(path).output().ok()?;
+    let output_str = String::from_utf8_lossy(&output.stdout);
+
+    let re = regex::Regex::new(
+        r#"(?P<line>\d+),(?P<column>\d+): (?P<message>\[(?P<severity>[A-Z])\d+\]\s+.*)"#,
+    )
+    .unwrap();
+    let mut info = vec![];
+
+    for input in output_str.lines() {
+        if let Some(m) = re.captures(input) {
+            let severity = match m.name("severity").unwrap().as_str() {
+                "E" => DiagnosticSeverity::ERROR,
+                "W" => DiagnosticSeverity::WARNING,
+                _ => DiagnosticSeverity::INFORMATION,
+            };
+
+            let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
+            let column = m.name("column").unwrap().as_str().parse().unwrap_or(0);
+            let message = m.name("message").unwrap().as_str().to_owned();
+
+            let start_point = Point { row, column };
+            let end_point = start_point;
+            info.push((start_point, end_point, message, Some(severity)));
+        }
+    }
+
+    if info.is_empty() {
+        None
+    } else {
+        Some(ErrorInfo { inner: info })
+    }
 }
 
 fn checkerror_inner(

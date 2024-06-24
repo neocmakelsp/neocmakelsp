@@ -54,14 +54,15 @@ pub fn client_support_snippet() -> bool {
 }
 
 impl Backend {
-    async fn publish_diagnostics(&self, uri: Url, context: String) {
+    async fn publish_diagnostics(&self, uri: Url, context: String, whole: bool) {
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(&context, None);
         let Some(tree) = thetree else {
             return;
         };
-        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node());
+        let gammererror =
+            checkerror(Path::new(uri.path()), &context, tree.root_node(), whole).await;
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for (start, end, message, severity) in diagnoses.inner {
@@ -94,7 +95,7 @@ impl Backend {
     async fn update_diagnostics(&self) {
         let storemap = BUFFERS_CACHE.lock().await;
         for (uri, context) in storemap.iter() {
-            self.publish_diagnostics(uri.clone(), context.to_string())
+            self.publish_diagnostics(uri.clone(), context.to_string(), true)
                 .await;
         }
     }
@@ -148,8 +149,14 @@ impl LanguageServer for Backend {
                 version: Some(version),
             }),
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::FULL),
+                        will_save: Some(false),
+                        will_save_wait_until: Some(false),
+                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                    },
                 )),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
@@ -286,7 +293,7 @@ impl LanguageServer for Backend {
         let context = input.text_document.text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
-        self.publish_diagnostics(uri, context).await;
+        self.publish_diagnostics(uri, context, true).await;
         self.client
             .log_message(MessageType::INFO, "file opened!")
             .await;
@@ -299,7 +306,7 @@ impl LanguageServer for Backend {
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
         if context.lines().count() < 500 {
-            self.publish_diagnostics(uri, context).await;
+            self.publish_diagnostics(uri, context, false).await;
         }
         self.client
             .log_message(MessageType::INFO, &format!("{input:?}"))
@@ -319,7 +326,8 @@ impl LanguageServer for Backend {
             if has_root {
                 complete::update_cache(uri.path(), context).await;
             }
-            self.publish_diagnostics(uri, context.to_string()).await;
+            self.publish_diagnostics(uri, context.to_string(), true)
+                .await;
         }
         self.client
             .log_message(MessageType::INFO, "file saved!")
