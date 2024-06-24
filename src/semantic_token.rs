@@ -39,18 +39,23 @@ pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticT
     let tree = thetree?;
     Some(SemanticTokensResult::Tokens(SemanticTokens {
         result_id: None,
-        data: sub_tokens(tree.root_node(), context, &mut 0, &mut 0, false),
+        data: sub_tokens(
+            tree.root_node(),
+            &context.lines().collect(),
+            &mut 0,
+            &mut 0,
+            false,
+        ),
     }))
 }
 
 fn sub_tokens(
     input: tree_sitter::Node,
-    source: &str,
+    source: &Vec<&str>,
     preline: &mut u32,
     prestart: &mut u32,
     is_if: bool,
 ) -> Vec<SemanticToken> {
-    let newsource: Vec<&str> = source.lines().collect();
     let mut res = vec![];
 
     let mut course = input.walk();
@@ -256,7 +261,7 @@ fn sub_tokens(
                         let y = bracket_argument.end_position().column;
                         for column in h..=h2 {
                             if column == h {
-                                let content = &newsource[h][x..];
+                                let content = &source[h][x..];
                                 res.push(SemanticToken {
                                     delta_line: h as u32 - *preline,
                                     delta_start: x as u32 - *prestart,
@@ -269,7 +274,7 @@ fn sub_tokens(
                                 continue;
                             }
                             if column == h2 {
-                                let content = &newsource[h2][..y];
+                                let content = &source[h2][..y];
                                 res.push(SemanticToken {
                                     delta_line: h2 as u32 - *preline,
                                     delta_start: 0,
@@ -281,7 +286,7 @@ fn sub_tokens(
                                 *preline = h2 as u32;
                                 continue;
                             }
-                            let content = &newsource[column];
+                            let content = &source[column];
                             res.push(SemanticToken {
                                 delta_line: column as u32 - *preline,
                                 delta_start: 0,
@@ -309,7 +314,7 @@ fn sub_tokens(
                         is_first_val = false;
                         continue;
                     }
-                    let name = &newsource[h][x..y];
+                    let name = &source[h][x..y];
                     if BOOL_VAL.contains(&name) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
@@ -426,7 +431,13 @@ fn test_hl() {
         let tree = thetree?;
         Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
-            data: sub_tokens(tree.root_node(), context, &mut 0, &mut 0, false),
+            data: sub_tokens(
+                tree.root_node(),
+                &context.lines().collect(),
+                &mut 0,
+                &mut 0,
+                false,
+            ),
         }))
     }
     semantic_token_test(include_str!("../assert/highlight/bracket_argument.cmake"));
