@@ -26,13 +26,31 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
         let mut i = 0;
         node = node.child(2).unwrap();
         if node.kind_id() == SYM_ARGUMENT_LIST {
-            // argument_list
             let source: Vec<&str> = input.split('\n').collect();
             node = node.child(0).unwrap();
+            let mut last_position = node.end_position();
             loop {
                 if node.kind_id() == SYM_ARGUMENT {
                     i += 1;
-                    v.push(format!("${{{}:{}}}", i, get_node_content(&source, &node)));
+                    let start_position = node.start_position();
+                    let padding = if last_position.row == start_position.row || v.is_empty() {
+                        "".to_owned()
+                    } else {
+                        "\n".to_owned() + &source[start_position.row][0..start_position.column]
+                    };
+
+                    // support at most 9 tab-stops.
+                    if i < 10 {
+                        v.push(format!(
+                            "{}${{{}:{}}}",
+                            padding,
+                            i,
+                            get_node_content(&source, &node)
+                        ));
+                    } else {
+                        v.push(format!("{}{}", padding, get_node_content(&source, &node)));
+                    }
+                    last_position = node.end_position();
                 }
                 match node.next_sibling() {
                     Some(c) => node = c,
