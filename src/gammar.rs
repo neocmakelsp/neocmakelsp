@@ -17,14 +17,14 @@ pub struct ErrorInfo {
     )>,
 }
 
-pub async fn checkerror<'a>(
+pub fn checkerror<'a>(
     local_path: &Path,
     source: &str,
     input: tree_sitter::Node<'a>,
     whole: bool,
 ) -> Option<ErrorInfo> {
     let future_cmake_lint = if whole {
-        run_cmake_lint(local_path).await
+        run_cmake_lint(local_path)
     } else {
         None
     };
@@ -40,7 +40,7 @@ pub async fn checkerror<'a>(
     result
 }
 
-async fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
+fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
     if !path.exists() || !CMAKE_LINT_CONFIG.enable_external_cmake_lint {
         return None;
     }

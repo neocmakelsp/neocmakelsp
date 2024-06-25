@@ -61,8 +61,7 @@ impl Backend {
         let Some(tree) = thetree else {
             return;
         };
-        let gammererror =
-            checkerror(Path::new(uri.path()), &context, tree.root_node(), whole).await;
+        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node(), whole);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for (start, end, message, severity) in diagnoses.inner {
