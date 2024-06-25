@@ -54,14 +54,19 @@ pub fn client_support_snippet() -> bool {
 }
 
 impl Backend {
-    async fn publish_diagnostics(&self, uri: Url, context: String, whole: bool) {
+    async fn publish_diagnostics(&self, uri: Url, context: String, use_cmake_lint: bool) {
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(&context, None);
         let Some(tree) = thetree else {
             return;
         };
-        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node(), whole);
+        let gammererror = checkerror(
+            Path::new(uri.path()),
+            &context,
+            tree.root_node(),
+            use_cmake_lint,
+        );
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for (start, end, message, severity) in diagnoses.inner {

@@ -21,9 +21,9 @@ pub fn checkerror(
     local_path: &Path,
     source: &str,
     input: tree_sitter::Node<'_>,
-    whole: bool,
+    use_cmake_lint: bool,
 ) -> Option<ErrorInfo> {
-    let future_cmake_lint = if whole {
+    let future_cmake_lint = if use_cmake_lint {
         run_cmake_lint(local_path)
     } else {
         None
