@@ -17,10 +17,10 @@ pub struct ErrorInfo {
     )>,
 }
 
-pub fn checkerror<'a>(
+pub fn checkerror(
     local_path: &Path,
     source: &str,
-    input: tree_sitter::Node<'a>,
+    input: tree_sitter::Node<'_>,
     whole: bool,
 ) -> Option<ErrorInfo> {
     let future_cmake_lint = if whole {
