@@ -6,6 +6,7 @@ use serde::Deserialize;
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct CMakeLintConfig {
     pub command_upcase: String,
+    pub enable_external_cmake_lint: bool,
 }
 
 pub struct LintSuggestion {
@@ -47,19 +48,43 @@ impl Default for LintSuggestion {
     }
 }
 
-pub static CMAKE_LINT: Lazy<LintSuggestion> = Lazy::new(|| {
+impl Default for CMakeLintConfig {
+    fn default() -> Self {
+        Self {
+            command_upcase: "ignore".to_string(),
+            enable_external_cmake_lint: true,
+        }
+    }
+}
+
+pub static CMAKE_LINT_CONFIG: Lazy<CMakeLintConfig> = Lazy::new(|| {
     let Ok(mut file) = std::fs::OpenOptions::new()
         .read(true)
         .open(".neocmakelint.toml")
     else {
-        return LintSuggestion::default();
+        return CMakeLintConfig::default();
     };
     let mut buf = String::new();
     if file.read_to_string(&mut buf).is_err() {
-        return LintSuggestion::default();
+        return CMakeLintConfig::default();
     }
-    let Ok(CMakeLintConfig { command_upcase }) = toml::from_str(&buf) else {
-        return LintSuggestion::default();
+
+    if let Ok(config) = toml::from_str::<CMakeLintConfig>(&buf) {
+        return config;
     };
-    command_upcase.into()
+    CMakeLintConfig::default()
 });
+
+pub static CMAKE_LINT: Lazy<LintSuggestion> =
+    Lazy::new(|| CMAKE_LINT_CONFIG.command_upcase.clone().into());
+
+#[cfg(test)]
+mod tests {
+    use crate::config::CMAKE_LINT_CONFIG;
+
+    #[test]
+    fn tst_lint_config() {
+        assert_eq!((*CMAKE_LINT_CONFIG).command_upcase, "ignore");
+        assert_eq!((*CMAKE_LINT_CONFIG).enable_external_cmake_lint, true);
+    }
+}

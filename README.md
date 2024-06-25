@@ -139,6 +139,16 @@ command_upcase = "ignore" # "lowercase", "upcase"
 ```
 Then it will check whether the command is all upcase.
 
+### External cmake-lint
+
+When [cmake-lint](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` will utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
+
+```toml
+enable_external_cmake_lint = true # true to use external cmake-lint, or false to disable it
+```
+
+If `enable_external_cmake_lint` is turned on but `cmake-lint` is not installed, external linting will not report any error message.
+
 ### If you want to use watchfile in neovim, set
 
 ```lua
