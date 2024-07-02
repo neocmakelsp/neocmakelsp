@@ -30,7 +30,7 @@ pub enum NeocmakeCli {
     #[command(long_flag = "format", short_flag = 'F', about = "Format the file")]
     Format {
         #[arg(required = true)]
-        format_path: String,
+        format_paths: Vec<String>,
         #[arg(value_name = "override", long = "override", short = 'o')]
         hasoverride: bool,
     },
