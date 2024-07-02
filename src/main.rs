@@ -152,7 +152,7 @@ async fn main() {
             }
         }
         NeocmakeCli::Format {
-            format_path,
+            format_paths,
             hasoverride,
         } => {
             let (use_space, spacelen) = editconfig_setting().unwrap_or((true, 2));
@@ -211,47 +211,50 @@ async fn main() {
                     }
                 }
             };
-            let toformatpath = std::path::Path::new(format_path.as_str());
-            if toformatpath.exists() {
-                if toformatpath.is_file() {
-                    let mut file = match std::fs::OpenOptions::new()
-                        .read(true)
-                        .write(hasoverride)
-                        .open(&format_path)
-                    {
-                        Ok(file) => file,
-                        Err(e) => {
-                            println!("cannot read file {} :{e}", format_path);
-                            return;
-                        }
-                    };
-                    let mut buf = String::new();
-                    file.read_to_string(&mut buf).unwrap();
-                    match formatting::get_format_cli(&buf, spacelen, use_space) {
-                        Some(context) => {
-                            if hasoverride {
-                                if let Err(e) = file.set_len(0) {
-                                    println!("Cannot clear the file: {e}");
-                                };
-                                if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
-                                    println!("Cannot jump to end: {e}");
-                                };
-                                let Ok(_) = file.write_all(context.as_bytes()) else {
-                                    println!("cannot write in {}", format_path);
-                                    return;
-                                };
-                                let _ = file.flush();
-                            } else {
-                                println!("{context}")
+            use std::path::Path;
+            for format_path in format_paths {
+                let toformatpath = Path::new(format_path.as_str());
+                if toformatpath.exists() {
+                    if toformatpath.is_file() {
+                        let mut file = match std::fs::OpenOptions::new()
+                            .read(true)
+                            .write(hasoverride)
+                            .open(&format_path)
+                        {
+                            Ok(file) => file,
+                            Err(e) => {
+                                println!("cannot read file {} :{e}", format_path);
+                                return;
+                            }
+                        };
+                        let mut buf = String::new();
+                        file.read_to_string(&mut buf).unwrap();
+                        match formatting::get_format_cli(&buf, spacelen, use_space) {
+                            Some(context) => {
+                                if hasoverride {
+                                    if let Err(e) = file.set_len(0) {
+                                        println!("Cannot clear the file: {e}");
+                                    };
+                                    if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
+                                        println!("Cannot jump to end: {e}");
+                                    };
+                                    let Ok(_) = file.write_all(context.as_bytes()) else {
+                                        println!("cannot write in {}", format_path);
+                                        return;
+                                    };
+                                    let _ = file.flush();
+                                } else {
+                                    println!("{context}")
+                                }
+                            }
+                            None => {
+                                println!("There is error in file: {}", format_path);
                             }
                         }
-                        None => {
-                            println!("There is error in file: {}", format_path);
-                        }
+                    } else {
+                        formatpattern(&format!("./{}/**/*.cmake", format_path));
+                        formatpattern(&format!("./{}/**/CMakeLists.txt", format_path));
                     }
-                } else {
-                    formatpattern(&format!("./{}/**/*.cmake", format_path));
-                    formatpattern(&format!("./{}/**/CMakeLists.txt", format_path));
                 }
             }
         }
