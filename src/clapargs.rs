@@ -42,3 +42,42 @@ pub enum NeocmakeCli {
         tojson: bool,
     },
 }
+
+#[test]
+fn test_claps() {
+    use super::NeocmakeCli;
+    use clap::{CommandFactory, FromArgMatches};
+    let mut args =
+        NeocmakeCli::command().get_matches_from(vec!["neocmakelsp", "format", "-o", "a", "b"]);
+
+    let cli = NeocmakeCli::from_arg_matches_mut(&mut args).unwrap();
+    if let NeocmakeCli::Format {
+        format_paths,
+        hasoverride: true,
+    } = cli
+    {
+        assert_eq!(format_paths, vec!["a".to_string(), "b".to_string()]);
+    } else {
+        panic!("test format failed");
+    }
+
+    let mut args =
+        NeocmakeCli::command().get_matches_from(vec!["neocmakelsp", "search", "-j", "dde"]);
+
+    let cli = NeocmakeCli::from_arg_matches_mut(&mut args).unwrap();
+    if let NeocmakeCli::Search {
+        package,
+        tojson: true,
+    } = cli
+    {
+        assert_eq!(package, "dde".to_string());
+    } else {
+        panic!("test package failed");
+    }
+
+    let mut args =
+        NeocmakeCli::command().get_matches_from(vec!["neocmakelsp", "tcp", "--port", "2012"]);
+
+    let cli = NeocmakeCli::from_arg_matches_mut(&mut args).unwrap();
+    assert_eq!(cli, NeocmakeCli::Tcp { port: Some(2012) });
+}
