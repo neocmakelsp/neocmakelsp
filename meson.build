@@ -46,10 +46,10 @@ install_data('completions/zsh/_neocmakelsp',
   install_dir: zsh_compeletion_dir
 )
 
-install_dir('completions/fish/neocmakelsp.fish',
+install_data('completions/fish/neocmakelsp.fish',
   install_dir: fish_compeletion_dir
 )
 
-install_dir('completions/bash/neocmakelsp',
+install_data('completions/bash/neocmakelsp',
   install_dir: bash_compeletion_dir
 )
