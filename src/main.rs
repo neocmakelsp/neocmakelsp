@@ -94,8 +94,6 @@ async fn main() {
             Server::new(stdin, stdout, socket).serve(service).await;
         }
         NeocmakeCli::Tcp { port } => {
-            #[cfg(feature = "runtime-agnostic")]
-            use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
             tracing_subscriber::fmt().init();
             let stream = {
                 if let Some(port) = port {
@@ -120,8 +118,6 @@ async fn main() {
             };
 
             let (read, write) = tokio::io::split(stream);
-            #[cfg(feature = "runtime-agnostic")]
-            let (read, write) = (read.compat(), write.compat_write());
 
             let (service, socket) = LspService::new(|client| Backend {
                 client,
