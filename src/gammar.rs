@@ -62,11 +62,10 @@ fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
                 _ => DiagnosticSeverity::INFORMATION,
             };
             let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
-            let column = if let Some(m) = m.name("column") {
-                m.as_str().parse().unwrap()
-            } else {
-                0
-            };
+            let column = m
+                .name("column")
+                .map(|m| m.as_str().parse().unwrap())
+                .unwrap_or(0);
             let message = m.name("message").unwrap().as_str().to_owned();
 
             let start_point = Point { row, column };
