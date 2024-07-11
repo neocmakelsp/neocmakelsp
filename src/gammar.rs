@@ -32,7 +32,7 @@ pub fn checkerror(
         use_extra_cmake_lint,
     }: LintConfigInfo,
 ) -> Option<ErrorInfo> {
-    let cmake_lint_info = if use_extra_cmake_lint {
+    let cmake_lint_info = if use_lint && use_extra_cmake_lint {
         run_cmake_lint(local_path)
     } else {
         None
