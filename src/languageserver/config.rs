@@ -5,6 +5,7 @@ pub struct Config {
     pub format: Option<FormatConfig>,
     pub scan_cmake_in_package: Option<bool>,
     pub semantic_token: Option<bool>,
+    pub lint: Option<LintConfig>,
 }
 
 impl Config {
@@ -21,6 +22,13 @@ impl Config {
     pub fn enable_semantic_token(&self) -> bool {
         self.semantic_token.unwrap_or(false)
     }
+
+    pub fn is_lint_enabled(&self) -> bool {
+        self.lint
+            .as_ref()
+            .map(|config| config.enable.unwrap_or(true))
+            .unwrap_or(true)
+    }
 }
 
 impl Default for Config {
@@ -29,6 +37,7 @@ impl Default for Config {
             format: Some(FormatConfig::default()),
             scan_cmake_in_package: Some(true),
             semantic_token: Some(false),
+            lint: Some(LintConfig::default()),
         }
     }
 }
@@ -41,5 +50,16 @@ pub struct FormatConfig {
 impl Default for FormatConfig {
     fn default() -> Self {
         FormatConfig { enable: Some(true) }
+    }
+}
+
+#[derive(Deserialize, PartialEq, Eq, Debug)]
+pub struct LintConfig {
+    pub enable: Option<bool>,
+}
+
+impl Default for LintConfig {
+    fn default() -> Self {
+        LintConfig { enable: Some(true) }
     }
 }

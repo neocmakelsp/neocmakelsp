@@ -9,6 +9,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::filewatcher;
 use crate::formatting::getformat;
 use crate::gammar::checkerror;
+use crate::gammar::LintConfigInfo;
 use crate::jump;
 use crate::scansubs;
 use crate::semantic_token;
@@ -54,19 +55,14 @@ pub fn client_support_snippet() -> bool {
 }
 
 impl Backend {
-    async fn publish_diagnostics(&self, uri: Url, context: String, use_cmake_lint: bool) {
+    async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(&context, None);
         let Some(tree) = thetree else {
             return;
         };
-        let gammererror = checkerror(
-            Path::new(uri.path()),
-            &context,
-            tree.root_node(),
-            use_cmake_lint,
-        );
+        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node(), lint_info);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for (start, end, message, severity) in diagnoses.inner {
@@ -99,8 +95,15 @@ impl Backend {
     async fn update_diagnostics(&self) {
         let storemap = BUFFERS_CACHE.lock().await;
         for (uri, context) in storemap.iter() {
-            self.publish_diagnostics(uri.clone(), context.to_string(), true)
-                .await;
+            self.publish_diagnostics(
+                uri.clone(),
+                context.to_string(),
+                LintConfigInfo {
+                    use_lint: self.init_info.lock().await.enable_lint,
+                    use_extra_cmake_lint: true,
+                },
+            )
+            .await;
         }
     }
 }
@@ -117,8 +120,11 @@ impl LanguageServer for Backend {
 
         let find_cmake_in_package = initial_config.is_scan_cmake_in_package();
 
+        let lint_enable = initial_config.is_lint_enabled();
+
         let mut init_info = self.init_info.lock().await;
         init_info.scan_cmake_in_package = find_cmake_in_package;
+        init_info.enable_lint = lint_enable;
 
         if let Some(workspace) = initial.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {
@@ -297,7 +303,15 @@ impl LanguageServer for Backend {
         let context = input.text_document.text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
-        self.publish_diagnostics(uri, context, true).await;
+        self.publish_diagnostics(
+            uri,
+            context,
+            LintConfigInfo {
+                use_lint: self.init_info.lock().await.enable_lint,
+                use_extra_cmake_lint: true,
+            },
+        )
+        .await;
         self.client
             .log_message(MessageType::INFO, "file opened!")
             .await;
@@ -310,7 +324,15 @@ impl LanguageServer for Backend {
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
         if context.lines().count() < 500 {
-            self.publish_diagnostics(uri, context, false).await;
+            self.publish_diagnostics(
+                uri,
+                context,
+                LintConfigInfo {
+                    use_lint: self.init_info.lock().await.enable_lint,
+                    use_extra_cmake_lint: false,
+                },
+            )
+            .await;
         }
         self.client
             .log_message(MessageType::INFO, &format!("{input:?}"))
@@ -330,8 +352,15 @@ impl LanguageServer for Backend {
             if has_root {
                 complete::update_cache(uri.path(), context).await;
             }
-            self.publish_diagnostics(uri, context.to_string(), true)
-                .await;
+            self.publish_diagnostics(
+                uri,
+                context.to_string(),
+                LintConfigInfo {
+                    use_lint: self.init_info.lock().await.enable_lint,
+                    use_extra_cmake_lint: true,
+                },
+            )
+            .await;
         }
         self.client
             .log_message(MessageType::INFO, "file saved!")

@@ -34,6 +34,7 @@ use clapargs::NeocmakeCli;
 #[derive(Debug)]
 struct BackendInitInfo {
     pub scan_cmake_in_package: bool,
+    pub enable_lint: bool,
 }
 
 /// Beckend
@@ -88,6 +89,7 @@ async fn main() {
                 client,
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
+                    enable_lint: true,
                 })),
                 root_path: Arc::new(Mutex::new(None)),
             });
@@ -123,6 +125,7 @@ async fn main() {
                 client,
                 init_info: Arc::new(Mutex::new(BackendInitInfo {
                     scan_cmake_in_package: true,
+                    enable_lint: true,
                 })),
                 root_path: Arc::new(Mutex::new(None)),
             });

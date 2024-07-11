@@ -6,6 +6,12 @@ use tree_sitter::Point;
 
 use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
+pub(crate) struct LintConfigInfo {
+    pub use_lint: bool,
+    pub use_extra_cmake_lint: bool,
+}
+
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
 pub struct ErrorInfo {
@@ -21,16 +27,19 @@ pub fn checkerror(
     local_path: &Path,
     source: &str,
     input: tree_sitter::Node<'_>,
-    use_cmake_lint: bool,
+    LintConfigInfo {
+        use_lint,
+        use_extra_cmake_lint,
+    }: LintConfigInfo,
 ) -> Option<ErrorInfo> {
-    let future_cmake_lint = if use_cmake_lint {
+    let cmake_lint_info = if use_extra_cmake_lint {
         run_cmake_lint(local_path)
     } else {
         None
     };
 
-    let mut result = checkerror_inner(local_path, &source.lines().collect(), input);
-    if let Some(v) = future_cmake_lint {
+    let mut result = checkerror_inner(local_path, &source.lines().collect(), input, use_lint);
+    if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
         for item in v.inner {
             error_info.inner.push(item);
@@ -85,6 +94,7 @@ fn checkerror_inner(
     local_path: &Path,
     newsource: &Vec<&str>,
     input: tree_sitter::Node,
+    use_lint: bool,
 ) -> Option<ErrorInfo> {
     if input.is_error() {
         return Some(ErrorInfo {
@@ -99,7 +109,7 @@ fn checkerror_inner(
     let mut course = input.walk();
     let mut output = vec![];
     for node in input.children(&mut course) {
-        if let Some(mut tran) = checkerror_inner(local_path, newsource, node) {
+        if let Some(mut tran) = checkerror_inner(local_path, newsource, node, use_lint) {
             output.append(&mut tran.inner);
         }
         if node.kind() != "normal_command" {
@@ -113,7 +123,7 @@ fn checkerror_inner(
         let x = ids.start_position().column;
         let y = ids.end_position().column;
         let name = &newsource[h][x..y];
-        if !config::CMAKE_LINT.lint_match(name.chars().all(|a| a.is_uppercase())) {
+        if use_lint && !config::CMAKE_LINT.lint_match(name.chars().all(|a| a.is_uppercase())) {
             output.push((
                 ids.start_position(),
                 ids.end_position(),
@@ -258,6 +268,7 @@ fn gammer_passed_check() {
         std::path::Path::new("."),
         &source.lines().collect(),
         thetree.root_node(),
+        true,
     );
 }
 
