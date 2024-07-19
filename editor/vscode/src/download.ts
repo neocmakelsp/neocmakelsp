@@ -9,7 +9,7 @@ import * as child_process from 'child_process'
 import path from "path";
 import { promisify } from "util";
 
-let githubReleaseURL = 'https://api.github.com/repos/Decodetalkers/neocmakelsp/releases/latest';
+const githubReleaseURL = 'https://api.github.com/repos/Decodetalkers/neocmakelsp/releases/latest';
 
 export namespace Github {
   export interface Release {
@@ -21,8 +21,8 @@ export namespace Github {
   }
 
   export async function isLatestRelease(path: string, abort: AbortController) {
-    let latestversion = await latestRelease(abort);
-    let version = await getNeocmakeVersion(path);
+    const latestversion = await latestRelease(abort);
+    const version = await getNeocmakeVersion(path);
     return latestversion.tag_name.substring(1) === version
   }
 
@@ -112,7 +112,7 @@ namespace Install {
 }
 
 function targetName() {
-  let arch = os.arch()
+  const arch = os.arch()
   switch (os.platform()) {
     case "win32":
       return "neocmakelsp-x86_64-pc-windows-msvc.exe"
@@ -130,7 +130,7 @@ function targetName() {
 }
 
 function getGithubAssert(asserts: Github.Asset[]) {
-  let target = targetName();
+  const target = targetName();
   if (target === undefined) {
     return undefined;
   }
@@ -138,10 +138,10 @@ function getGithubAssert(asserts: Github.Asset[]) {
 }
 
 export async function installLatestNeocmakeLsp(path: string) {
-  let timeoutController = new AbortController();
+  const timeoutController = new AbortController();
   try {
     const latestRe = await Github.latestRelease(timeoutController);
-    let assert = getGithubAssert(latestRe.assets);
+    const assert = getGithubAssert(latestRe.assets);
     if (assert === undefined) {
       console.log("Your platform is not supported");
       return undefined;

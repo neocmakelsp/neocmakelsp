@@ -14,8 +14,8 @@ import { installLatestNeocmakeLsp } from './download';
 let client: LanguageClient;
 
 export async function activate(context: ExtensionContext) {
-  let config = workspace.getConfiguration("neocmakelsp");
-  let allAsJson = JSON.parse(JSON.stringify(config));
+  const config = workspace.getConfiguration("neocmakelsp");
+  const allAsJson = JSON.parse(JSON.stringify(config));
 
   let neocmakelspExecutable = undefined;
 
