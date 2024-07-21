@@ -4,7 +4,6 @@ mod includescanner;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
-use crate::utils::get_node_content;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::{utils, CompletionResponse};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
@@ -505,6 +504,7 @@ fn getsubcomplete(
                             }
                             #[cfg(unix)]
                             if name == "pkg_check_modules" && child.child_count() >= 3 {
+                                use crate::utils::get_node_content;
                                 let ids = child.child(2).unwrap();
                                 let names = get_node_content(source, &ids);
                                 let package_names: Vec<&str> = names.split(' ').collect();
