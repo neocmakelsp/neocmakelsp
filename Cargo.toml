@@ -8,7 +8,7 @@ clap_complete = "4.5.7"
 
 [package]
 name = "neocmakelsp"
-version = "0.7.8"
+version = "0.7.9"
 edition = "2021"
 license = "MIT"
 description = "The Lsp for cmake"
