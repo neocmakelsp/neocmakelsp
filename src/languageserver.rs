@@ -351,6 +351,7 @@ impl LanguageServer for Backend {
         if let Some(context) = storemap.get(&uri) {
             if has_root {
                 complete::update_cache(uri.path(), context).await;
+                jump::update_cache(uri.path(), context).await;
             }
             self.publish_diagnostics(
                 uri,
