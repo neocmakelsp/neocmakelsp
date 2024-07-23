@@ -52,7 +52,8 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
     )?;
     let mut cache = JUMP_CACHE.lock().await;
     for (key, position, description) in result_data {
-        cache.insert(key, (position, description));
+        *cache.entry(key).or_insert((position, description)) =
+            (position.clone(), description.clone());
     }
     None
 }
