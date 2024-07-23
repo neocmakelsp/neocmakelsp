@@ -124,14 +124,26 @@ pub async fn godef(
             let jumptype = get_pos_type(location, tree.root_node(), source, PositionType::Variable);
             match jumptype {
                 PositionType::Variable => {
+                    let mut locations = vec![];
                     if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
                         if is_jump {
                             return Some(vec![jump_cache]);
+                        } else {
+                            locations.push(jump_cache);
                         }
                     }
 
                     let newsource: Vec<&str> = source.lines().collect();
-                    simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
+                    if let Some(mut defdata) =
+                        simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
+                    {
+                        locations.append(&mut defdata);
+                    }
+                    if locations.is_empty() {
+                        None
+                    } else {
+                        Some(locations)
+                    }
                 }
                 PositionType::FindPackage
                 | PositionType::TargetLink
