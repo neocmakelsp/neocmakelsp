@@ -305,7 +305,8 @@ impl LanguageServer for Backend {
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
         drop(storemap);
-
+        complete::update_cache(uri.path(), &context).await;
+        jump::update_cache(uri.path(), &context).await;
         self.publish_diagnostics(
             uri,
             context,
@@ -388,7 +389,7 @@ impl LanguageServer for Backend {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context.clone(), None);
         let tree = thetree.unwrap();
-        let output = hover::get_hovered_doc(uri.path(), position, tree.root_node(), &context).await;
+        let output = hover::get_hovered_doc(position, tree.root_node(), &context).await;
         match output {
             Some(context) => Ok(Some(Hover {
                 contents: HoverContents::Scalar(MarkedString::String(context)),
@@ -463,6 +464,7 @@ impl LanguageServer for Backend {
         let Some(context) = storemap.get(&uri).cloned() else {
             return Ok(None);
         };
+        drop(storemap);
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         //notify_send(context, Type::Error);
@@ -471,7 +473,6 @@ impl LanguageServer for Backend {
             context.as_str(),
             uri.path().to_string(),
             &self.client,
-            self.init_info.lock().await.scan_cmake_in_package,
             false,
         )
         .await)
@@ -500,7 +501,6 @@ impl LanguageServer for Backend {
             &context,
             uri.path().to_string(),
             &self.client,
-            self.init_info.lock().await.scan_cmake_in_package,
             true,
         )
         .await

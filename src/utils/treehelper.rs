@@ -14,7 +14,6 @@ const SPECIALCOMMANDS: [&str; 3] = [
     "target_include_directories",
 ];
 
-
 /// treesitter to lsp_types
 #[inline]
 pub fn point_to_position(input: Point) -> Position {
@@ -32,7 +31,6 @@ pub fn position_to_point(input: Position) -> Point {
         column: input.character as usize,
     }
 }
-
 
 /// get the position of the string
 pub fn get_position_string(location: Position, root: Node, source: &str) -> Option<String> {

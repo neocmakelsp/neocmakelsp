@@ -1,5 +1,3 @@
-use std::path::Path;
-
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use crate::utils::treehelper::get_pos_type;
@@ -14,12 +12,7 @@ use tree_sitter::Node;
 
 use crate::jump::JUMP_CACHE;
 /// get the doc for on hover
-pub async fn get_hovered_doc<P: AsRef<Path>>(
-    path: P,
-    location: Position,
-    root: Node<'_>,
-    source: &str,
-) -> Option<String> {
+pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
     let message = get_position_string(location, root, source)?;
     let inner_result = match get_pos_type(location, root, source, PositionType::NotFind) {
         #[cfg(unix)]
@@ -67,11 +60,7 @@ PackageVersion: {}
     if inner_result.is_some() {
         return inner_result;
     }
-    let path: &Path = path.as_ref();
 
     let jump_cache = JUMP_CACHE.lock().await;
-    let data = jump_cache.get(path.into())?;
-    data.iter()
-        .find(|(key, _, _)| *key == message)
-        .map(|(_, _, item)| item.clone())
+    Some(jump_cache.get(&message)?.1.clone())
 }

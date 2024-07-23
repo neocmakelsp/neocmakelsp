@@ -14,7 +14,6 @@ use clap::Parser;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 
 use tokio::net::TcpListener;
-mod hover;
 mod ast;
 mod clapargs;
 mod complete;
@@ -23,6 +22,7 @@ mod consts;
 mod filewatcher;
 mod formatting;
 mod gammar;
+mod hover;
 mod jump;
 mod languageserver;
 mod scansubs;

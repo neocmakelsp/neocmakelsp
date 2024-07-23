@@ -25,23 +25,21 @@ mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use lsp_types::Location;
 
-pub type JumpKV = HashMap<PathBuf, Vec<(String, Location, String)>>;
+use tree_sitter::Node;
+
+pub type JumpKV = HashMap<String, (Location, String)>;
 
 pub static JUMP_CACHE: Lazy<Arc<Mutex<JumpKV>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
 
-pub async fn update_cache<P: AsRef<Path>>(
-    path: P,
-    context: &str,
-) -> Vec<(String, Location, String)> {
+pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
-    let Some(result_data) = getsubdef(
-        None,
+    let result_data = getsubdef(
         tree.root_node(),
         &context.lines().collect(),
         path.as_ref(),
@@ -51,77 +49,61 @@ pub async fn update_cache<P: AsRef<Path>>(
         &mut Vec::new(),
         true,
         true,
-        true,
-    ) else {
-        return Vec::new();
-    };
+    )?;
     let mut cache = JUMP_CACHE.lock().await;
-    cache.insert(path.as_ref().to_path_buf(), result_data.clone());
-    result_data
+    for (key, position, description) in result_data {
+        cache.insert(key, (position, description));
+    }
+    None
 }
 
-pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Vec<Location> {
+pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Location> {
     let mut path = path.as_ref().to_path_buf();
-    let mut completions: Vec<Location> = Vec::new();
 
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
-    if let Some(data) = jump_cache.get(&path) {
-        let mut append_data = data
-            .iter()
-            .filter(|(find_key, _, _)| find_key == key)
-            .map(|d| d.1.clone())
-            .collect();
-        completions.append(&mut append_data);
-    } else if let Ok(context) = tokio::fs::read_to_string(&path).await {
+    if let Some((location, _)) = jump_cache.get(key) {
+        return Some(location.clone());
+    }
+    drop(jump_cache);
+    if let Ok(context) = tokio::fs::read_to_string(&path).await {
         let mut buffer_cache = BUFFERS_CACHE.lock().await;
         buffer_cache.insert(
             lsp_types::Url::from_file_path(&path).unwrap(),
             context.clone(),
         );
         drop(buffer_cache);
-        let data = update_cache(&path, context.as_str()).await;
-        let mut append_data = data
-            .iter()
-            .filter(|data| data.0 == key)
-            .map(|d| d.1.clone())
-            .collect();
-        completions.append(&mut append_data);
+        update_cache(&path, context.as_str()).await;
+        let jump_cache = JUMP_CACHE.lock().await;
+        if let Some((location, _)) = jump_cache.get(key) {
+            return Some(location.clone());
+        }
     }
-    drop(jump_cache);
 
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(data) = jump_cache.get(parent) {
-            let mut append_data = data
-                .iter()
-                .filter(|(find_key, _, _)| find_key == key)
-                .map(|d| d.1.clone())
-                .collect();
-            completions.append(&mut append_data);
-        } else if let Ok(context) = tokio::fs::read_to_string(parent).await {
+        if let Some((location, _)) = jump_cache.get(key) {
+            return Some(location.clone());
+        }
+        drop(jump_cache);
+        if let Ok(context) = tokio::fs::read_to_string(&parent).await {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
-                lsp_types::Url::from_file_path(parent).unwrap(),
+                lsp_types::Url::from_file_path(&path).unwrap(),
                 context.clone(),
             );
             drop(buffer_cache);
-            drop(jump_cache);
-            let data = update_cache(parent, context.as_str()).await;
-            let mut append_data = data
-                .iter()
-                .filter(|data| data.0 == key)
-                .map(|d| d.1.clone())
-                .collect();
-            completions.append(&mut append_data);
-            path.clone_from(parent);
-            continue;
+            update_cache(&path, context.as_str()).await;
+            let jump_cache = JUMP_CACHE.lock().await;
+            if let Some((location, _)) = jump_cache.get(key) {
+                return Some(location.clone());
+            }
         }
         path.clone_from(parent);
     }
 
-    completions
+    None
 }
 /// find the definition
 pub async fn godef(
@@ -129,7 +111,6 @@ pub async fn godef(
     source: &str,
     originuri: String,
     client: &tower_lsp::Client,
-    find_cmake_in_package: bool,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
@@ -142,40 +123,14 @@ pub async fn godef(
             let jumptype = get_pos_type(location, tree.root_node(), source, PositionType::Variable);
             match jumptype {
                 PositionType::Variable => {
-                    let mut defs: Vec<Location> = vec![];
-                    println!("aaa");
-                    let mut cached_defs = get_cached_defs(&originuri, tofind.as_str()).await;
-                    println!("bbb, {cached_defs:?}");
-                    if !cached_defs.is_empty() {
-                        defs.append(&mut cached_defs);
-                        return Some(defs);
+                    if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
+                        if is_jump {
+                            return Some(vec![jump_cache]);
+                        }
                     }
+
                     let newsource: Vec<&str> = source.lines().collect();
-                    if let Some(data) = getsubdef(
-                        Some(&tofind),
-                        tree.root_node(),
-                        &newsource,
-                        &Path::new(&originuri),
-                        PositionType::Variable,
-                        None,
-                        &mut Vec::new(),
-                        &mut Vec::new(),
-                        true,
-                        find_cmake_in_package,
-                        is_jump,
-                    ) {
-                        let mut scanresults = data
-                            .iter()
-                            .filter(|data| data.0 == tofind)
-                            .map(|d| d.1.clone())
-                            .collect();
-                        defs.append(&mut scanresults);
-                    }
-                    if defs.is_empty() {
-                        None
-                    } else {
-                        Some(defs)
-                    }
+                    simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
                 }
                 PositionType::FindPackage
                 | PositionType::TargetLink
@@ -200,11 +155,59 @@ pub async fn godef(
     }
 }
 
+/// sub get the def
+fn simplegodefsub(
+    root: Node,
+    newsource: &Vec<&str>,
+    tofind: &str,
+    originuri: String,
+    is_jump: bool,
+) -> Option<Vec<Location>> {
+    let mut definitions: Vec<Location> = vec![];
+    let mut course = root.walk();
+    for child in root.children(&mut course) {
+        // if is inside same line
+        //
+        if child.kind() == "identifier" {
+            continue;
+        }
+        if child.child_count() != 0 {
+            if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
+                continue;
+            }
+            //let range = godefsub(child, source, tofind);
+            if let Some(mut context) =
+                simplegodefsub(child, newsource, tofind, originuri.clone(), is_jump)
+            {
+                definitions.append(&mut context);
+            }
+        } else if child.start_position().row == child.end_position().row {
+            let h = child.start_position().row;
+            let x = child.start_position().column;
+            let y = child.end_position().column;
+            let message = &newsource[h][x..y];
+            if message == tofind {
+                definitions.push(Location {
+                    uri: Url::from_file_path(&originuri).unwrap(),
+                    range: Range {
+                        start: point_to_position(child.start_position()),
+                        end: point_to_position(child.end_position()),
+                    },
+                })
+            };
+        }
+    }
+    if definitions.is_empty() {
+        None
+    } else {
+        Some(definitions)
+    }
+}
+
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
 fn getsubdef(
-    tofind: Option<&str>,
     input: tree_sitter::Node,
     source: &Vec<&str>,
     local_path: &Path,
@@ -214,7 +217,6 @@ fn getsubdef(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-    is_jump: bool,
 ) -> Option<Vec<(String, Location, String)>> {
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
@@ -252,7 +254,7 @@ fn getsubdef(
                 defs.push((
                     name.to_string(),
                     Location {
-                        uri: Url::from_file_path(&local_path).unwrap(),
+                        uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     format!("function in {}", local_path.display()),
@@ -277,7 +279,7 @@ fn getsubdef(
                 defs.push((
                     name.to_string(),
                     Location {
-                        uri: Url::from_file_path(&local_path).unwrap(),
+                        uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     format!("macro in {}", local_path.display()),
@@ -285,7 +287,6 @@ fn getsubdef(
             }
             "if_condition" | "foreach_loop" | "body" => {
                 if let Some(mut message) = getsubdef(
-                    tofind,
                     child,
                     source,
                     local_path,
@@ -295,7 +296,6 @@ fn getsubdef(
                     complete_packages,
                     true,
                     find_cmake_in_package,
-                    is_jump,
                 ) {
                     defs.append(&mut message);
                 }
@@ -340,7 +340,6 @@ fn getsubdef(
                                 complete_packages,
                                 find_cmake_in_package,
                                 is_buildin,
-                                is_jump,
                             ) {
                                 defs.append(&mut comps);
                             }
@@ -408,63 +407,45 @@ fn getsubdef(
                             postype,
                             include_files,
                             complete_packages,
-                            is_jump,
                         ) else {
                             continue;
                         };
                         defs.append(&mut completedefs);
                     }
+                } else if name == "set" || name == "option" {
+                    let Some(arguments) = child.child(2) else {
+                        continue;
+                    };
+                    let Some(ids) = arguments.child(0) else {
+                        continue;
+                    };
+                    if ids.start_position().row != ids.end_position().row {
+                        continue;
+                    }
+                    let h = ids.start_position().row;
+                    let x = ids.start_position().column;
+                    let y = ids.end_position().column;
+                    let name = &source[h][x..y].split(' ').next();
+
+                    let Some(name) = name.map(|name| name.to_string()) else {
+                        continue;
+                    };
+                    defs.push((
+                        name.to_string(),
+                        Location {
+                            uri: Url::from_file_path(local_path).unwrap(),
+                            range: Range { start, end },
+                        },
+                        format!("value in {}", local_path.display()),
+                    ));
                 }
             }
             "identifier" => {
                 continue;
             }
-            _ if (should_in) => {
-                if child.child_count() != 0 {
-                    if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
-                        continue;
-                    }
-                    if let Some(mut context) = getsubdef(
-                        tofind,
-                        child,
-                        source,
-                        local_path,
-                        postype,
-                        location,
-                        include_files,
-                        complete_packages,
-                        false,
-                        find_cmake_in_package,
-                        is_jump,
-                    ) {
-                        defs.append(&mut context);
-                    }
-                } else if child.start_position().row == child.end_position().row {
-                    let h = child.start_position().row;
-                    let x = child.start_position().column;
-                    let y = child.end_position().column;
-                    let message = &source[h][x..y];
-                    if let Some(tofind) = tofind {
-                        if message == tofind {
-                            defs.push((
-                                message.to_string(),
-                                Location {
-                                    uri: Url::from_file_path(&local_path).unwrap(),
-                                    range: Range {
-                                        start: point_to_position(child.start_position()),
-                                        end: point_to_position(child.end_position()),
-                                    },
-                                },
-                                format!("variable in {}", local_path.display()),
-                            ))
-                        };
-                    }
-                }
-            }
             _ => {}
         }
         if let Some(mut message) = getsubdef(
-            tofind,
             child,
             source,
             local_path,
@@ -474,7 +455,6 @@ fn getsubdef(
             complete_packages,
             true,
             find_cmake_in_package,
-            is_jump,
         ) {
             defs.append(&mut message);
         }
@@ -491,14 +471,13 @@ fn get_cmake_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-    is_jump: bool,
 ) -> Option<Vec<(String, Location, String)>> {
     let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {
         let Some(mut packages) =
-            include::scanner_package_defs(path, postype, include_files, complete_packages, is_jump)
+            include::scanner_package_defs(path, postype, include_files, complete_packages)
         else {
             continue;
         };
