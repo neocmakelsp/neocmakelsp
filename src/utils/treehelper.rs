@@ -14,10 +14,6 @@ const SPECIALCOMMANDS: [&str; 3] = [
     "target_include_directories",
 ];
 
-#[cfg(unix)]
-use super::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
-use super::CMAKE_PACKAGES_WITHKEY;
-/// convert Point to Position
 /// treesitter to lsp_types
 #[inline]
 pub fn point_to_position(input: Point) -> Position {
@@ -33,59 +29,6 @@ pub fn position_to_point(input: Position) -> Point {
     Point {
         row: input.line as usize,
         column: input.character as usize,
-    }
-}
-
-/// get the doc for on hover
-pub fn get_cmake_doc(location: Position, root: Node, source: &str) -> Option<String> {
-    match (
-        get_position_string(location, root, source),
-        get_pos_type(location, root, source, PositionType::NotFind),
-    ) {
-        #[cfg(unix)]
-        (Some(message), PositionType::FindPkgConfig) => {
-            let message = message.split('_').collect::<Vec<&str>>()[0];
-            let value = PKG_CONFIG_PACKAGES_WITHKEY.get(message);
-            value.map(|context| {
-                format!(
-                    "
-Packagename: {}
-Packagepath: {}
-",
-                    context.libname, context.path,
-                )
-            })
-        }
-        (
-            Some(message),
-            PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink,
-        ) => {
-            let message = message.split('_').collect::<Vec<&str>>()[0];
-            let mut value = CMAKE_PACKAGES_WITHKEY.get(message);
-            if value.is_none() {
-                value = CMAKE_PACKAGES_WITHKEY.get(&message.to_lowercase());
-            }
-            value.map(|context| {
-                format!(
-                    "
-Packagename: {}
-Packagepath: {}
-PackageVersion: {}
-",
-                    context.name,
-                    context.tojump[0].display(),
-                    context.version.clone().unwrap_or("Undefined".to_string())
-                )
-            })
-        }
-        (Some(message), _) => {
-            let mut value = MESSAGE_STORAGE.get(&message);
-            if value.is_none() {
-                value = MESSAGE_STORAGE.get(&message.to_lowercase());
-            }
-            value.map(|context| context.to_string())
-        }
-        (None, _) => None,
     }
 }
 

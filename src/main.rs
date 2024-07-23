@@ -22,6 +22,7 @@ mod consts;
 mod filewatcher;
 mod formatting;
 mod gammar;
+mod hover;
 mod jump;
 mod languageserver;
 mod scansubs;

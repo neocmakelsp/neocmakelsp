@@ -84,6 +84,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
                 lsp_types::Url::from_file_path(parent).unwrap(),
                 context.clone(),
             );
+            drop(buffer_cache);
             drop(complete_cache);
             completions.append(&mut update_cache(parent, context.as_str()).await);
             path.clone_from(parent);
@@ -254,22 +255,7 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            "body" => {
-                if let Some(mut message) = getsubcomplete(
-                    child,
-                    source,
-                    local_path,
-                    postype,
-                    location,
-                    include_files,
-                    complete_packages,
-                    true,
-                    find_cmake_in_package,
-                ) {
-                    complete.append(&mut message);
-                }
-            }
-            "if_condition" | "foreach_loop" => {
+            "if_condition" | "foreach_loop" | "body" => {
                 if let Some(mut message) = getsubcomplete(
                     child,
                     source,
