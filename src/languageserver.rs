@@ -56,7 +56,21 @@ pub fn client_support_snippet() -> bool {
 }
 
 impl Backend {
+    async fn path_in_project(&self, path: &str) -> bool {
+        if self.root_path.lock().await.is_none() {
+            return true;
+        }
+
+        // NOTE: not enough good, but is ok
+        if path.starts_with("/usr") {
+            return false;
+        }
+        true
+    }
     async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
+        if !self.path_in_project(uri.path()).await {
+            return;
+        }
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(&context, None);
