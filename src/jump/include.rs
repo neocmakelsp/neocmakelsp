@@ -70,7 +70,7 @@ fn ut_ismodule() {
     assert_eq!(ismodule("test.cmake"), false);
 }
 
-type CacheData = HashMap<PathBuf, Vec<(String, Location)>>;
+type CacheData = HashMap<PathBuf, Vec<(String, Location, String)>>;
 
 static PACKAGE_COMPLETE_CACHE: Lazy<Arc<Mutex<CacheData>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -82,7 +82,8 @@ pub fn scanner_include_def(
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
     is_buildin: bool,
-) -> Option<Vec<(String, Location)>> {
+    is_jump: bool,
+) -> Option<Vec<(String, Location, String)>> {
     if is_buildin {
         if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
             if let Some(complete_items) = cache.get(path) {
@@ -97,6 +98,7 @@ pub fn scanner_include_def(
             let thetree = parse.parse(content.clone(), None);
             let tree = thetree.unwrap();
             let result_data = getsubdef(
+                None,
                 tree.root_node(),
                 &content.lines().collect(),
                 path,
@@ -106,6 +108,7 @@ pub fn scanner_include_def(
                 complete_packages,
                 true,
                 find_cmake_in_package,
+                is_jump,
             );
             if !is_buildin {
                 return result_data;
@@ -126,7 +129,8 @@ pub fn scanner_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<(String, Location)>> {
+    is_jump: bool,
+) -> Option<Vec<(String, Location,String)>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
         if let Some(complete_items) = cache.get(path) {
             return Some(complete_items.clone());
@@ -139,6 +143,7 @@ pub fn scanner_package_defs(
             let thetree = parse.parse(content.clone(), None);
             let tree = thetree.unwrap();
             let result_data = getsubdef(
+                None,
                 tree.root_node(),
                 &content.lines().collect(),
                 path,
@@ -148,6 +153,7 @@ pub fn scanner_package_defs(
                 complete_packages,
                 false,
                 true,
+                is_jump,
             );
             if let Some(ref content) = result_data {
                 if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {

@@ -19,26 +19,29 @@ use crate::{
 use lsp_types::{MessageType, Position, Range, Url};
 use once_cell::sync::Lazy;
 use tower_lsp::lsp_types;
-use tree_sitter::Node;
 mod findpackage;
 mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use lsp_types::Location;
 
-pub type JumpKV = HashMap<PathBuf, Vec<(String, Location)>>;
+pub type JumpKV = HashMap<PathBuf, Vec<(String, Location, String)>>;
 
 pub static JUMP_CACHE: Lazy<Arc<Mutex<JumpKV>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
 
-pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<(String, Location)> {
+pub async fn update_cache<P: AsRef<Path>>(
+    path: P,
+    context: &str,
+) -> Vec<(String, Location, String)> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
     let Some(result_data) = getsubdef(
+        None,
         tree.root_node(),
         &context.lines().collect(),
         path.as_ref(),
@@ -48,6 +51,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<(String
         &mut Vec::new(),
         true,
         true,
+        true,
     ) else {
         return Vec::new();
     };
@@ -55,18 +59,44 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<(String
     cache.insert(path.as_ref().to_path_buf(), result_data.clone());
     result_data
 }
+
 pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Vec<Location> {
     let mut path = path.as_ref().to_path_buf();
     let mut completions: Vec<Location> = Vec::new();
 
     let tree_map = TREE_MAP.lock().await;
 
+    let jump_cache = JUMP_CACHE.lock().await;
+    if let Some(data) = jump_cache.get(&path) {
+        let mut append_data = data
+            .iter()
+            .filter(|(find_key, _, _)| find_key == key)
+            .map(|d| d.1.clone())
+            .collect();
+        completions.append(&mut append_data);
+    } else if let Ok(context) = tokio::fs::read_to_string(&path).await {
+        let mut buffer_cache = BUFFERS_CACHE.lock().await;
+        buffer_cache.insert(
+            lsp_types::Url::from_file_path(&path).unwrap(),
+            context.clone(),
+        );
+        drop(buffer_cache);
+        let data = update_cache(&path, context.as_str()).await;
+        let mut append_data = data
+            .iter()
+            .filter(|data| data.0 == key)
+            .map(|d| d.1.clone())
+            .collect();
+        completions.append(&mut append_data);
+    }
+    drop(jump_cache);
+
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
         if let Some(data) = jump_cache.get(parent) {
             let mut append_data = data
                 .iter()
-                .filter(|data| data.0 == key)
+                .filter(|(find_key, _, _)| find_key == key)
                 .map(|d| d.1.clone())
                 .collect();
             completions.append(&mut append_data);
@@ -76,6 +106,7 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Vec<Location
                 lsp_types::Url::from_file_path(parent).unwrap(),
                 context.clone(),
             );
+            drop(buffer_cache);
             drop(jump_cache);
             let data = update_cache(parent, context.as_str()).await;
             let mut append_data = data
@@ -98,7 +129,8 @@ pub async fn godef(
     source: &str,
     originuri: String,
     client: &tower_lsp::Client,
-    _is_jump: bool,
+    find_cmake_in_package: bool,
+    is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
@@ -106,114 +138,65 @@ pub async fn godef(
     let tree = thetree.unwrap();
     let positionstring = get_position_string(location, tree.root_node(), source);
     match positionstring {
-        Some(tofind) => {
-            if &tofind != "(" && &tofind != ")" {
-                let jumptype =
-                    get_pos_type(location, tree.root_node(), source, PositionType::Variable);
-                match jumptype {
-                    // TODO: maybe can hadle Include?
-                    PositionType::Variable => {
-                        let mut defs: Vec<Location> = vec![];
-
-                        let mut cached_defs = get_cached_defs(&originuri, tofind.as_str()).await;
-
-                        if !cached_defs.is_empty() {
-                            defs.append(&mut cached_defs);
-                        }
-                        let newsource: Vec<&str> = source.lines().collect();
-                        if let Some(data) = getsubdef(
-                            tree.root_node(),
-                            &newsource,
-                            &Path::new(&originuri),
-                            PositionType::Variable,
-                            None,
-                            &mut Vec::new(),
-                            &mut Vec::new(),
-                            true,
-                            true,
-                        ) {
-                            let mut scanresults = data
-                                .iter()
-                                .filter(|data| data.0 == tofind)
-                                .map(|d| d.1.clone())
-                                .collect();
-                            defs.append(&mut scanresults);
-                        }
-                        if defs.is_empty() {
-                            None
-                        } else {
-                            Some(defs)
-                        }
+        Some(tofind) if (tofind != "(" && tofind != ")") => {
+            let jumptype = get_pos_type(location, tree.root_node(), source, PositionType::Variable);
+            match jumptype {
+                PositionType::Variable => {
+                    let mut defs: Vec<Location> = vec![];
+                    println!("aaa");
+                    let mut cached_defs = get_cached_defs(&originuri, tofind.as_str()).await;
+                    println!("bbb, {cached_defs:?}");
+                    if !cached_defs.is_empty() {
+                        defs.append(&mut cached_defs);
+                        return Some(defs);
                     }
-                    PositionType::FindPackage
-                    | PositionType::TargetLink
-                    | PositionType::TargetInclude => {
-                        let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
-                        findpackage::cmpfindpackage(tofind, client).await
+                    let newsource: Vec<&str> = source.lines().collect();
+                    if let Some(data) = getsubdef(
+                        Some(&tofind),
+                        tree.root_node(),
+                        &newsource,
+                        &Path::new(&originuri),
+                        PositionType::Variable,
+                        None,
+                        &mut Vec::new(),
+                        &mut Vec::new(),
+                        true,
+                        find_cmake_in_package,
+                        is_jump,
+                    ) {
+                        let mut scanresults = data
+                            .iter()
+                            .filter(|data| data.0 == tofind)
+                            .map(|d| d.1.clone())
+                            .collect();
+                        defs.append(&mut scanresults);
                     }
-                    PositionType::NotFind => None,
-                    #[cfg(unix)]
-                    PositionType::FindPkgConfig => None,
-                    PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
-                    PositionType::SubDir => {
-                        subdirectory::cmpsubdirectory(originuri, &tofind, client).await
+                    if defs.is_empty() {
+                        None
+                    } else {
+                        Some(defs)
                     }
                 }
-            } else {
-                client.log_message(MessageType::INFO, "Empty").await;
-                None
+                PositionType::FindPackage
+                | PositionType::TargetLink
+                | PositionType::TargetInclude => {
+                    let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
+                    findpackage::cmpfindpackage(tofind, client).await
+                }
+                PositionType::NotFind => None,
+                #[cfg(unix)]
+                PositionType::FindPkgConfig => None,
+                PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
+                PositionType::SubDir => {
+                    subdirectory::cmpsubdirectory(originuri, &tofind, client).await
+                }
             }
         }
         None => None,
-    }
-}
-
-/// sub get the def
-fn godefsub(
-    root: Node,
-    newsource: &Vec<&str>,
-    tofind: &str,
-    originuri: String,
-    is_jump: bool,
-) -> Option<Vec<Location>> {
-    let mut definitions: Vec<Location> = vec![];
-    let mut course = root.walk();
-    for child in root.children(&mut course) {
-        // if is inside same line
-        //
-        if child.kind() == "identifier" {
-            continue;
+        _ => {
+            client.log_message(MessageType::INFO, "Empty").await;
+            None
         }
-        if child.child_count() != 0 {
-            if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
-                continue;
-            }
-            //let range = godefsub(child, source, tofind);
-            if let Some(mut context) =
-                godefsub(child, newsource, tofind, originuri.clone(), is_jump)
-            {
-                definitions.append(&mut context);
-            }
-        } else if child.start_position().row == child.end_position().row {
-            let h = child.start_position().row;
-            let x = child.start_position().column;
-            let y = child.end_position().column;
-            let message = &newsource[h][x..y];
-            if message == tofind {
-                definitions.push(Location {
-                    uri: Url::from_file_path(&originuri).unwrap(),
-                    range: Range {
-                        start: point_to_position(child.start_position()),
-                        end: point_to_position(child.end_position()),
-                    },
-                })
-            };
-        }
-    }
-    if definitions.is_empty() {
-        None
-    } else {
-        Some(definitions)
     }
 }
 
@@ -221,6 +204,7 @@ fn godefsub(
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
 fn getsubdef(
+    tofind: Option<&str>,
     input: tree_sitter::Node,
     source: &Vec<&str>,
     local_path: &Path,
@@ -230,14 +214,15 @@ fn getsubdef(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-) -> Option<Vec<(String, Location)>> {
+    is_jump: bool,
+) -> Option<Vec<(String, Location, String)>> {
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
             return None;
         }
     }
     let mut course = input.walk();
-    let mut defs: Vec<(String, Location)> = vec![];
+    let mut defs: Vec<(String, Location, String)> = vec![];
     for child in input.children(&mut course) {
         if let Some(location) = location {
             if child.start_position().row as u32 > location.line {
@@ -270,6 +255,7 @@ fn getsubdef(
                         uri: Url::from_file_path(&local_path).unwrap(),
                         range: Range { start, end },
                     },
+                    format!("function in {}", local_path.display()),
                 ));
             }
             "macro_def" => {
@@ -294,10 +280,12 @@ fn getsubdef(
                         uri: Url::from_file_path(&local_path).unwrap(),
                         range: Range { start, end },
                     },
+                    format!("macro in {}", local_path.display()),
                 ));
             }
-            "body" => {
+            "if_condition" | "foreach_loop" | "body" => {
                 if let Some(mut message) = getsubdef(
+                    tofind,
                     child,
                     source,
                     local_path,
@@ -307,21 +295,7 @@ fn getsubdef(
                     complete_packages,
                     true,
                     find_cmake_in_package,
-                ) {
-                    defs.append(&mut message);
-                }
-            }
-            "if_condition" | "foreach_loop" => {
-                if let Some(mut message) = getsubdef(
-                    child,
-                    source,
-                    local_path,
-                    postype,
-                    location,
-                    include_files,
-                    complete_packages,
-                    true,
-                    find_cmake_in_package,
+                    is_jump,
                 ) {
                     defs.append(&mut message);
                 }
@@ -366,6 +340,7 @@ fn getsubdef(
                                 complete_packages,
                                 find_cmake_in_package,
                                 is_buildin,
+                                is_jump,
                             ) {
                                 defs.append(&mut comps);
                             }
@@ -433,6 +408,7 @@ fn getsubdef(
                             postype,
                             include_files,
                             complete_packages,
+                            is_jump,
                         ) else {
                             continue;
                         };
@@ -440,7 +416,67 @@ fn getsubdef(
                     }
                 }
             }
+            "identifier" => {
+                continue;
+            }
+            _ if (should_in) => {
+                if child.child_count() != 0 {
+                    if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
+                        continue;
+                    }
+                    if let Some(mut context) = getsubdef(
+                        tofind,
+                        child,
+                        source,
+                        local_path,
+                        postype,
+                        location,
+                        include_files,
+                        complete_packages,
+                        false,
+                        find_cmake_in_package,
+                        is_jump,
+                    ) {
+                        defs.append(&mut context);
+                    }
+                } else if child.start_position().row == child.end_position().row {
+                    let h = child.start_position().row;
+                    let x = child.start_position().column;
+                    let y = child.end_position().column;
+                    let message = &source[h][x..y];
+                    if let Some(tofind) = tofind {
+                        if message == tofind {
+                            defs.push((
+                                message.to_string(),
+                                Location {
+                                    uri: Url::from_file_path(&local_path).unwrap(),
+                                    range: Range {
+                                        start: point_to_position(child.start_position()),
+                                        end: point_to_position(child.end_position()),
+                                    },
+                                },
+                                format!("variable in {}", local_path.display()),
+                            ))
+                        };
+                    }
+                }
+            }
             _ => {}
+        }
+        if let Some(mut message) = getsubdef(
+            tofind,
+            child,
+            source,
+            local_path,
+            postype,
+            location,
+            include_files,
+            complete_packages,
+            true,
+            find_cmake_in_package,
+            is_jump,
+        ) {
+            defs.append(&mut message);
         }
     }
     if defs.is_empty() {
@@ -455,13 +491,14 @@ fn get_cmake_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<(String, Location)>> {
+    is_jump: bool,
+) -> Option<Vec<(String, Location, String)>> {
     let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {
         let Some(mut packages) =
-            include::scanner_package_defs(path, postype, include_files, complete_packages)
+            include::scanner_package_defs(path, postype, include_files, complete_packages, is_jump)
         else {
             continue;
         };

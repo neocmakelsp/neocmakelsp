@@ -10,6 +10,7 @@ use crate::filewatcher;
 use crate::formatting::getformat;
 use crate::gammar::checkerror;
 use crate::gammar::LintConfigInfo;
+use crate::hover;
 use crate::jump;
 use crate::scansubs;
 use crate::semantic_token;
@@ -303,6 +304,8 @@ impl LanguageServer for Backend {
         let context = input.text_document.text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
+        drop(storemap);
+
         self.publish_diagnostics(
             uri,
             context,
@@ -323,6 +326,7 @@ impl LanguageServer for Backend {
         let context = input.content_changes[0].text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
+        drop(storemap);
         if context.lines().count() < 500 {
             self.publish_diagnostics(
                 uri,
@@ -344,25 +348,28 @@ impl LanguageServer for Backend {
         let storemap = BUFFERS_CACHE.lock().await;
 
         let has_root = self.root_path.lock().await.is_some();
+        let Some(context) = storemap.get(&uri).cloned() else {
+            self.client
+                .log_message(MessageType::INFO, "file saved!")
+                .await;
+            return;
+        };
+        drop(storemap);
         if has_root {
             scansubs::scan_dir(uri.path()).await;
-        };
-
-        if let Some(context) = storemap.get(&uri) {
-            if has_root {
-                complete::update_cache(uri.path(), context).await;
-                jump::update_cache(uri.path(), context).await;
-            }
-            self.publish_diagnostics(
-                uri,
-                context.to_string(),
-                LintConfigInfo {
-                    use_lint: self.init_info.lock().await.enable_lint,
-                    use_extra_cmake_lint: true,
-                },
-            )
-            .await;
+            complete::update_cache(uri.path(), &context).await;
+            jump::update_cache(uri.path(), &context).await;
         }
+        self.publish_diagnostics(
+            uri,
+            context.to_string(),
+            LintConfigInfo {
+                use_lint: self.init_info.lock().await.enable_lint,
+                use_extra_cmake_lint: true,
+            },
+        )
+        .await;
+
         self.client
             .log_message(MessageType::INFO, "file saved!")
             .await;
@@ -373,27 +380,23 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position_params.text_document.uri;
         let storemap = BUFFERS_CACHE.lock().await;
         self.client.log_message(MessageType::INFO, "Hovered!").await;
-        //notify_send("test", Type::Error);
-        match storemap.get(&uri) {
-            Some(context) => {
-                let mut parse = Parser::new();
-                parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-                let thetree = parse.parse(context.clone(), None);
-                let tree = thetree.unwrap();
-                let output = treehelper::get_cmake_doc(position, tree.root_node(), context);
-                match output {
-                    Some(context) => Ok(Some(Hover {
-                        contents: HoverContents::Scalar(MarkedString::String(context)),
-                        range: Some(Range {
-                            start: position,
-                            end: position,
-                        }),
-                    })),
-                    None => Ok(None),
-                }
-                //notify_send(context, Type::Error);
-                //Ok(None)
-            }
+        let Some(context) = storemap.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        drop(storemap);
+        let mut parse = Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context.clone(), None);
+        let tree = thetree.unwrap();
+        let output = hover::get_hovered_doc(uri.path(), position, tree.root_node(), &context).await;
+        match output {
+            Some(context) => Ok(Some(Hover {
+                contents: HoverContents::Scalar(MarkedString::String(context)),
+                range: Some(Range {
+                    start: position,
+                    end: position,
+                }),
+            })),
             None => Ok(None),
         }
     }
@@ -457,22 +460,21 @@ impl LanguageServer for Backend {
         //println!("{:?}", uri);
         let location = input.text_document_position.position;
         let storemap = BUFFERS_CACHE.lock().await;
-        match storemap.get(&uri) {
-            Some(context) => {
-                let mut parse = Parser::new();
-                parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-                //notify_send(context, Type::Error);
-                Ok(jump::godef(
-                    location,
-                    context,
-                    uri.path().to_string(),
-                    &self.client,
-                    false,
-                )
-                .await)
-            }
-            None => Ok(None),
-        }
+        let Some(context) = storemap.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        let mut parse = Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        //notify_send(context, Type::Error);
+        Ok(jump::godef(
+            location,
+            context.as_str(),
+            uri.path().to_string(),
+            &self.client,
+            self.init_info.lock().await.scan_cmake_in_package,
+            false,
+        )
+        .await)
     }
     async fn goto_definition(
         &self,
@@ -481,49 +483,49 @@ impl LanguageServer for Backend {
         let uri = input.text_document_position_params.text_document.uri;
         let location = input.text_document_position_params.position;
         let storemap = BUFFERS_CACHE.lock().await;
-        match storemap.get(&uri) {
-            Some(context) => {
-                let mut parse = Parser::new();
-                parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-                let thetree = parse.parse(context.clone(), None);
-                let tree = thetree.unwrap();
-                let origin_selection_range =
-                    treehelper::get_position_range(location, tree.root_node());
+        let Some(context) = storemap.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        drop(storemap);
 
-                //notify_send(context, Type::Error);
-                match jump::godef(
-                    location,
-                    context,
-                    uri.path().to_string(),
-                    &self.client,
-                    true,
-                )
-                .await
-                {
-                    Some(range) => Ok(Some(GotoDefinitionResponse::Link({
-                        range
-                            .iter()
-                            .filter(|input| match origin_selection_range {
-                                Some(origin) => origin != input.range,
-                                None => true,
-                            })
-                            .map(|range| LocationLink {
-                                origin_selection_range,
-                                target_uri: range.uri.clone(),
-                                target_range: range.range,
-                                target_selection_range: range.range,
-                            })
-                            .collect()
-                    }))),
-                    None => Ok(None),
-                }
+        let mut parse = Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context.clone(), None);
+        let tree = thetree.unwrap();
+        let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
-                //Ok(None)
-            }
+        //notify_send(context, Type::Error);
+        match jump::godef(
+            location,
+            &context,
+            uri.path().to_string(),
+            &self.client,
+            self.init_info.lock().await.scan_cmake_in_package,
+            true,
+        )
+        .await
+        {
+            Some(range) => Ok(Some(GotoDefinitionResponse::Link({
+                range
+                    .iter()
+                    .filter(|input| match origin_selection_range {
+                        Some(origin) => origin != input.range,
+                        None => true,
+                    })
+                    .map(|range| LocationLink {
+                        origin_selection_range,
+                        target_uri: range.uri.clone(),
+                        target_range: range.range,
+                        target_selection_range: range.range,
+                    })
+                    .collect()
+            }))),
             None => Ok(None),
         }
+
         //Ok(None)
     }
+    //Ok(None)
     async fn document_symbol(
         &self,
         input: DocumentSymbolParams,
