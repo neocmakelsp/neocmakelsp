@@ -62,10 +62,7 @@ impl Backend {
         }
 
         // NOTE: not enough good, but is ok
-        if path.starts_with("/usr") {
-            return false;
-        }
-        true
+        !path.starts_with("/usr")
     }
     async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
         if !self.path_in_project(uri.path()).await {
