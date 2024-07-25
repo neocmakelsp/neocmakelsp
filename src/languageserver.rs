@@ -27,10 +27,10 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::LanguageServer;
 use tree_sitter::Parser;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static BUFFERS_CACHE: Lazy<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 

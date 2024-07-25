@@ -3,12 +3,12 @@ use tower_lsp::{
     Client,
 };
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
-static NUMBERREGEX: Lazy<regex::Regex> =
-    Lazy::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
+static NUMBERREGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
 const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "FALSE"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];

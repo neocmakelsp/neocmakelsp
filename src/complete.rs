@@ -17,14 +17,14 @@ use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, MessageType, Position,
 };
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
 /// NOTE: collect the all completeitems in this PathBuf
 /// Include the top CMakeList.txt
-pub static COMPLETE_CACHE: Lazy<Arc<Mutex<CompleteKV>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";

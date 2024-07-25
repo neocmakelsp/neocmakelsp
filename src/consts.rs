@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static TREESITTER_CMAKE_LANGUAGE: Lazy<tree_sitter::Language> =
-    Lazy::new(tree_sitter_cmake::language);
+pub static TREESITTER_CMAKE_LANGUAGE: LazyLock<tree_sitter::Language> =
+    LazyLock::new(tree_sitter_cmake::language);

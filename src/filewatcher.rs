@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -7,12 +7,12 @@ use std::sync::Mutex;
 
 // match like ss_DIR:PATH=ss_DIR-NOTFOUND
 
-static NOT_FOUND_LIBRARY: Lazy<regex::Regex> = Lazy::new(|| {
+static NOT_FOUND_LIBRARY: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"^(?P<library>[\da-zA-Z]+)_DIR:PATH=([\da-zA-Z]+)_DIR-NOTFOUND$").unwrap()
 });
 
-static ERROR_PACKAGES: Lazy<Arc<Mutex<Vec<String>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(Vec::new())));
+static ERROR_PACKAGES: LazyLock<Arc<Mutex<Vec<String>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(Vec::new())));
 
 #[test]
 fn failedtest() {

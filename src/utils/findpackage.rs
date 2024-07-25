@@ -22,17 +22,17 @@ mod packagemac;
 use packagemac as cmakepackage;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 // match file xx.cmake and CMakeLists.txt
-static CMAKEREGEX: Lazy<regex::Regex> =
-    Lazy::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
+static CMAKEREGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
 
 // config file
-static CMAKECONFIG: Lazy<regex::Regex> =
-    Lazy::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
+static CMAKECONFIG: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
 // config version file
-static CMAKECONFIGVERSION: Lazy<regex::Regex> =
-    Lazy::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
+static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
 fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut parse = tree_sitter::Parser::new();
@@ -72,7 +72,7 @@ fn get_version(source: &str) -> Option<String> {
 }
 #[cfg(unix)]
 pub mod packagepkgconfig {
-    use once_cell::sync::Lazy;
+    use std::sync::LazyLock;
     use std::collections::HashMap;
     pub struct PkgConfig {
         pub libname: String,
@@ -129,11 +129,11 @@ pub mod packagepkgconfig {
         let _ = generatepackage();
         packages
     }
-    pub static PKG_CONFIG_PACKAGES_WITHKEY: Lazy<HashMap<String, PkgConfig>> =
-        Lazy::new(get_pkg_messages);
+    pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
+        LazyLock::new(get_pkg_messages);
 
-    pub static PKG_CONFIG_PACKAGES: Lazy<Vec<PkgConfig>> =
-        Lazy::new(|| get_pkg_messages().into_values().collect());
+    pub static PKG_CONFIG_PACKAGES: LazyLock<Vec<PkgConfig>> =
+        LazyLock::new(|| get_pkg_messages().into_values().collect());
 }
 pub use cmakepackage::*;
 

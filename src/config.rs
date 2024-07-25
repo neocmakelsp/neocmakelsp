@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
@@ -57,7 +57,7 @@ impl Default for CMakeLintConfig {
     }
 }
 
-pub static CMAKE_LINT_CONFIG: Lazy<CMakeLintConfig> = Lazy::new(|| {
+pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
     let Ok(mut file) = std::fs::OpenOptions::new()
         .read(true)
         .open(".neocmakelint.toml")
@@ -75,8 +75,8 @@ pub static CMAKE_LINT_CONFIG: Lazy<CMakeLintConfig> = Lazy::new(|| {
     CMakeLintConfig::default()
 });
 
-pub static CMAKE_LINT: Lazy<LintSuggestion> =
-    Lazy::new(|| CMAKE_LINT_CONFIG.command_upcase.clone().into());
+pub static CMAKE_LINT: LazyLock<LintSuggestion> =
+    LazyLock::new(|| CMAKE_LINT_CONFIG.command_upcase.clone().into());
 
 #[cfg(test)]
 mod tests {

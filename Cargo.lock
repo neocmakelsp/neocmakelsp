@@ -621,7 +621,6 @@ dependencies = [
  "cli-table",
  "glob",
  "ignore",
- "once_cell",
  "regex",
  "rust-ini",
  "serde",

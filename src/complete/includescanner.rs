@@ -9,12 +9,12 @@ use tower_lsp::lsp_types;
 
 use std::sync::{Arc, Mutex};
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 type CacheData = HashMap<PathBuf, Vec<CompletionItem>>;
 
-static PACKAGE_COMPLETE_CACHE: Lazy<Arc<Mutex<CacheData>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub fn scanner_include_complete(
     path: &PathBuf,

@@ -1,5 +1,5 @@
 use crate::utils::{CMakePackage, FileType};
-use once_cell::sync::Lazy;
+use sgd::sync::LazyLock;
 use std::{
     collections::HashMap,
     fs,
@@ -8,11 +8,11 @@ use std::{
 
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
-pub static CMAKE_PACKAGES: Lazy<Vec<CMakePackage>> =
-    Lazy::new(|| get_cmake_message().into_values().collect());
+pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
+    LazyLock::new(|| get_cmake_message().into_values().collect());
 
-pub static CMAKE_PACKAGES_WITHKEY: Lazy<HashMap<String, CMakePackage>> =
-    Lazy::new(get_cmake_message);
+pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
+    LazyLock::new(get_cmake_message);
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = Vec::new();
@@ -53,6 +53,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             if ispackage {
                 let packagename = path
                     .parent()
+
                     .unwrap()
                     .file_name()
                     .unwrap()

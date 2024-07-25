@@ -11,7 +11,7 @@ use std::fs;
 
 use std::sync::{Arc, Mutex};
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 fn ismodule(tojump: &str) -> bool {
     tojump.split('.').count() == 1
 }
@@ -72,8 +72,8 @@ fn ut_ismodule() {
 
 type CacheData = HashMap<PathBuf, Vec<(String, Location, String)>>;
 
-static PACKAGE_COMPLETE_CACHE: Lazy<Arc<Mutex<CacheData>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub fn scanner_include_def(
     path: &PathBuf,

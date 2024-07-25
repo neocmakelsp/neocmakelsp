@@ -1,6 +1,6 @@
 /// buildin Commands and vars
 use anyhow::Result;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::process::Command;
 use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
@@ -64,7 +64,7 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
 }
 
 /// CMake build in commands
-pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
         .arg("--help-commands")
@@ -143,7 +143,7 @@ pub static BUILDIN_COMMAND: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
 });
 
 /// cmake buildin vars
-pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+pub static BUILDIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake")
         .arg("--help-variables")
@@ -171,7 +171,7 @@ pub static BUILDIN_VARIABLE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
 });
 
 /// Cmake buildin modules
-pub static BUILDIN_MODULE: Lazy<Result<Vec<CompletionItem>>> = Lazy::new(|| {
+pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let output = Command::new("cmake").arg("--help-modules").output()?.stdout;
     let temp = String::from_utf8_lossy(&output);

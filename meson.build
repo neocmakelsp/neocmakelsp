@@ -5,9 +5,9 @@ project(
   meson_version : '>= 1.1.0'
 )
 
-cargo = find_program('cargo', version: '>= 1.75')
+cargo = find_program('cargo', version: '>= 1.80')
 
-rustc = find_program('rustc', version: '>= 1.75')
+find_program('rustc', version: '>= 1.80')
 
 if get_option('debug')
   command = [
@@ -33,7 +33,7 @@ fish_compeletion_dir = datadir / 'fish' / 'functions'
 bash_compeletion_dir = datadir / 'bash-compeletion' / 'completions'
 zsh_compeletion_dir = datadir / 'zsh' / 'site-functions'
 
-neocmakelsp_target = custom_target('neocmakelsp',
+custom_target('neocmakelsp',
   output: 'neocmakelsp',
   build_by_default: true,
   install: true,

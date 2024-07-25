@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use lsp_types::{MessageType, Position, Range, Url};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use tower_lsp::lsp_types;
 mod findpackage;
 mod include;
@@ -29,8 +29,8 @@ use tree_sitter::Node;
 
 pub type JumpKV = HashMap<String, (Location, String)>;
 
-pub static JUMP_CACHE: Lazy<Arc<Mutex<JumpKV>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
 

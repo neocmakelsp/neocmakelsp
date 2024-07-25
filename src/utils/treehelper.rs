@@ -1,6 +1,6 @@
 use lsp_types::Position;
 use lsp_types::Range;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
@@ -97,8 +97,7 @@ pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
     None
 }
 
-//#[allow(unused)]
-pub static MESSAGE_STORAGE: Lazy<HashMap<String, String>> = Lazy::new(|| {
+pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let mut storage: HashMap<String, String> = HashMap::new();
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     if let Ok(output) = Command::new("cmake").arg("--help-commands").output() {

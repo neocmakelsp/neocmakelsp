@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::utils::{CMakePackage, FileType};
 
@@ -124,7 +124,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
     packages
 }
 
-pub static CMAKE_PACKAGES: Lazy<Vec<CMakePackage>> =
-    Lazy::new(|| get_cmake_message().into_values().collect());
+pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
+    LazyLock::new(|| get_cmake_message().into_values().collect());
 pub static CMAKE_PACKAGES_WITHKEY: Lazy<HashMap<String, CMakePackage>> =
-    Lazy::new(get_cmake_message);
+    LazyLock::new(get_cmake_message);
