@@ -72,8 +72,8 @@ fn get_version(source: &str) -> Option<String> {
 }
 #[cfg(unix)]
 pub mod packagepkgconfig {
-    use std::sync::LazyLock;
     use std::collections::HashMap;
+    use std::sync::LazyLock;
     pub struct PkgConfig {
         pub libname: String,
         pub path: String,

@@ -4,9 +4,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -17,7 +17,8 @@ pub type TreeKey = HashMap<PathBuf, PathBuf>;
 
 // NOTE: here get the struct of the tree
 // Cache the data of the struct
-pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> = LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn scan_all<P: AsRef<Path>>(project_root: P) {
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");

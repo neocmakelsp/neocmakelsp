@@ -1,9 +1,9 @@
 use lsp_types::Position;
 use lsp_types::Range;
-use std::sync::LazyLock;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
+use std::sync::LazyLock;
 /// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};

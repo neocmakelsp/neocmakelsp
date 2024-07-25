@@ -53,7 +53,6 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             if ispackage {
                 let packagename = path
                     .parent()
-
                     .unwrap()
                     .file_name()
                     .unwrap()

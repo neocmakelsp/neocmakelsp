@@ -1,7 +1,7 @@
 /// buildin Commands and vars
 use anyhow::Result;
-use std::sync::LazyLock;
 use std::process::Command;
+use std::sync::LazyLock;
 use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
