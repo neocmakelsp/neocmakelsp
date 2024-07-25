@@ -1,5 +1,5 @@
 use crate::utils::{CMakePackage, FileType};
-use sgd::sync::LazyLock;
+use std::sync::LazyLock;
 use std::{
     collections::HashMap,
     fs,
