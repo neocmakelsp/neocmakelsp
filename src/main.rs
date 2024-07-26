@@ -19,6 +19,7 @@ mod clapargs;
 mod complete;
 mod config;
 mod consts;
+mod fileapi;
 mod filewatcher;
 mod formatting;
 mod gammar;
