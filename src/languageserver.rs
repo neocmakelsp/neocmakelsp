@@ -6,6 +6,8 @@ use super::Backend;
 use crate::ast;
 use crate::complete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::fileapi;
+use crate::fileapi::DEFAULT_QUERY;
 use crate::filewatcher;
 use crate::formatting::getformat;
 use crate::gammar::checkerror;
@@ -151,15 +153,51 @@ impl LanguageServer for Backend {
                         if path.exists() {
                             filewatcher::refresh_error_packages(path);
                         }
+
+                        let cache_path = std::path::Path::new(uri.path())
+                            .join("build")
+                            .join(".cmake")
+                            .join("api")
+                            .join("v1")
+                            .join("reply");
+                        if cache_path.is_dir() {
+                            use std::fs;
+                            if let Ok(entrys) = fs::read_dir(cache_path) {
+                                for entry in entrys.flatten() {
+                                    let file_path = entry.path();
+                                    if file_path.is_file() {
+                                        let Some(file_name) = file_path.file_name() else {
+                                            continue;
+                                        };
+                                        let file_name = file_name.to_string_lossy().to_string();
+                                        if file_name.starts_with("cache-v2")
+                                            && file_name.ends_with(".json")
+                                        {
+                                            fileapi::update_cache_data(file_path);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
         if let Some(ref uri) = initial.root_uri {
+            use std::path::Path;
             scansubs::scan_all(uri.path()).await;
             let mut root_path = self.root_path.lock().await;
             root_path.replace(uri.path().into());
+
+            let build_dir = Path::new(uri.path()).join("build");
+
+            if build_dir.is_dir() {
+                if let Some(query) = &*DEFAULT_QUERY {
+                    query.write_to_build_dir(build_dir.as_path()).ok();
+                }
+            }
         }
 
         set_client_text_document(initial.capabilities.text_document);
@@ -245,6 +283,10 @@ impl LanguageServer for Backend {
                     kind: Some(lsp_types::WatchKind::all()),
                 },
                 FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/.cmake/api/v1/reply/*.json".to_string()),
+                    kind: Some(lsp_types::WatchKind::all()),
+                },
+                FileSystemWatcher {
                     glob_pattern: GlobPattern::String("**/CMakeLists.txt".to_string()),
                     kind: Some(lsp_types::WatchKind::Create | lsp_types::WatchKind::Delete),
                 },
@@ -284,25 +326,37 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        let mut has_cached_changed = false;
         for change in params.changes {
-            if let Some("CMakeLists.txt") = change.uri.path().split('/').last() {
-                let Some(ref path) = *self.root_path.lock().await else {
-                    continue;
-                };
-                scansubs::scan_all(path).await;
+            let Some(file_name) = change.uri.path().split('/').last() else {
                 continue;
+            };
+            if file_name.ends_with("json") && file_name.starts_with("cache-v2") {
+                fileapi::update_cache_data(change.uri.path());
             }
-            self.client
-                .log_message(MessageType::INFO, "CMakeCache changed")
-                .await;
-            if let FileChangeType::DELETED = change.typ {
-                filewatcher::clear_error_packages();
-            } else {
-                let path = change.uri.path();
-                filewatcher::refresh_error_packages(path);
+            if file_name.ends_with("txt") {
+                has_cached_changed = true;
+                if file_name == "CMakeLists.txt" {
+                    let Some(ref path) = *self.root_path.lock().await else {
+                        continue;
+                    };
+                    scansubs::scan_all(path).await;
+                    continue;
+                }
+                self.client
+                    .log_message(MessageType::INFO, "CMakeCache changed")
+                    .await;
+                if let FileChangeType::DELETED = change.typ {
+                    filewatcher::clear_error_packages();
+                } else {
+                    let path = change.uri.path();
+                    filewatcher::refresh_error_packages(path);
+                }
             }
         }
-        self.update_diagnostics().await;
+        if has_cached_changed {
+            self.update_diagnostics().await;
+        }
         self.client
             .log_message(MessageType::INFO, "watched files have changed!")
             .await;
@@ -469,7 +523,6 @@ impl LanguageServer for Backend {
     }
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
-        //println!("{:?}", uri);
         let location = input.text_document_position.position;
         let storemap = BUFFERS_CACHE.lock().await;
         let Some(context) = storemap.get(&uri).cloned() else {

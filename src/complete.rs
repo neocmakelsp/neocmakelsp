@@ -2,6 +2,7 @@ mod buildin;
 mod findpackage;
 mod includescanner;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::fileapi;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
@@ -112,6 +113,9 @@ pub async fn getcomplete(
     let mut cached_compeletion = get_cached_completion(local_path).await;
     if !cached_compeletion.is_empty() {
         complete.append(&mut cached_compeletion);
+    }
+    if let Some(mut cmake_cache) = fileapi::get_complete_data() {
+        complete.append(&mut cmake_cache);
     }
     let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
     match postype {

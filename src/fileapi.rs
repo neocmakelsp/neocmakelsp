@@ -1,6 +1,35 @@
+pub mod cache;
+
+use cache::Cache;
 use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
+use tower_lsp::lsp_types::CompletionItem;
+
+use std::{
+    path::Path,
+    sync::{LazyLock, OnceLock},
+};
+
+pub static CACHE_DATA: OnceLock<Cache> = OnceLock::new();
+
+pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<()> {
+    use std::fs::File;
+    let file = File::open(cache_file).ok()?;
+
+    let cache: Cache = serde_json::from_reader(file).ok()?;
+
+    CACHE_DATA.set(cache).ok()
+}
+
+#[inline]
+pub fn get_complete_data() -> Option<Vec<CompletionItem>> {
+    Some(CACHE_DATA.get()?.gen_completions())
+}
+
+pub static DEFAULT_QUERY: LazyLock<Option<QueryJson>> = LazyLock::new(QueryJson::from_command);
+
+pub const REGISTED_NAME: &str = "client-neocmake";
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ApiVersion {
@@ -39,10 +68,27 @@ impl QueryJson {
 
         Self::new(&context)
     }
+
+    pub fn write_to_build_dir(&self, build_dir: &Path) -> std::io::Result<()> {
+        use std::fs;
+        let registed_dir = build_dir
+            .join(".cmake")
+            .join("api")
+            .join("v1")
+            .join("query")
+            .join(REGISTED_NAME);
+        fs::create_dir_all(&registed_dir)?;
+        let file_path = registed_dir.join("query.json");
+        let file = fs::File::create(file_path)?;
+        serde_json::to_writer(file, self)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod api_test {
+    use super::Cache;
     use super::QueryJson;
 
     #[test]
@@ -55,5 +101,10 @@ mod api_test {
         let json_target: QueryJson = serde_json::from_str(&final_json).unwrap();
 
         assert_eq!(json_target, json);
+
+        let _cache: Cache = serde_json::from_str(include_str!(
+            "../assert/fileapi/cache-v2-c1f0b50299da00258c61.json"
+        ))
+        .unwrap();
     }
 }
