@@ -1,0 +1,108 @@
+{
+	"debugger": true,
+	"fileApi": {
+		"requests": [
+			{
+				"kind": "codemodel",
+				"version": [
+					{
+						"major": 2,
+						"minor": 7
+					}
+				]
+			},
+			{
+				"kind": "configureLog",
+				"version": [
+					{
+						"major": 1,
+						"minor": 0
+					}
+				]
+			},
+			{
+				"kind": "cache",
+				"version": [
+					{
+						"major": 2,
+						"minor": 0
+					}
+				]
+			},
+			{
+				"kind": "cmakeFiles",
+				"version": [
+					{
+						"major": 1,
+						"minor": 1
+					}
+				]
+			},
+			{
+				"kind": "toolchains",
+				"version": [
+					{
+						"major": 1,
+						"minor": 0
+					}
+				]
+			}
+		]
+	},
+	"generators": [
+		{
+			"extraGenerators": [],
+			"name": "Watcom WMake",
+			"platformSupport": false,
+			"toolsetSupport": false
+		},
+		{
+			"extraGenerators": [
+				"Kate"
+			],
+			"name": "Ninja Multi-Config",
+			"platformSupport": false,
+			"toolsetSupport": false
+		},
+		{
+			"extraGenerators": [
+				"CodeBlocks",
+				"CodeLite",
+				"Eclipse CDT4",
+				"Kate",
+				"Sublime Text 2"
+			],
+			"name": "Ninja",
+			"platformSupport": false,
+			"toolsetSupport": false
+		},
+		{
+			"extraGenerators": [
+				"CodeBlocks",
+				"CodeLite",
+				"Eclipse CDT4",
+				"Kate",
+				"Sublime Text 2"
+			],
+			"name": "Unix Makefiles",
+			"platformSupport": false,
+			"toolsetSupport": false
+		},
+		{
+			"extraGenerators": [],
+			"name": "Green Hills MULTI",
+			"platformSupport": true,
+			"toolsetSupport": true
+		}
+	],
+	"serverMode": false,
+	"tls": true,
+	"version": {
+		"isDirty": false,
+		"major": 3,
+		"minor": 30,
+		"patch": 1,
+		"string": "3.30.1",
+		"suffix": ""
+	}
+}
