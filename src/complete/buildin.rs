@@ -105,7 +105,6 @@ pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::ne
     Ok(completes
         .iter()
         .map(|(akey, message)| {
-            let mut kind = CompletionItemKind::FUNCTION;
             let mut insert_text_format = InsertTextFormat::PLAIN_TEXT;
             let mut insert_text = akey.to_string();
             let mut detail = "Function".to_string();
@@ -121,7 +120,6 @@ pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::ne
                 insert_text = match r_match_signature.captures(message) {
                     Some(m) => {
                         insert_text_format = InsertTextFormat::SNIPPET;
-                        kind = CompletionItemKind::SNIPPET;
                         detail += " (Snippet)";
                         convert_to_lsp_snippet(akey, m.name("signature").unwrap().as_str())
                     }
@@ -131,7 +129,7 @@ pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::ne
 
             CompletionItem {
                 label: akey.to_string(),
-                kind: Some(kind),
+                kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some(detail),
                 documentation: Some(Documentation::String(message.to_string())),
                 insert_text: Some(insert_text),
