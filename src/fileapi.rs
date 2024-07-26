@@ -29,7 +29,7 @@ pub fn get_complete_data() -> Option<Vec<CompletionItem>> {
 
 pub static DEFAULT_QUERY: LazyLock<Option<QueryJson>> = LazyLock::new(QueryJson::from_command);
 
-pub const REGISTED_NAME: &str = "client-neocmake";
+pub const REGISTERED_NAME: &str = "client-neocmake";
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct ApiVersion {
@@ -71,14 +71,14 @@ impl QueryJson {
 
     pub fn write_to_build_dir(&self, build_dir: &Path) -> std::io::Result<()> {
         use std::fs;
-        let registed_dir = build_dir
+        let registered_dir = build_dir
             .join(".cmake")
             .join("api")
             .join("v1")
             .join("query")
-            .join(REGISTED_NAME);
-        fs::create_dir_all(&registed_dir)?;
-        let file_path = registed_dir.join("query.json");
+            .join(REGISTERED_NAME);
+        fs::create_dir_all(&registered_dir)?;
+        let file_path = registered_dir.join("query.json");
         let file = fs::File::create(file_path)?;
         serde_json::to_writer(file, self)?;
 
