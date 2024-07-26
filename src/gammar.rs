@@ -14,6 +14,7 @@ pub(crate) struct LintConfigInfo {
 
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
+#[derive(Debug)]
 pub struct ErrorInfo {
     pub inner: Vec<(
         tree_sitter::Point,
@@ -131,10 +132,13 @@ fn checkerror_inner(
                 Some(DiagnosticSeverity::HINT),
             ));
         }
-        if name.to_lowercase() == "find_package" && node.child_count() >= 4 {
-            let mut walk = node.walk();
+        if name.to_lowercase() == "find_package" {
             let errorpackages = crate::filewatcher::get_error_packages();
-            for child in node.children(&mut walk) {
+            let Some(arguments) = node.child(2) else {
+                continue;
+            };
+            let mut walk = arguments.walk();
+            for child in arguments.children(&mut walk) {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
