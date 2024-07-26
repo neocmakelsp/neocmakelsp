@@ -164,6 +164,9 @@ async fn main() {
                     .unwrap_or_else(|_| panic!("error pattern"))
                     .flatten()
                 {
+                    if !filepath.is_file() {
+                        continue;
+                    }
                     if let Some(ref ignorepatterns) = ignorepatterns {
                         if ignorepatterns.matched(&filepath, false).is_ignore() {
                             continue;
@@ -182,7 +185,11 @@ async fn main() {
                         }
                     };
                     let mut buf = String::new();
-                    file.read_to_string(&mut buf).unwrap();
+
+                    if let Err(e) = file.read_to_string(&mut buf) {
+                        println!("cannot read {} : error {}", filepath.display(), e);
+                        continue;
+                    }
                     let mut parse = tree_sitter::Parser::new();
                     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
                     match formatting::get_format_cli(&buf, spacelen, use_space) {
@@ -229,7 +236,10 @@ async fn main() {
                             }
                         };
                         let mut buf = String::new();
-                        file.read_to_string(&mut buf).unwrap();
+                        if let Err(e) = file.read_to_string(&mut buf) {
+                            println!("cannot read {} : error {}", toformatpath.display(), e);
+                            continue;
+                        }
                         match formatting::get_format_cli(&buf, spacelen, use_space) {
                             Some(context) => {
                                 if hasoverride {
