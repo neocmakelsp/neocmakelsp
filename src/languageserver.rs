@@ -162,8 +162,8 @@ impl LanguageServer for Backend {
                             .join("reply");
                         if cache_path.is_dir() {
                             use std::fs;
-                            if let Ok(entrys) = fs::read_dir(cache_path) {
-                                for entry in entrys.flatten() {
+                            if let Ok(entries) = fs::read_dir(cache_path) {
+                                for entry in entries.flatten() {
                                     let file_path = entry.path();
                                     if file_path.is_file() {
                                         let Some(file_name) = file_path.file_name() else {
