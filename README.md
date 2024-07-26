@@ -159,13 +159,29 @@ capabilities = {
     workspace = {
         didChangeWatchedFiles = {
             dynamicRegistration = true,
+            relative_pattern_support = true,
         },
+
     },
+
 }
 ```
 
 It will check CMakeCache.txt, and get weather the package is exist
 
+Snippet Support
+
+```lua
+capabilities = {
+   textDocument = {
+       completion = {
+           completionItem = {
+               snippetSupport = true
+           }
+       }
+   }
+}
+```
 
 ### lsp init_options
 
