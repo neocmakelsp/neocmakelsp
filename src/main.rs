@@ -1,4 +1,3 @@
-use consts::TREESITTER_CMAKE_LANGUAGE;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -10,8 +9,6 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
 use clap::Parser;
-
-use ignore::gitignore::{Gitignore, GitignoreBuilder};
 
 use tokio::net::TcpListener;
 mod ast;
@@ -47,16 +44,6 @@ struct Backend {
     /// Storage the message of buffers
     init_info: Arc<Mutex<BackendInitInfo>>,
     root_path: Arc<Mutex<Option<PathBuf>>>,
-}
-
-fn gitignore() -> Option<Gitignore> {
-    let gitignore = std::path::Path::new(".gitignore");
-    if !gitignore.exists() {
-        return None;
-    }
-    let mut builder = GitignoreBuilder::new(std::env::current_dir().ok()?);
-    builder.add(gitignore);
-    builder.build().ok()
 }
 
 fn editconfig_setting() -> Option<(bool, u32)> {
@@ -156,115 +143,67 @@ async fn main() {
             format_paths,
             hasoverride,
         } => {
+            use ignore::Walk;
+            use std::path::Path;
             let (use_space, spacelen) = editconfig_setting().unwrap_or((true, 2));
-            let ignorepatterns = gitignore();
-
-            let formatpattern = |pattern: &str| {
-                for filepath in glob::glob(pattern)
-                    .unwrap_or_else(|_| panic!("error pattern"))
-                    .flatten()
+            let format_file = |format_file: &Path| {
+                let mut file = match std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(hasoverride)
+                    .open(format_file)
                 {
-                    if !filepath.is_file() {
-                        continue;
+                    Ok(file) => file,
+                    Err(e) => {
+                        println!("cannot read file {} :{e}", format_file.display());
+                        return;
                     }
-                    if let Some(ref ignorepatterns) = ignorepatterns {
-                        if ignorepatterns.matched(&filepath, false).is_ignore() {
-                            continue;
+                };
+                let mut buf = String::new();
+                if let Err(e) = file.read_to_string(&mut buf) {
+                    println!("cannot read {} : error {}", format_file.display(), e);
+                    return;
+                }
+                match formatting::get_format_cli(&buf, spacelen, use_space) {
+                    Some(context) => {
+                        if hasoverride {
+                            if let Err(e) = file.set_len(0) {
+                                println!("Cannot clear the file: {e}");
+                            };
+                            if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
+                                println!("Cannot jump to end: {e}");
+                            };
+                            let Ok(_) = file.write_all(context.as_bytes()) else {
+                                println!("cannot write in {}", format_file.display());
+                                return;
+                            };
+                            let _ = file.flush();
+                        } else {
+                            println!("{context}")
                         }
                     }
-
-                    let mut file = match std::fs::OpenOptions::new()
-                        .read(true)
-                        .write(hasoverride)
-                        .open(&filepath)
-                    {
-                        Ok(file) => file,
-                        Err(e) => {
-                            println!("cannot read file {} :{e}", filepath.display());
-                            continue;
-                        }
-                    };
-                    let mut buf = String::new();
-
-                    if let Err(e) = file.read_to_string(&mut buf) {
-                        println!("cannot read {} : error {}", filepath.display(), e);
-                        continue;
-                    }
-                    let mut parse = tree_sitter::Parser::new();
-                    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-                    match formatting::get_format_cli(&buf, spacelen, use_space) {
-                        Some(context) => {
-                            if hasoverride {
-                                if let Err(e) = file.set_len(0) {
-                                    println!("Cannot clear the file: {e}");
-                                };
-                                if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
-                                    println!("Cannot jump to end: {e}");
-                                };
-                                let Ok(_) = file.write_all(context.as_bytes()) else {
-                                    println!("cannot write in {}", filepath.display());
-                                    continue;
-                                };
-                                let _ = file.flush();
-                            } else {
-                                println!("== Format of file {} is ==", filepath.display());
-                                println!("{context}");
-                                println!("== End ==");
-                                println!();
-                            }
-                        }
-                        None => {
-                            println!("There is error in file: {}", filepath.display());
-                        }
+                    None => {
+                        println!("There is error in file: {}", format_file.display());
                     }
                 }
             };
-            use std::path::Path;
+
             for format_path in format_paths {
                 let toformatpath = Path::new(format_path.as_str());
                 if toformatpath.exists() {
                     if toformatpath.is_file() {
-                        let mut file = match std::fs::OpenOptions::new()
-                            .read(true)
-                            .write(hasoverride)
-                            .open(&format_path)
-                        {
-                            Ok(file) => file,
-                            Err(e) => {
-                                println!("cannot read file {} :{e}", format_path);
-                                return;
-                            }
-                        };
-                        let mut buf = String::new();
-                        if let Err(e) = file.read_to_string(&mut buf) {
-                            println!("cannot read {} : error {}", toformatpath.display(), e);
-                            continue;
-                        }
-                        match formatting::get_format_cli(&buf, spacelen, use_space) {
-                            Some(context) => {
-                                if hasoverride {
-                                    if let Err(e) = file.set_len(0) {
-                                        println!("Cannot clear the file: {e}");
-                                    };
-                                    if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
-                                        println!("Cannot jump to end: {e}");
-                                    };
-                                    let Ok(_) = file.write_all(context.as_bytes()) else {
-                                        println!("cannot write in {}", format_path);
-                                        return;
-                                    };
-                                    let _ = file.flush();
-                                } else {
-                                    println!("{context}")
-                                }
-                            }
-                            None => {
-                                println!("There is error in file: {}", format_path);
-                            }
-                        }
+                        format_file(toformatpath);
                     } else {
-                        formatpattern(&format!("./{}/**/*.cmake", format_path));
-                        formatpattern(&format!("./{}/**/CMakeLists.txt", format_path));
+                        for results in Walk::new(&format_path).flatten() {
+                            let file_path = results.path();
+                            if file_path.is_dir() {
+                                continue;
+                            }
+                            if file_path.ends_with("CMakeLists.txt")
+                                || file_path.extension().is_some_and(|ex| ex == "cmake")
+                            {
+                                format_file(file_path);
+                            }
+                        }
                     }
                 }
             }
