@@ -189,20 +189,21 @@ async fn main() {
 
             for format_path in format_paths {
                 let toformatpath = Path::new(format_path.as_str());
-                if toformatpath.exists() {
-                    if toformatpath.is_file() {
-                        format_file(toformatpath);
-                    } else {
-                        for results in Walk::new(&format_path).flatten() {
-                            let file_path = results.path();
-                            if file_path.is_dir() {
-                                continue;
-                            }
-                            if file_path.ends_with("CMakeLists.txt")
-                                || file_path.extension().is_some_and(|ex| ex == "cmake")
-                            {
-                                format_file(file_path);
-                            }
+                if !toformatpath.exists() {
+                    continue;
+                }
+                if toformatpath.is_file() {
+                    format_file(toformatpath);
+                } else {
+                    for results in Walk::new(&format_path).flatten() {
+                        let file_path = results.path();
+                        if file_path.is_dir() {
+                            continue;
+                        }
+                        if file_path.ends_with("CMakeLists.txt")
+                            || file_path.extension().is_some_and(|ex| ex == "cmake")
+                        {
+                            format_file(file_path);
                         }
                     }
                 }
