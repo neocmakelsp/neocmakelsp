@@ -1,5 +1,11 @@
 # Neocmakelsp
 
+## 0.8.0
+
+- support file api
+- use lazylock
+- support jump from function to files
+
 ## 0.7.6
 
 - feat: Update CompletionItem to meet the requirements of the LSP specification, by yangyingchao
