@@ -22,6 +22,8 @@ mod packagemac;
 use packagemac as cmakepackage;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use core::str;
+use std::path::Path;
 use std::sync::LazyLock;
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: LazyLock<regex::Regex> =
@@ -70,70 +72,84 @@ fn get_version(source: &str) -> Option<String> {
 
     None
 }
+
+pub fn did_vcpkg_project(root: &Path) -> bool {
+    if root.is_dir() && root.join("vcpkg.json").is_file() {
+        return true;
+    }
+    return false;
+}
+
+#[allow(unused_variables)]
+pub fn make_vcpkg_package_search_path(search_path: &Path) -> std::io::Result<Vec<&'static str>> {
+    // TODO: Dynamic search directory
+    let paths: Vec<&'static str> = [
+        "x64-linux/share",
+        "x86-linux/share",
+        "x64-windows/share",
+        "x86-windows/share",
+        "x64-osx/share",
+    ]
+    .to_vec();
+    return Ok(paths);
+}
+
 #[cfg(unix)]
 pub mod packagepkgconfig {
     use std::collections::HashMap;
-    use std::sync::LazyLock;
+    use std::sync::{Arc, LazyLock, Mutex};
     pub struct PkgConfig {
         pub libname: String,
         pub path: String,
     }
 
-    fn get_pkg_messages() -> HashMap<String, PkgConfig> {
+    fn get_pkg_messages(querystr_s: Vec<&str>) -> HashMap<String, PkgConfig> {
         let mut packages: HashMap<String, PkgConfig> = HashMap::new();
         let mut generatepackage = || -> anyhow::Result<()> {
-            for entry in glob::glob("/usr/lib/pkgconfig/*.pc")?.flatten() {
-                let p = entry.as_path().to_str().unwrap();
-                let name = p
-                    .split('/')
-                    .collect::<Vec<&str>>()
-                    .last()
-                    .unwrap()
-                    .to_string();
-                let realname = name
-                    .split('.')
-                    .collect::<Vec<&str>>()
-                    .first()
-                    .unwrap()
-                    .to_string();
-                packages
-                    .entry(realname.to_string())
-                    .or_insert_with(|| PkgConfig {
-                        libname: realname,
-                        path: p.to_string(),
-                    });
-            }
-            for entry in glob::glob("/usr/lib/*/pkgconfig/*.pc")?.flatten() {
-                let p = entry.as_path().to_str().unwrap();
-                let name = p
-                    .split('/')
-                    .collect::<Vec<&str>>()
-                    .last()
-                    .unwrap()
-                    .to_string();
-                let realname = name
-                    .split('.')
-                    .collect::<Vec<&str>>()
-                    .first()
-                    .unwrap()
-                    .to_string();
-                packages
-                    .entry(realname.to_string())
-                    .or_insert_with(|| PkgConfig {
-                        libname: realname,
-                        path: p.to_string(),
-                    });
+            for query_str in &querystr_s {
+                for entry in glob::glob(&query_str)?.flatten() {
+                    let p = entry.as_path().to_str().unwrap();
+                    let name = p
+                        .split('/')
+                        .collect::<Vec<&str>>()
+                        .last()
+                        .unwrap()
+                        .to_string();
+                    let realname = name
+                        .split('.')
+                        .collect::<Vec<&str>>()
+                        .first()
+                        .unwrap()
+                        .to_string();
+                    packages
+                        .entry(realname.to_string())
+                        .or_insert_with(|| PkgConfig {
+                            libname: realname,
+                            path: p.to_string(),
+                        });
+                }
             }
             Ok(())
         };
         let _ = generatepackage();
         packages
     }
-    pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
-        LazyLock::new(get_pkg_messages);
 
-    pub static PKG_CONFIG_PACKAGES: LazyLock<Vec<PkgConfig>> =
-        LazyLock::new(|| get_pkg_messages().into_values().collect());
+    // query packages rule
+    pub static QUERYSRULES: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
+        Arc::new(Mutex::new(
+            ["/usr/lib/pkgconfig/*.pc", "/usr/lib/*/pkgconfig/*.pc"].to_vec(),
+        ))
+    });
+
+    pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
+        LazyLock::new(|| get_pkg_messages(QUERYSRULES.lock().unwrap().to_vec()));
+
+    pub static PKG_CONFIG_PACKAGES: LazyLock<Vec<PkgConfig>> = LazyLock::new(|| {
+        get_pkg_messages(QUERYSRULES.lock().unwrap().to_vec())
+            .into_values()
+            .collect()
+    });
 }
 pub use cmakepackage::*;
 

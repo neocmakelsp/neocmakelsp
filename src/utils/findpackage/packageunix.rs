@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use std::sync::LazyLock;
@@ -11,16 +12,28 @@ use crate::utils::{CMakePackage, FileType};
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
-//
-const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
 
-const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
+pub static PREFIX: LazyLock<Arc<Mutex<Vec<&str>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(["/usr", "/usr/local"].to_vec())));
+
+pub static LIBS: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
+    Arc::new(Mutex::new(
+        [
+            "lib/cmake",
+            "lib32/cmake",
+            "lib64/cmake",
+            "share/cmake",
+            "lib/x86_64-linux-gnu/cmake",
+        ]
+        .to_vec(),
+    ))
+});
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in PREFIX {
-        for lib in LIBS {
-            let p = Path::new(prefix).join(lib).join("cmake");
+    for prefix in PREFIX.lock().unwrap().to_vec() {
+        for lib in LIBS.lock().unwrap().to_vec() {
+            let p = Path::new(prefix).join(lib);
             if p.exists() {
                 ava.push(p);
             }
@@ -31,7 +44,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in PREFIX {
+    for lib in PREFIX.lock().unwrap().to_vec() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };
