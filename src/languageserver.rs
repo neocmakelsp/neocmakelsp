@@ -17,7 +17,11 @@ use crate::jump;
 use crate::scansubs;
 use crate::semantic_token;
 use crate::semantic_token::LEGEND_TYPE;
+use crate::utils;
+use crate::utils::packagepkgconfig::QUERYSRULES;
 use crate::utils::treehelper;
+use crate::utils::LIBS;
+use crate::utils::PREFIX;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -185,6 +189,8 @@ impl LanguageServer for Backend {
             }
         }
 
+        println!("初始化项目Root路径 {:?}", initial.root_uri);
+        println!("root: {:?}", self.root_path);
         if let Some(ref uri) = initial.root_uri {
             use std::path::Path;
             scansubs::scan_all(uri.path()).await;
@@ -198,8 +204,24 @@ impl LanguageServer for Backend {
                     query.write_to_build_dir(build_dir.as_path()).ok();
                 }
             }
+
+            let vcpkg_dir = Path::new(uri.path()).join("vcpkg_installed");
+            if utils::did_vcpkg_project(Path::new(uri.path())) && vcpkg_dir.is_dir() {
+                QUERYSRULES.lock().unwrap().push(Box::leak(
+                    format!("{}/*.pc", vcpkg_dir.to_str().unwrap()).into_boxed_str(),
+                ));
+
+                PREFIX.lock().unwrap().push(Box::leak(
+                    format!("{}", vcpkg_dir.to_str().unwrap()).into_boxed_str(),
+                ));
+
+                if let Ok(mut paths) = utils::make_vcpkg_package_search_path(&vcpkg_dir) {
+                    LIBS.lock().unwrap().append(&mut paths)
+                }
+            }
         }
 
+        println!("添加查找路径完成");
         set_client_text_document(initial.capabilities.text_document);
 
         let version: String = env!("CARGO_PKG_VERSION").to_string();

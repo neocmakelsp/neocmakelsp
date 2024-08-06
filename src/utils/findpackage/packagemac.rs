@@ -12,14 +12,19 @@ use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
-const PREFIX: [&str; 3] = ["/usr", "/usr/local", "/opt/homebrew"];
+pub static PREFIX: LazyLock<Arc<Mutex<Vec<&str>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(["/usr", "/usr/local"].to_vec())));
 
-const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
+pub static LIBS: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
+    Arc::new(Mutex::new(
+        ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"].to_vec(),
+    ))
+});
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in PREFIX {
-        for lib in LIBS {
+    for prefix in PREFIX.lock().unwrap().to_vec() {
+        for lib in LIBS.lock().unwrap().to_vec() {
             let p = Path::new(prefix).join(lib).join("cmake");
             if p.exists() {
                 ava.push(p);
@@ -31,7 +36,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in PREFIX {
+    for lib in PREFIX.lock().unwrap().to_vec() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };
