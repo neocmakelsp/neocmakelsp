@@ -17,7 +17,11 @@ use crate::jump;
 use crate::scansubs;
 use crate::semantic_token;
 use crate::semantic_token::LEGEND_TYPE;
+use crate::utils;
+use crate::utils::did_vcpkg_project;
 use crate::utils::treehelper;
+use crate::utils::VCPKG_LIBS;
+use crate::utils::VCPKG_PREFIX;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -196,6 +200,39 @@ impl LanguageServer for Backend {
             if build_dir.is_dir() {
                 if let Some(query) = &*DEFAULT_QUERY {
                     query.write_to_build_dir(build_dir.as_path()).ok();
+                }
+            }
+            if did_vcpkg_project(Path::new(uri.path())) {
+                let project_root = Path::new(uri.path());
+                let vcpkg_installed_path = project_root.join("vcpkg_installed");
+
+                #[cfg(unix)]
+                {
+                    use crate::utils::packagepkgconfig::QUERYSRULES;
+                    // When it is found to be a vcpkg project, the pc will be searched first from the vcpkg download directory.
+                    QUERYSRULES.lock().unwrap().insert(
+                        0,
+                        Box::leak(
+                            format!("{}/*.pc", vcpkg_installed_path.to_str().unwrap())
+                                .into_boxed_str(),
+                        ),
+                    );
+                }
+
+                // add vcpkg prefix
+                VCPKG_PREFIX.lock().unwrap().push(Box::leak(
+                    vcpkg_installed_path
+                        .to_str()
+                        .unwrap()
+                        .to_string()
+                        .into_boxed_str(),
+                ));
+
+                if let Ok(paths) = utils::make_vcpkg_package_search_path(&vcpkg_installed_path) {
+                    let mut vcpkg_libs = VCPKG_LIBS.lock().unwrap();
+                    for t in paths {
+                        vcpkg_libs.push(Box::leak(t.into_boxed_str()))
+                    }
                 }
             }
         }

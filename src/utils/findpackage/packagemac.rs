@@ -69,6 +69,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         filepath: path.to_str().unwrap().to_string(),
                         version,
                         tojump,
+                        from: "System".to_string(),
                     });
 
                 //ava.push(path);
@@ -118,6 +119,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     filepath: packagepath,
                     version,
                     tojump,
+                    from: "System".to_string(),
                 });
         }
     }

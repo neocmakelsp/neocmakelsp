@@ -28,6 +28,7 @@ pub struct CMakePackage {
     pub filepath: String,
     pub version: Option<String>,
     pub tojump: Vec<PathBuf>,
+    pub from: String,
 }
 
 pub use findpackage::*;

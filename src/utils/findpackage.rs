@@ -5,6 +5,7 @@
     target_os = "openbsd"
 ))]
 mod packageunix;
+mod vcpkg;
 #[cfg(any(
     target_os = "linux",
     target_os = "android",
@@ -22,7 +23,7 @@ mod packagemac;
 use packagemac as cmakepackage;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
@@ -33,6 +34,24 @@ static CMAKECONFIG: LazyLock<regex::Regex> =
 // config version file
 static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
+
+fn get_cmake_packages() -> Vec<CMakePackage> {
+    let mut cmake_packages = CMAKE_PACKAGES.clone();
+    cmake_packages.extend(VCPKG_CMAKE_PACKAGES.clone());
+    cmake_packages
+}
+
+fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
+    let mut cmake_packages_keys = CMAKE_PACKAGES_WITHKEY.clone();
+    cmake_packages_keys.extend(VCPKG_CMAKE_PACKAGES_WITHKEY.clone());
+    cmake_packages_keys
+}
+
+pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get_cmake_packages);
+
+pub static CACHE_CMAKE_PACKAGES_WITHKEYS: LazyLock<HashMap<String, CMakePackage>> =
+    LazyLock::new(get_cmake_packages_withkeys);
+
 fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut parse = tree_sitter::Parser::new();
@@ -73,56 +92,44 @@ fn get_version(source: &str) -> Option<String> {
 #[cfg(unix)]
 pub mod packagepkgconfig {
     use std::collections::HashMap;
-    use std::sync::LazyLock;
+    use std::sync::{Arc, LazyLock, Mutex};
+
     pub struct PkgConfig {
         pub libname: String,
         pub path: String,
     }
 
+    pub static QUERYSRULES: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
+        Arc::new(Mutex::new(
+            ["/usr/lib/pkgconfig/*.pc", "/usr/lib/*/pkgconfig/*.pc"].to_vec(),
+        ))
+    });
+
     fn get_pkg_messages() -> HashMap<String, PkgConfig> {
         let mut packages: HashMap<String, PkgConfig> = HashMap::new();
         let mut generatepackage = || -> anyhow::Result<()> {
-            for entry in glob::glob("/usr/lib/pkgconfig/*.pc")?.flatten() {
-                let p = entry.as_path().to_str().unwrap();
-                let name = p
-                    .split('/')
-                    .collect::<Vec<&str>>()
-                    .last()
-                    .unwrap()
-                    .to_string();
-                let realname = name
-                    .split('.')
-                    .collect::<Vec<&str>>()
-                    .first()
-                    .unwrap()
-                    .to_string();
-                packages
-                    .entry(realname.to_string())
-                    .or_insert_with(|| PkgConfig {
-                        libname: realname,
-                        path: p.to_string(),
-                    });
-            }
-            for entry in glob::glob("/usr/lib/*/pkgconfig/*.pc")?.flatten() {
-                let p = entry.as_path().to_str().unwrap();
-                let name = p
-                    .split('/')
-                    .collect::<Vec<&str>>()
-                    .last()
-                    .unwrap()
-                    .to_string();
-                let realname = name
-                    .split('.')
-                    .collect::<Vec<&str>>()
-                    .first()
-                    .unwrap()
-                    .to_string();
-                packages
-                    .entry(realname.to_string())
-                    .or_insert_with(|| PkgConfig {
-                        libname: realname,
-                        path: p.to_string(),
-                    });
+            for path in QUERYSRULES.lock().unwrap().iter() {
+                for entry in glob::glob(path)?.flatten() {
+                    let p = entry.as_path().to_str().unwrap();
+                    let name = p
+                        .split('/')
+                        .collect::<Vec<&str>>()
+                        .last()
+                        .unwrap()
+                        .to_string();
+                    let realname = name
+                        .split('.')
+                        .collect::<Vec<&str>>()
+                        .first()
+                        .unwrap()
+                        .to_string();
+                    packages
+                        .entry(realname.to_string())
+                        .or_insert_with(|| PkgConfig {
+                            libname: realname,
+                            path: p.to_string(),
+                        });
+                }
             }
             Ok(())
         };
@@ -136,6 +143,9 @@ pub mod packagepkgconfig {
         LazyLock::new(|| get_pkg_messages().into_values().collect());
 }
 pub use cmakepackage::*;
+pub use vcpkg::*;
+
+use super::CMakePackage;
 
 #[test]
 fn regextest() {
