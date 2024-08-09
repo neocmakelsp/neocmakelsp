@@ -1,5 +1,9 @@
 # Neocmakelsp
 
+## 0.8.1
+
+- Compatible with vcpkg package manager
+
 ## 0.8.0
 
 - support file api
