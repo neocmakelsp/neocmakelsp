@@ -1,8 +1,8 @@
-use crate::utils::{CMakePackage, CMAKE_PACKAGES};
+use crate::utils::{CMakePackage, CACHE_CMAKE_PACKAGES};
 use cli_table::{format::Justify, Cell, CellStruct, Style, Table};
 pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
     let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
-    CMAKE_PACKAGES
+    CACHE_CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name.to_lowercase()))
         .map(|source| match &source.version {
@@ -31,7 +31,7 @@ pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
 
 pub fn search_result_tojson(tosearch: &str) -> String {
     let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
-    let output: Vec<CMakePackage> = CMAKE_PACKAGES
+    let output: Vec<CMakePackage> = CACHE_CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name.to_lowercase()))
         .cloned()

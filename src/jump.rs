@@ -12,8 +12,8 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        self,
         treehelper::{get_position_string, point_to_position},
+        CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
 };
 use lsp_types::{MessageType, Position, Range, Url};
@@ -485,7 +485,7 @@ fn get_cmake_package_defs(
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
 ) -> Option<Vec<(String, Location, String)>> {
-    let packageinfo = utils::CMAKE_PACKAGES_WITHKEY.get(package_name)?;
+    let packageinfo = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package_name)?;
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {

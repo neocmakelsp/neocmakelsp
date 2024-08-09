@@ -4,7 +4,7 @@ use crate::utils::treehelper::get_pos_type;
 use crate::utils::treehelper::get_position_string;
 use crate::utils::treehelper::PositionType;
 use crate::utils::treehelper::MESSAGE_STORAGE;
-use crate::utils::CMAKE_PACKAGES_WITHKEY;
+use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Position;
 /// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
@@ -32,9 +32,9 @@ Packagepath: {}
 
         PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink => {
             let message = message.split('_').collect::<Vec<&str>>()[0];
-            let mut value = CMAKE_PACKAGES_WITHKEY.get(message);
+            let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(message);
             if value.is_none() {
-                value = CMAKE_PACKAGES_WITHKEY.get(&message.to_lowercase());
+                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&message.to_lowercase());
             }
             value.map(|context| {
                 format!(
