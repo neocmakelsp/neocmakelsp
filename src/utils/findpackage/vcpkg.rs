@@ -15,7 +15,7 @@ pub fn did_vcpkg_project(path: &Path) -> bool {
     if path.is_dir() && path.join("vcpkg.json").is_file() {
         return true;
     }
-    return false;
+    false
 }
 
 pub static VCPKG_PREFIX: LazyLock<Arc<Mutex<Vec<&str>>>> =
@@ -39,7 +39,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in VCPKG_PREFIX.lock().unwrap().iter().map(|t| t) {
+    for lib in VCPKG_PREFIX.lock().unwrap().iter() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };
@@ -135,26 +135,25 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
 }
 
 pub fn make_vcpkg_package_search_path(search_path: &Path) -> std::io::Result<Vec<String>> {
-    let lib_paths: Vec<&'static str> = [
+    const LIB_PATHS: [&str; 5] = [
         "x64-linux",
         "x86-linux",
         "x64-windows",
         "x86-windows",
         "x64-osx",
-    ]
-    .to_vec();
+    ];
 
     let mut paths: Vec<String> = Vec::new();
 
     // check search path is ok
-    for item in lib_paths {
-        if search_path.join(item.to_string()).is_dir() {
+    for item in LIB_PATHS {
+        if search_path.join(item).is_dir() {
             let path = Path::new(item).join("share");
             paths.push(path.to_str().unwrap().to_string());
         }
     }
 
-    return Ok(paths);
+    Ok(paths)
 }
 
 pub static VCPKG_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =

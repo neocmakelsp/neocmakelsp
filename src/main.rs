@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use ini::Ini;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
 use clap::Parser;

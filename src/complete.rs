@@ -7,16 +7,15 @@ use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
-use crate::CompletionResponse;
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::Mutex;
-use tower_lsp::lsp_types;
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, Documentation, MessageType, Position,
+    self, CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType,
+    Position,
 };
 
 use std::sync::LazyLock;

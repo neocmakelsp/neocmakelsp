@@ -38,20 +38,19 @@ static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
 fn get_cmake_packages() -> Vec<CMakePackage> {
     let mut cmake_packages = CMAKE_PACKAGES.clone();
     cmake_packages.extend(VCPKG_CMAKE_PACKAGES.clone());
-    return cmake_packages;
+    cmake_packages
 }
 
 fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
     let mut cmake_packages_keys = CMAKE_PACKAGES_WITHKEY.clone();
     cmake_packages_keys.extend(VCPKG_CMAKE_PACKAGES_WITHKEY.clone());
-    return cmake_packages_keys;
+    cmake_packages_keys
 }
 
-pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
-    LazyLock::new(|| get_cmake_packages());
+pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get_cmake_packages);
 
 pub static CACHE_CMAKE_PACKAGES_WITHKEYS: LazyLock<HashMap<String, CMakePackage>> =
-    LazyLock::new(|| get_cmake_packages_withkeys());
+    LazyLock::new(get_cmake_packages_withkeys);
 
 fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();

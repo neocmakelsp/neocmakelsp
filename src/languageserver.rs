@@ -202,7 +202,7 @@ impl LanguageServer for Backend {
                     query.write_to_build_dir(build_dir.as_path()).ok();
                 }
             }
-            if did_vcpkg_project(&Path::new(uri.path())) {
+            if did_vcpkg_project(Path::new(uri.path())) {
                 let project_root = Path::new(uri.path());
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
 

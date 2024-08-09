@@ -1,7 +1,6 @@
 use crate::utils::CACHE_CMAKE_PACKAGES;
-use lsp_types::{CompletionItem, CompletionItemKind, Documentation};
 use std::sync::LazyLock;
-use tower_lsp::lsp_types;
+use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
 
 pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
     CACHE_CMAKE_PACKAGES
