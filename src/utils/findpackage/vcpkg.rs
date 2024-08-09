@@ -26,8 +26,10 @@ pub static VCPKG_LIBS: LazyLock<Arc<Mutex<Vec<&str>>>> =
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in VCPKG_PREFIX.lock().unwrap().iter() {
-        for lib in VCPKG_LIBS.lock().unwrap().iter() {
+    let vcpkg_prefix = VCPKG_PREFIX.lock().unwrap();
+    let vcpkg_libs = VCPKG_LIBS.lock().unwrap();
+    for prefix in vcpkg_prefix.iter() {
+        for lib in vcpkg_libs.iter() {
             let p = Path::new(prefix).join(lib);
             if p.exists() {
                 ava.push(p);
@@ -39,7 +41,8 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in VCPKG_PREFIX.lock().unwrap().iter() {
+    let vcpkg_prefix = VCPKG_PREFIX.lock().unwrap();
+    for lib in vcpkg_prefix.iter() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };
