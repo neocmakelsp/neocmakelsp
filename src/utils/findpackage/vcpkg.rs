@@ -26,8 +26,8 @@ pub static VCPKG_LIBS: LazyLock<Arc<Mutex<Vec<&str>>>> =
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in VCPKG_PREFIX.lock().unwrap().iter().map(|item| item) {
-        for lib in VCPKG_LIBS.lock().unwrap().iter().map(|item| item) {
+    for prefix in VCPKG_PREFIX.lock().unwrap().iter() {
+        for lib in VCPKG_LIBS.lock().unwrap().iter() {
             let p = Path::new(prefix).join(lib);
             if p.exists() {
                 ava.push(p);
