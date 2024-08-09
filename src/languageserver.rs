@@ -19,7 +19,6 @@ use crate::semantic_token;
 use crate::semantic_token::LEGEND_TYPE;
 use crate::utils;
 use crate::utils::did_vcpkg_project;
-use crate::utils::packagepkgconfig::QUERYSRULES;
 use crate::utils::treehelper;
 use crate::utils::VCPKG_LIBS;
 use crate::utils::VCPKG_PREFIX;
@@ -209,6 +208,7 @@ impl LanguageServer for Backend {
 
                 #[cfg(unix)]
                 {
+                    use crate::utils::packagepkgconfig::QUERYSRULES;
                     // When it is found to be a vcpkg project, the pc will be searched first from the vcpkg download directory.
                     QUERYSRULES.lock().unwrap().insert(
                         0,
