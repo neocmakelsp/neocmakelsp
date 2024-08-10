@@ -2,7 +2,29 @@
 
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
 
-It is a CMake lsp based on tower-lsp and treesitter
+ **Intelligent Code Completion**: Provides precise code completion suggestions by deeply analyzing CMake files, enhancing development efficiency.
+- **Real-time Error Detection**: Integrates Linting functionality to check for potential issues in your code, helping maintain code quality.
+- **Support for Neovim Emacs VsCod Helixe**: Compatible with these popular editors, catering to diverse developer needs.
+- **Simple Configuration**: Easy to set up and use, minimizing configuration time so you can focus on development.
+- **CLI Tool Integration**: Not only an LSP, but also includes command-line tools for code formatting, making it convenient for different environments.
+
+
+# Table of Contents
+
+1. [Introduction](#install)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Editor Support](#editor-support)
+   - [Neovim Configuration](#neovim-configuration)
+   - [helix Configuration](#helix-configuration)
+   - [Emacs Configuration](#emacs-configuration)
+5. [Features](#features)
+6. [User Feedback](#user-feedback)
+   - [macOS Users](#user-feedback)
+   - [Windows Users](#user-feedback)
+7. [Visual Examples](#visual-examples)
+
+
 
 ## Install
 
@@ -10,13 +32,15 @@ It is a CMake lsp based on tower-lsp and treesitter
 cargo install neocmakelsp
 ```
 
-## Setup For neovim
+## Editor Support
+
+### neovim configuration
 
 The config of neocmakelsp is in `nvim-lsp-config`, so just follow `nvim-lsp-config` to setup it
 
 neocmakelsp has two start ways: `stdio` and `Tcp`. `Tcp` is for debug. If you want to help me and debug is , you should start it with `Tcp` way.
 
-### Stdio
+#### Stdio
 
 ```lua
 local configs = require("lspconfig.configs")
@@ -46,7 +70,7 @@ if not configs.neocmake then
 end
 ```
 
-### Tcp
+#### Tcp
 
 ```lua
 if not configs.neocmake then
@@ -71,9 +95,8 @@ end
 
 ```
 
-## Setup for helix
-
-### Tcp (good for debug)
+### helix configuration
+#### Tcp
 
 ```toml
 [[language]]
@@ -85,8 +108,7 @@ language-servers = [{ name = "neocmakelsp" }]
 command = "nc"
 args = ["localhost", "9257"]
 ```
-
-### Stdio
+#### Stdio
 
 ```toml
 [[language]]
@@ -99,7 +121,7 @@ command = "neocmakelsp"
 args = ["--stdio"]
 ```
 
-## Setup for emacs
+### emacs configuration
 
 To use neocmakelsp with eglot:
 
@@ -113,10 +135,6 @@ To use neocmakelsp with eglot:
       (eglot-ensure))))
 ```
 
-## Help needed
-
-* I do not know if all features will work on mac and windows, so if someone use mac or windows, please help me and send pr for this project.
-* I want a comaintainer, who is familiar with mac, windows, and lsp.
 
 ## Features
 
@@ -204,7 +222,7 @@ init_options = {
 
 -   Undefined function check
 
-## Show
+## Visual Examples
 
 ### Search
 
@@ -287,3 +305,9 @@ endfunction()
 ```
 
 It just remove the space in the end, replace `\t` at the begin of each line to ` `, if set `indent_size` to space, and format the first line to right place. It does little, but I think it is enough.
+
+
+## User Feedback
+
+* I do not know if all features will work on mac and windows, so if someone use mac or windows, please help me and send pr for this project.
+* I want a comaintainer, who is familiar with mac, windows, and lsp.
