@@ -4,7 +4,7 @@
 
  **Intelligent Code Completion**: Provides precise code completion suggestions by deeply analyzing CMake files, enhancing development efficiency.
 - **Real-time Error Detection**: Integrates Linting functionality to check for potential issues in your code, helping maintain code quality.
-- **Support for Neovim Emacs VsCod Helixe**: Compatible with these popular editors, catering to diverse developer needs.
+- **Support for Neovim Emacs VSCode Helix**: Compatible with these popular editors, catering to diverse developer needs.
 - **Simple Configuration**: Easy to set up and use, minimizing configuration time so you can focus on development.
 - **CLI Tool Integration**: Not only an LSP, but also includes command-line tools for code formatting, making it convenient for different environments.
 
@@ -185,7 +185,7 @@ capabilities = {
 }
 ```
 
-It will check CMakeCache.txt, and get weather the package is exist
+It will check CMakeCache.txt, and get whether the package is exist
 
 Snippet Support
 
