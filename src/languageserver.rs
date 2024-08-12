@@ -1,5 +1,6 @@
 mod config;
-
+#[cfg(test)]
+mod test;
 use self::config::Config;
 
 use super::Backend;
