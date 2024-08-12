@@ -333,16 +333,18 @@ fn getsubdef(
                                 #[cfg(not(unix))]
                                 continue;
                                 #[cfg(unix)]
-                                let Some(path) = glob::glob(
-                                    format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
-                                )
-                                .into_iter()
-                                .flatten()
-                                .flatten()
-                                .next() else {
-                                    continue;
-                                };
-                                (true, path)
+                                {
+                                    let Some(path) = glob::glob(
+                                        format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
+                                    )
+                                    .into_iter()
+                                    .flatten()
+                                    .flatten()
+                                    .next() else {
+                                        continue;
+                                    };
+                                    (true, path)
+                                }
                             }
                         };
                         if include_files.contains(&subpath) {
