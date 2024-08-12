@@ -4,12 +4,11 @@ use std::path::PathBuf;
 use tower_lsp::lsp_types;
 use tower_lsp::Client;
 pub(super) async fn cmpsubdirectory(
-    localpath: String,
+    localpath: &PathBuf,
     subpath: &str,
     client: &Client,
 ) -> Option<Vec<Location>> {
-    let path = PathBuf::from(localpath);
-    let dir = path.parent().unwrap();
+    let dir = localpath.parent().unwrap();
     let target = dir.join(subpath).join("CMakeLists.txt");
     if target.exists() {
         Some(vec![Location {

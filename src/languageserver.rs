@@ -28,6 +28,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::sync::Mutex;
+use tower_lsp::jsonrpc::Error as LspError;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types;
 use tower_lsp::lsp_types::*;
@@ -569,11 +570,11 @@ impl LanguageServer for Backend {
         drop(storemap);
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        //notify_send(context, Type::Error);
         Ok(jump::godef(
             location,
             context.as_str(),
-            uri.path().to_string(),
+            // NOTE: I think it should always works
+            &uri.to_file_path().map_err(|_| LspError::internal_error())?,
             &self.client,
             false,
         )
@@ -597,11 +598,10 @@ impl LanguageServer for Backend {
         let tree = thetree.unwrap();
         let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
-        //notify_send(context, Type::Error);
         match jump::godef(
             location,
             &context,
-            uri.path().to_string(),
+            &uri.to_file_path().map_err(|_| LspError::internal_error())?, // NOTE: it should always work I think
             &self.client,
             true,
         )

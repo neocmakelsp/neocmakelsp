@@ -17,11 +17,11 @@ fn ismodule(tojump: &str) -> bool {
 }
 
 pub(super) async fn cmpinclude(
-    localpath: String,
+    localpath: &PathBuf,
     subpath: &str,
     client: &tower_lsp::Client,
 ) -> Option<Vec<Location>> {
-    let path = PathBuf::from(localpath);
+    let path = localpath.clone();
     let target = if !ismodule(subpath) {
         let root_dir = path.parent().unwrap();
         root_dir.join(subpath)

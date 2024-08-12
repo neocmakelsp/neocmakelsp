@@ -110,7 +110,7 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
 pub async fn godef(
     location: Position,
     source: &str,
-    originuri: String,
+    originuri: &PathBuf,
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
@@ -135,7 +135,7 @@ pub async fn godef(
 
                     let newsource: Vec<&str> = source.lines().collect();
                     if let Some(mut defdata) =
-                        simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
+                        simplegodefsub(tree.root_node(), &newsource, &tofind, &originuri, is_jump)
                     {
                         locations.append(&mut defdata);
                     }
@@ -154,9 +154,9 @@ pub async fn godef(
                 PositionType::NotFind => None,
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => None,
-                PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
+                PositionType::Include => include::cmpinclude(&originuri, &tofind, client).await,
                 PositionType::SubDir => {
-                    subdirectory::cmpsubdirectory(originuri, &tofind, client).await
+                    subdirectory::cmpsubdirectory(&originuri, &tofind, client).await
                 }
             }
         }
@@ -173,7 +173,7 @@ fn simplegodefsub(
     root: Node,
     newsource: &Vec<&str>,
     tofind: &str,
-    originuri: String,
+    originuri: &PathBuf,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
@@ -188,9 +188,7 @@ fn simplegodefsub(
             if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
                 continue;
             }
-            //let range = godefsub(child, source, tofind);
-            if let Some(mut context) =
-                simplegodefsub(child, newsource, tofind, originuri.clone(), is_jump)
+            if let Some(mut context) = simplegodefsub(child, newsource, tofind, originuri, is_jump)
             {
                 definitions.append(&mut context);
             }
@@ -330,6 +328,11 @@ fn getsubdef(
                             if name.split('.').count() != 1 {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
+                                // NOTE: Module file now is not works on windows
+                                // Maybe also not works on android, please make pr for me
+                                #[cfg(not(unix))]
+                                continue;
+                                #[cfg(unix)]
                                 let Some(path) = glob::glob(
                                     format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
                                 )
