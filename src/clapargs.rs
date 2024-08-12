@@ -42,7 +42,7 @@ pub enum NeocmakeCli {
         #[arg(value_name = "tojson", short = 'j')]
         tojson: bool,
     },
-    #[command(long_flag = "generate", about = "genarate the completion")]
+    #[command(long_flag = "generate", about = "generate the completion")]
     GenCompletions {
         // If provided, outputs the completion file for given shell
         #[arg(value_enum, required = true)]

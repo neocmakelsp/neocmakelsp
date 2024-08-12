@@ -31,7 +31,7 @@ complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "tcp" -d 'ru
 complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "search" -d 'search the packages'
 complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "format" -d 'Format the file'
 complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "tree" -d 'show the file tree'
-complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "gen-completions" -d 'genarate the completion'
+complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "gen-completions" -d 'generate the completion'
 complete -c neocmakelsp -n "__fish_neocmakelsp_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand stdio" -s h -l help -d 'Print help'
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand tcp" -l port -r
@@ -48,5 +48,5 @@ complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "search" -d 'search the packages'
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "format" -d 'Format the file'
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "tree" -d 'show the file tree'
-complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "gen-completions" -d 'genarate the completion'
+complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "gen-completions" -d 'generate the completion'
 complete -c neocmakelsp -n "__fish_neocmakelsp_using_subcommand help; and not __fish_seen_subcommand_from stdio tcp search format tree gen-completions help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
