@@ -25,6 +25,7 @@ mod languageserver;
 mod scansubs;
 mod search;
 mod semantic_token;
+mod shellcomplete;
 mod utils;
 
 use clapargs::NeocmakeCli;
@@ -208,5 +209,6 @@ async fn main() {
                 }
             }
         }
+        NeocmakeCli::GenCompletions { shell } => shellcomplete::generate_shell_completions(shell),
     }
 }

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Parser};
+use clap_complete::Shell;
 
 const LSP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -40,6 +41,12 @@ pub enum NeocmakeCli {
         tree_path: PathBuf,
         #[arg(value_name = "tojson", short = 'j')]
         tojson: bool,
+    },
+    #[command(long_flag = "generate", about = "genarate the completion")]
+    GenCompletions {
+        // If provided, outputs the completion file for given shell
+        #[arg(value_enum, required = true)]
+        shell: Shell,
     },
 }
 

@@ -605,19 +605,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "neocmake_complete_generator"
-version = "0.1.0"
-dependencies = [
- "clap",
- "clap_complete",
-]
-
-[[package]]
 name = "neocmakelsp"
 version = "0.8.0"
 dependencies = [
  "anyhow",
  "clap",
+ "clap_complete",
  "cli-table",
  "glob",
  "ignore",

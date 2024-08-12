@@ -66,6 +66,13 @@ _arguments "${_arguments_options[@]}" : \
 ':tree_path:_files' \
 && ret=0
 ;;
+(gen-completions)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 ":: :_neocmakelsp__help_commands" \
@@ -98,6 +105,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(gen-completions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (help)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -119,6 +130,7 @@ _neocmakelsp_commands() {
 'search:search the packages' \
 'format:Format the file' \
 'tree:show the file tree' \
+'gen-completions:genarate the completion' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'neocmakelsp commands' commands "$@"
@@ -128,6 +140,11 @@ _neocmakelsp__format_commands() {
     local commands; commands=()
     _describe -t commands 'neocmakelsp format commands' commands "$@"
 }
+(( $+functions[_neocmakelsp__gen-completions_commands] )) ||
+_neocmakelsp__gen-completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'neocmakelsp gen-completions commands' commands "$@"
+}
 (( $+functions[_neocmakelsp__help_commands] )) ||
 _neocmakelsp__help_commands() {
     local commands; commands=(
@@ -136,6 +153,7 @@ _neocmakelsp__help_commands() {
 'search:search the packages' \
 'format:Format the file' \
 'tree:show the file tree' \
+'gen-completions:genarate the completion' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'neocmakelsp help commands' commands "$@"
@@ -144,6 +162,11 @@ _neocmakelsp__help_commands() {
 _neocmakelsp__help__format_commands() {
     local commands; commands=()
     _describe -t commands 'neocmakelsp help format commands' commands "$@"
+}
+(( $+functions[_neocmakelsp__help__gen-completions_commands] )) ||
+_neocmakelsp__help__gen-completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'neocmakelsp help gen-completions commands' commands "$@"
 }
 (( $+functions[_neocmakelsp__help__help_commands] )) ||
 _neocmakelsp__help__help_commands() {
