@@ -69,10 +69,15 @@ fn editconfig_setting() -> Option<(bool, u32)> {
 
 #[tokio::main]
 async fn main() {
+    // NOTE: because lsp use stdout, so tracing should be in stderr.
+    // And stdout is used in many other ways.
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
+
     let args = NeocmakeCli::parse();
     match args {
         NeocmakeCli::Stdio => {
-            tracing_subscriber::fmt().init();
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
             let (service, socket) = LspService::new(|client| Backend {
                 client,
@@ -85,7 +90,6 @@ async fn main() {
             Server::new(stdin, stdout, socket).serve(service).await;
         }
         NeocmakeCli::Tcp { port } => {
-            tracing_subscriber::fmt().init();
             let stream = {
                 if let Some(port) = port {
                     let listener = TcpListener::bind(SocketAddr::new(

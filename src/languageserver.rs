@@ -160,6 +160,7 @@ impl LanguageServer for Backend {
                             filewatcher::refresh_error_packages(path);
                         }
 
+                        tracing::info!("find cache-v2 json, start reading the data");
                         let cache_path = std::path::Path::new(uri.path())
                             .join("build")
                             .join(".cmake")
@@ -186,6 +187,7 @@ impl LanguageServer for Backend {
                                 }
                             }
                         }
+                        tracing::info!("Finish getting the data in cache-v2 json");
                     }
                 }
             }
@@ -205,6 +207,7 @@ impl LanguageServer for Backend {
                 }
             }
             if did_vcpkg_project(Path::new(uri.path())) {
+                tracing::info!("This project is vcpkg project, start init vcpkg data");
                 let project_root = Path::new(uri.path());
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
 
@@ -570,15 +573,14 @@ impl LanguageServer for Backend {
         drop(storemap);
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        Ok(jump::godef(
-            location,
-            context.as_str(),
-            // NOTE: I think it should always works
-            &uri.to_file_path().map_err(|_| LspError::internal_error())?,
-            &self.client,
-            false,
-        )
-        .await)
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return Err(LspError::internal_error());
+            }
+        };
+        Ok(jump::godef(location, context.as_str(), &file_path, &self.client, false).await)
     }
     async fn goto_definition(
         &self,
@@ -598,15 +600,14 @@ impl LanguageServer for Backend {
         let tree = thetree.unwrap();
         let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
-        match jump::godef(
-            location,
-            &context,
-            &uri.to_file_path().map_err(|_| LspError::internal_error())?, // NOTE: it should always work I think
-            &self.client,
-            true,
-        )
-        .await
-        {
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return Err(LspError::internal_error());
+            }
+        };
+        match jump::godef(location, &context, &file_path, &self.client, true).await {
             Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                 range
                     .iter()
@@ -624,10 +625,8 @@ impl LanguageServer for Backend {
             }))),
             None => Ok(None),
         }
-
-        //Ok(None)
     }
-    //Ok(None)
+
     async fn document_symbol(
         &self,
         input: DocumentSymbolParams,
