@@ -261,9 +261,7 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            CMakeNodeKinds::IF_CONDITION
-            | CMakeNodeKinds::FOREACH_LOOP
-            | CMakeNodeKinds::BODY => {
+            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 if let Some(mut message) = getsubcomplete(
                     child,
                     source,
