@@ -1,7 +1,7 @@
 use lsp_types::{MessageType, Position, TextEdit};
 use tower_lsp::lsp_types;
 
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::is_comment};
+use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::is_comment, CMakeNodeTypes};
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
 
@@ -128,7 +128,7 @@ fn format_content(
         let start_row = start_position.row;
         let end_row = end_position.row;
         // if is the commit at the end of line, continue
-        if child.kind() == "line_comment"
+        if child.kind() == CMakeNodeTypes::KIND_LINE_COMMENT
             && endline == start_row
             && (!isfirstunit || start_row == lastendline)
             && !(start_row == 0 && isfirstunit)
@@ -136,7 +136,7 @@ fn format_content(
             continue;
         }
 
-        if child.kind() == "bracket_comment" {
+        if child.kind() == CMakeNodeTypes::KIND_BRACKET_COMMENT {
             for _ in endline..start_row {
                 new_text.push('\n');
             }
@@ -170,7 +170,7 @@ fn format_content(
             new_text.push_str(&text);
             continue;
         }
-        if child.kind() == "body" {
+        if child.kind() == CMakeNodeTypes::KIND_BODY {
             let (text, newend) = format_content(
                 child,
                 newsource,
@@ -188,7 +188,6 @@ fn format_content(
         endline = end_position.row;
         lastendline = end_position.row;
 
-        // TODO: use tree_sitter handle it
         for (index, currentline) in newsource
             .iter()
             .take(end_row + 1)

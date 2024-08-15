@@ -18,6 +18,8 @@ use tower_lsp::lsp_types::{
     Position,
 };
 
+use crate::CMakeNodeTypes;
+
 use std::sync::LazyLock;
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
@@ -192,7 +194,7 @@ fn getsubcomplete(
             }
         }
         match child.kind() {
-            "bracket_comment" => {
+            CMakeNodeTypes::KIND_BRACKET_COMMENT => {
                 let start_y = child.start_position().row;
                 let end_y = child.end_position().row;
                 let mut output = String::new();
@@ -204,7 +206,7 @@ fn getsubcomplete(
                     local_path.file_name().unwrap().to_str().unwrap(),
                 ));
             }
-            "function_def" => {
+            CMakeNodeTypes::KIND_FUNCTION_DEF => {
                 let Some(function_whole) = child.child(0) else {
                     continue;
                 };
@@ -231,7 +233,7 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            "macro_def" => {
+            CMakeNodeTypes::KIND_MACRO_DEF => {
                 let Some(macro_whole) = child.child(0) else {
                     continue;
                 };
@@ -259,7 +261,9 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            "if_condition" | "foreach_loop" | "body" => {
+            CMakeNodeTypes::KIND_IF_CONDITION
+            | CMakeNodeTypes::KIND_FOREACH_LOOP
+            | CMakeNodeTypes::KIND_BODY => {
                 if let Some(mut message) = getsubcomplete(
                     child,
                     source,
@@ -274,7 +278,7 @@ fn getsubcomplete(
                     complete.append(&mut message);
                 }
             }
-            "normal_command" => {
+            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
                 let x = ids.start_position().column;

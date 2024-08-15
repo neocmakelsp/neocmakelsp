@@ -399,15 +399,25 @@ fn sub_tokens(
                 *prestart = x as u32;
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
-            "body" | "macro_def" | "function_def" | "if_condition" | "if_command"
-            | "elseif_command" | "function_command" | "macro_command" | "foreach_loop"
-            | "foreach_command" | "variable_ref" | "normal_var" | "quoted_element" => {
+            CMakeNodeTypes::KIND_BODY
+            | CMakeNodeTypes::KIND_MACRO_DEF
+            | CMakeNodeTypes::KIND_FUNCTION_DEF
+            | CMakeNodeTypes::KIND_IF_CONDITION
+            | CMakeNodeTypes::KIND_IF_COMMAND
+            | CMakeNodeTypes::KIND_ELSEIF_COMMAND
+            | CMakeNodeTypes::KIND_FUNCTION_COMMAND
+            | CMakeNodeTypes::KIND_MACRO_COMMAND
+            | CMakeNodeTypes::KIND_FOREACH_LOOP
+            | CMakeNodeTypes::KIND_FOREACH_COMMAND
+            | CMakeNodeTypes::KIND_VARIABLE_REF
+            | CMakeNodeTypes::KIND_NORMAL_VAR
+            | CMakeNodeTypes::KIND_QUOTED_ELEMENT => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
                     preline,
                     prestart,
-                    child.kind() == "if_command",
+                    child.kind() == CMakeNodeTypes::KIND_IF_COMMAND,
                 ));
             }
             _ => {}

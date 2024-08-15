@@ -8,12 +8,7 @@ use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, In
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::client_support_snippet;
 use crate::utils::get_node_content;
-
-/// following constants are declared in tree-sitter-cmake:
-///   https://github.com/uyha/tree-sitter-cmake/blob/master/src/parser.c#L66
-const SYM_ARGUMENT_LIST: u16 = 57;
-const SYM_NORMAL_COMMAND: u16 = 78;
-const SYM_ARGUMENT: u16 = 48;
+use crate::CMakeNodeTypes;
 
 /// convert input text to a snippet, if possible.
 fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
@@ -21,16 +16,16 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(input, None).unwrap();
     let mut node = tree.root_node().child(0).unwrap();
-    if node.kind_id() == SYM_NORMAL_COMMAND {
+    if node.kind() == CMakeNodeTypes::KIND_NORMAL_COMMAND {
         let mut v: Vec<String> = vec![];
         let mut i = 0;
         node = node.child(2).unwrap();
-        if node.kind_id() == SYM_ARGUMENT_LIST {
+        if node.kind() == CMakeNodeTypes::KIND_ARGUMENT_LIST {
             let source: Vec<&str> = input.split('\n').collect();
             node = node.child(0).unwrap();
             let mut last_position = node.end_position();
             loop {
-                if node.kind_id() == SYM_ARGUMENT {
+                if node.kind() == CMakeNodeTypes::KIND_ARGUMENT {
                     i += 1;
                     let start_position = node.start_position();
                     let padding = if last_position.row == start_position.row || v.is_empty() {

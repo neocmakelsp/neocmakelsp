@@ -18,6 +18,13 @@ return {
                         dynamicRegistration = true,
                     },
                 },
+                textDocument = {
+                    completion = {
+                        completionItem = {
+                            snippetSupport = true
+                        }
+                    }
+                }
             },
             init_options = {
                 format = {

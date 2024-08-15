@@ -15,6 +15,7 @@ use crate::{
         treehelper::{get_position_string, point_to_position},
         CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
+    CMakeNodeTypes
 };
 use lsp_types::{MessageType, Position, Range, Url};
 use std::sync::LazyLock;
@@ -23,7 +24,6 @@ mod findpackage;
 mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
-use crate::CMakeNodeTypes;
 use lsp_types::Location;
 
 use tree_sitter::Node;
