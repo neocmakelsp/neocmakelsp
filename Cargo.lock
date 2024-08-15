@@ -629,6 +629,7 @@ dependencies = [
  "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-cmake",
+ "treesitter_kind_collector",
 ]
 
 [[package]]
@@ -1230,6 +1231,19 @@ checksum = "b0babbbb90d5c231f16556625b97241adebb318eef9cce969f3b9d90ad613427"
 dependencies = [
  "cc",
  "tree-sitter",
+]
+
+[[package]]
+name = "treesitter_kind_collector"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e66afc5bc7a420fa3bd604e6df1dd9fb6d7f58d250645cbeae6a093cad5a05fe"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.74",
 ]
 
 [[package]]

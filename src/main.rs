@@ -8,6 +8,9 @@ use tokio::sync::Mutex;
 use tower_lsp::{Client, LspService, Server};
 //use tree_sitter::Point;
 use clap::Parser;
+mod treesitter_nodetypes;
+
+use treesitter_nodetypes as CMakeNodeTypes;
 
 use tokio::net::TcpListener;
 mod ast;

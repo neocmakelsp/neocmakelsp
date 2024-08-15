@@ -23,6 +23,7 @@ mod findpackage;
 mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
+use crate::CMakeNodeTypes;
 use lsp_types::Location;
 
 use tree_sitter::Node;
@@ -181,7 +182,7 @@ fn simplegodefsub(
     for child in root.children(&mut course) {
         // if is inside same line
         //
-        if child.kind() == "identifier" {
+        if child.kind() == CMakeNodeTypes::KIND_IDENTIFIER {
             continue;
         }
         if child.child_count() != 0 {
@@ -246,7 +247,7 @@ fn getsubdef(
         let start = point_to_position(child.start_position());
         let end = point_to_position(child.end_position());
         match child.kind() {
-            "function_def" => {
+            CMakeNodeTypes::KIND_FUNCTION_DEF => {
                 let Some(function_whole) = child.child(0) else {
                     continue;
                 };
@@ -271,7 +272,7 @@ fn getsubdef(
                     format!("function in {}", local_path.display()),
                 ));
             }
-            "macro_def" => {
+            CMakeNodeTypes::KIND_MACRO_DEF => {
                 let Some(macro_whole) = child.child(0) else {
                     continue;
                 };
@@ -296,7 +297,9 @@ fn getsubdef(
                     format!("macro in {}", local_path.display()),
                 ));
             }
-            "if_condition" | "foreach_loop" | "body" => {
+            CMakeNodeTypes::KIND_IF_CONDITION
+            | CMakeNodeTypes::KIND_FOREACH_LOOP
+            | CMakeNodeTypes::KIND_BODY => {
                 if let Some(mut message) = getsubdef(
                     child,
                     source,
@@ -311,7 +314,7 @@ fn getsubdef(
                     defs.append(&mut message);
                 }
             }
-            "normal_command" => {
+            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
                 let x = ids.start_position().column;
@@ -458,7 +461,7 @@ fn getsubdef(
                     ));
                 }
             }
-            "identifier" => {
+            CMakeNodeTypes::KIND_IDENTIFIER => {
                 continue;
             }
             _ => {}

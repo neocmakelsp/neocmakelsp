@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
+use crate::CMakeNodeTypes;
 static NUMBERREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
@@ -79,7 +80,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            "variable" => {
+            CMakeNodeTypes::KIND_VARIABLE => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -96,7 +97,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            "normal_command" => {
+            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
                 // NOTE: identifier
                 let Some(id) = child.child(0) else {
                     continue;
@@ -123,7 +124,7 @@ fn sub_tokens(
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
 
-            "line_comment" => {
+            CMakeNodeTypes::KIND_LINE_COMMENT => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -141,11 +142,11 @@ fn sub_tokens(
                 *prestart = x as u32;
             }
 
-            "endmacro_command"
-            | "endif_command"
-            | "endfunction_command"
-            | "else_command"
-            | "endforeach_command" => {
+            CMakeNodeTypes::KIND_ENDMACRO_COMMAND
+            | CMakeNodeTypes::KIND_ENDIF_COMMAND
+            | CMakeNodeTypes::KIND_ENDFUNCTION_COMMAND
+            | CMakeNodeTypes::KIND_ELSE_COMMAND
+            | CMakeNodeTypes::KIND_ENDFOREACH_COMMAND => {
                 let Some(id) = child.child(0) else {
                     continue;
                 };
@@ -165,7 +166,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            "argument_list" => {
+            CMakeNodeTypes::KIND_ARGUMENT_LIST => {
                 let mut argument_course = child.walk();
                 let mut is_first_val = !is_if; // NOTE: if is if, not check it
                 for argument in child.children(&mut argument_course) {
