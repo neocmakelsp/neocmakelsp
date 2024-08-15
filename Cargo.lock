@@ -1235,9 +1235,9 @@ dependencies = [
 
 [[package]]
 name = "treesitter_kind_collector"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e66afc5bc7a420fa3bd604e6df1dd9fb6d7f58d250645cbeae6a093cad5a05fe"
+checksum = "ff86f5ba8df30aeadc71159ce11c8466ffd99176c7f84cff3635d5e5e971ffa6"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -10,7 +10,7 @@ use tower_lsp::{Client, LspService, Server};
 use clap::Parser;
 mod treesitter_nodetypes;
 
-use treesitter_nodetypes as CMakeNodeTypes;
+use treesitter_nodetypes as CMakeNodeKinds;
 
 use tokio::net::TcpListener;
 mod ast;

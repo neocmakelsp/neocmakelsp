@@ -7,7 +7,7 @@ use tree_sitter::Point;
 use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
-use crate::CMakeNodeTypes;
+use crate::CMakeNodeKinds;
 
 pub(crate) struct LintConfigInfo {
     pub use_lint: bool,
@@ -115,7 +115,7 @@ fn checkerror_inner(
         if let Some(mut tran) = checkerror_inner(local_path, newsource, node, use_lint) {
             output.append(&mut tran.inner);
         }
-        if node.kind() != CMakeNodeTypes::KIND_NORMAL_COMMAND {
+        if node.kind() != CMakeNodeKinds::NORMAL_COMMAND {
             // INFO: NO NEED TO CHECK ANYMORE
             continue;
         }

@@ -1,6 +1,6 @@
-use treesitter_kind_collector::tree_sitter_consts;
+use treesitter_kind_collector::tree_sitter_kinds;
 
-#[tree_sitter_consts("misc/node-types.json")]
+#[tree_sitter_kinds("misc/node-types.json")]
 struct TmpCollector;
 
 pub use TmpCollector::*;

@@ -18,7 +18,7 @@ use tower_lsp::lsp_types::{
     Position,
 };
 
-use crate::CMakeNodeTypes;
+use crate::CMakeNodeKinds;
 
 use std::sync::LazyLock;
 
@@ -194,7 +194,7 @@ fn getsubcomplete(
             }
         }
         match child.kind() {
-            CMakeNodeTypes::KIND_BRACKET_COMMENT => {
+            CMakeNodeKinds::BRACKET_COMMENT => {
                 let start_y = child.start_position().row;
                 let end_y = child.end_position().row;
                 let mut output = String::new();
@@ -206,7 +206,7 @@ fn getsubcomplete(
                     local_path.file_name().unwrap().to_str().unwrap(),
                 ));
             }
-            CMakeNodeTypes::KIND_FUNCTION_DEF => {
+            CMakeNodeKinds::FUNCTION_DEF => {
                 let Some(function_whole) = child.child(0) else {
                     continue;
                 };
@@ -233,7 +233,7 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            CMakeNodeTypes::KIND_MACRO_DEF => {
+            CMakeNodeKinds::MACRO_DEF => {
                 let Some(macro_whole) = child.child(0) else {
                     continue;
                 };
@@ -261,9 +261,9 @@ fn getsubcomplete(
                     ..Default::default()
                 });
             }
-            CMakeNodeTypes::KIND_IF_CONDITION
-            | CMakeNodeTypes::KIND_FOREACH_LOOP
-            | CMakeNodeTypes::KIND_BODY => {
+            CMakeNodeKinds::IF_CONDITION
+            | CMakeNodeKinds::FOREACH_LOOP
+            | CMakeNodeKinds::BODY => {
                 if let Some(mut message) = getsubcomplete(
                     child,
                     source,
@@ -278,7 +278,7 @@ fn getsubcomplete(
                     complete.append(&mut message);
                 }
             }
-            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
+            CMakeNodeKinds::NORMAL_COMMAND => {
                 let h = child.start_position().row;
                 let ids = child.child(0).unwrap();
                 let x = ids.start_position().column;

@@ -1,7 +1,7 @@
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
 use crate::utils::treehelper::point_to_position;
-use crate::CMakeNodeTypes;
+use crate::CMakeNodeKinds;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
 use tower_lsp::lsp_types;
 use tower_lsp::Client;
@@ -37,7 +37,7 @@ fn getsubast(
     let mut asts: Vec<DocumentSymbol> = vec![];
     for child in input.children(&mut course) {
         match child.kind() {
-            CMakeNodeTypes::KIND_FUNCTION_DEF => {
+            CMakeNodeKinds::FUNCTION_DEF => {
                 let Some(ids) = child.child(0) else {
                     continue;
                 };
@@ -86,7 +86,7 @@ fn getsubast(
                     },
                 });
             }
-            CMakeNodeTypes::KIND_MACRO_DEF => {
+            CMakeNodeKinds::MACRO_DEF => {
                 let Some(ids) = child.child(0) else {
                     continue;
                 };
@@ -135,13 +135,13 @@ fn getsubast(
                     },
                 });
             }
-            CMakeNodeTypes::KIND_BODY => {
+            CMakeNodeKinds::BODY => {
                 let Some(mut bodycontent) = getsubast(child, source, simple) else {
                     continue;
                 };
                 asts.append(&mut bodycontent);
             }
-            CMakeNodeTypes::KIND_IF_CONDITION | CMakeNodeTypes::KIND_FOREACH_LOOP => {
+            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP => {
                 asts.push(DocumentSymbol {
                     name: "Closure".to_string(),
                     detail: None,
@@ -175,7 +175,7 @@ fn getsubast(
                     },
                 });
             }
-            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
+            CMakeNodeKinds::NORMAL_COMMAND => {
                 let start = point_to_position(child.start_position());
                 let end = point_to_position(child.end_position());
                 let h = child.start_position().row;

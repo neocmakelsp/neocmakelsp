@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
-use crate::CMakeNodeTypes;
+use crate::CMakeNodeKinds;
 static NUMBERREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
@@ -80,7 +80,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            CMakeNodeTypes::KIND_VARIABLE => {
+            CMakeNodeKinds::VARIABLE => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -97,7 +97,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            CMakeNodeTypes::KIND_NORMAL_COMMAND => {
+            CMakeNodeKinds::NORMAL_COMMAND => {
                 // NOTE: identifier
                 let Some(id) = child.child(0) else {
                     continue;
@@ -124,7 +124,7 @@ fn sub_tokens(
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
 
-            CMakeNodeTypes::KIND_LINE_COMMENT => {
+            CMakeNodeKinds::LINE_COMMENT => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
@@ -142,11 +142,11 @@ fn sub_tokens(
                 *prestart = x as u32;
             }
 
-            CMakeNodeTypes::KIND_ENDMACRO_COMMAND
-            | CMakeNodeTypes::KIND_ENDIF_COMMAND
-            | CMakeNodeTypes::KIND_ENDFUNCTION_COMMAND
-            | CMakeNodeTypes::KIND_ELSE_COMMAND
-            | CMakeNodeTypes::KIND_ENDFOREACH_COMMAND => {
+            CMakeNodeKinds::ENDMACRO_COMMAND
+            | CMakeNodeKinds::ENDIF_COMMAND
+            | CMakeNodeKinds::ENDFUNCTION_COMMAND
+            | CMakeNodeKinds::ELSE_COMMAND
+            | CMakeNodeKinds::ENDFOREACH_COMMAND => {
                 let Some(id) = child.child(0) else {
                     continue;
                 };
@@ -166,7 +166,7 @@ fn sub_tokens(
                 *preline = h as u32;
                 *prestart = x as u32;
             }
-            CMakeNodeTypes::KIND_ARGUMENT_LIST => {
+            CMakeNodeKinds::ARGUMENT_LIST => {
                 let mut argument_course = child.walk();
                 let mut is_first_val = !is_if; // NOTE: if is if, not check it
                 for argument in child.children(&mut argument_course) {
@@ -399,25 +399,25 @@ fn sub_tokens(
                 *prestart = x as u32;
                 res.append(&mut sub_tokens(child, source, preline, prestart, false));
             }
-            CMakeNodeTypes::KIND_BODY
-            | CMakeNodeTypes::KIND_MACRO_DEF
-            | CMakeNodeTypes::KIND_FUNCTION_DEF
-            | CMakeNodeTypes::KIND_IF_CONDITION
-            | CMakeNodeTypes::KIND_IF_COMMAND
-            | CMakeNodeTypes::KIND_ELSEIF_COMMAND
-            | CMakeNodeTypes::KIND_FUNCTION_COMMAND
-            | CMakeNodeTypes::KIND_MACRO_COMMAND
-            | CMakeNodeTypes::KIND_FOREACH_LOOP
-            | CMakeNodeTypes::KIND_FOREACH_COMMAND
-            | CMakeNodeTypes::KIND_VARIABLE_REF
-            | CMakeNodeTypes::KIND_NORMAL_VAR
-            | CMakeNodeTypes::KIND_QUOTED_ELEMENT => {
+            CMakeNodeKinds::BODY
+            | CMakeNodeKinds::MACRO_DEF
+            | CMakeNodeKinds::FUNCTION_DEF
+            | CMakeNodeKinds::IF_CONDITION
+            | CMakeNodeKinds::IF_COMMAND
+            | CMakeNodeKinds::ELSEIF_COMMAND
+            | CMakeNodeKinds::FUNCTION_COMMAND
+            | CMakeNodeKinds::MACRO_COMMAND
+            | CMakeNodeKinds::FOREACH_LOOP
+            | CMakeNodeKinds::FOREACH_COMMAND
+            | CMakeNodeKinds::VARIABLE_REF
+            | CMakeNodeKinds::NORMAL_VAR
+            | CMakeNodeKinds::QUOTED_ELEMENT => {
                 res.append(&mut sub_tokens(
                     child,
                     source,
                     preline,
                     prestart,
-                    child.kind() == CMakeNodeTypes::KIND_IF_COMMAND,
+                    child.kind() == CMakeNodeKinds::IF_COMMAND,
                 ));
             }
             _ => {}

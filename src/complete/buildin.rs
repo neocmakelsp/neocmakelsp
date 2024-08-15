@@ -8,7 +8,7 @@ use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, In
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::client_support_snippet;
 use crate::utils::get_node_content;
-use crate::CMakeNodeTypes;
+use crate::CMakeNodeKinds;
 
 /// convert input text to a snippet, if possible.
 fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
@@ -16,16 +16,16 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(input, None).unwrap();
     let mut node = tree.root_node().child(0).unwrap();
-    if node.kind() == CMakeNodeTypes::KIND_NORMAL_COMMAND {
+    if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
         let mut v: Vec<String> = vec![];
         let mut i = 0;
         node = node.child(2).unwrap();
-        if node.kind() == CMakeNodeTypes::KIND_ARGUMENT_LIST {
+        if node.kind() == CMakeNodeKinds::ARGUMENT_LIST {
             let source: Vec<&str> = input.split('\n').collect();
             node = node.child(0).unwrap();
             let mut last_position = node.end_position();
             loop {
-                if node.kind() == CMakeNodeTypes::KIND_ARGUMENT {
+                if node.kind() == CMakeNodeKinds::ARGUMENT {
                     i += 1;
                     let start_position = node.start_position();
                     let padding = if last_position.row == start_position.row || v.is_empty() {
