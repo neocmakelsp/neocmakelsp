@@ -29,4 +29,4 @@ toml = "0.8.14"
 clap_complete = "4.5.7"
 
 [dev-dependencies]
-tower = "0.4.13"
+tower = "=0.4.13"
