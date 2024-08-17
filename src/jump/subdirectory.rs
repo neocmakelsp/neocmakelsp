@@ -1,10 +1,10 @@
 use super::Location;
 use lsp_types::{MessageType, Url};
-use std::path::PathBuf;
+use std::path::Path;
 use tower_lsp::lsp_types;
 use tower_lsp::Client;
 pub(super) async fn cmpsubdirectory(
-    localpath: &PathBuf,
+    localpath: &Path,
     subpath: &str,
     client: &Client,
 ) -> Option<Vec<Location>> {

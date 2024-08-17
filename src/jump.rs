@@ -136,7 +136,7 @@ pub async fn godef(
 
                     let newsource: Vec<&str> = source.lines().collect();
                     if let Some(mut defdata) =
-                        simplegodefsub(tree.root_node(), &newsource, &tofind, &originuri, is_jump)
+                        simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
                     {
                         locations.append(&mut defdata);
                     }
@@ -155,9 +155,9 @@ pub async fn godef(
                 PositionType::NotFind => None,
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => None,
-                PositionType::Include => include::cmpinclude(&originuri, &tofind, client).await,
+                PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
                 PositionType::SubDir => {
-                    subdirectory::cmpsubdirectory(&originuri, &tofind, client).await
+                    subdirectory::cmpsubdirectory(originuri, &tofind, client).await
                 }
             }
         }
@@ -200,7 +200,7 @@ fn simplegodefsub(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(Location {
-                    uri: Url::from_file_path(&originuri).unwrap(),
+                    uri: Url::from_file_path(originuri).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),

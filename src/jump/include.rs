@@ -1,6 +1,6 @@
 use super::Location;
 use lsp_types::{MessageType, Url};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
 
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::PositionType};
@@ -17,13 +17,12 @@ fn ismodule(tojump: &str) -> bool {
 }
 
 pub(super) async fn cmpinclude(
-    localpath: &PathBuf,
+    localpath: &Path,
     subpath: &str,
     client: &tower_lsp::Client,
 ) -> Option<Vec<Location>> {
-    let path = localpath.clone();
     let target = if !ismodule(subpath) {
-        let root_dir = path.parent().unwrap();
+        let root_dir = localpath.parent().unwrap();
         root_dir.join(subpath)
     } else {
         #[cfg(unix)]
