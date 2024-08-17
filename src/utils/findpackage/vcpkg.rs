@@ -139,12 +139,13 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
 }
 
 pub fn make_vcpkg_package_search_path(search_path: &Path) -> std::io::Result<Vec<String>> {
-    const LIB_PATHS: [&str; 5] = [
+    const LIB_PATHS: [&str; 6] = [
         "x64-linux",
         "x86-linux",
         "x64-windows",
         "x86-windows",
         "x64-osx",
+        "arm64-osx",
     ];
 
     let mut paths: Vec<String> = Vec::new();
