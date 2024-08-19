@@ -12,13 +12,13 @@ use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
-const PREFIX: [&str; 3] = ["/usr", "/usr/local", "/opt/homebrew"];
+const PREFIXS: [&str; 3] = ["/usr", "/usr/local", "/opt/homebrew"];
 
 const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in PREFIX {
+    for prefix in PREFIXS {
         for lib in LIBS {
             let p = Path::new(prefix).join(lib).join("cmake");
             if p.exists() {
@@ -31,7 +31,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in PREFIX {
+    for lib in PREFIXS {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };

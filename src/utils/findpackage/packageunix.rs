@@ -12,15 +12,34 @@ use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 // here is the logic of findpackage on linux
 //
-const PREFIX: [&str; 2] = ["/usr", "/usr/local"];
+const PREFIXS: [&str; 2] = ["/usr", "/usr/local"];
 
 const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
 
+static ENV_PREFIX: LazyLock<Option<String>> = LazyLock::new(|| std::env::var("PREFIX").ok());
+
+fn get_prefixs() -> Vec<String> {
+    if let Some(ref prefix) = *ENV_PREFIX {
+        let mut prefixs: Vec<String> = PREFIXS
+            .to_vec()
+            .iter()
+            .map(|prefix| prefix.to_string())
+            .collect();
+        prefixs.push(prefix.to_string());
+        return prefixs;
+    }
+    PREFIXS
+        .to_vec()
+        .iter()
+        .map(|prefix| prefix.to_string())
+        .collect()
+}
+
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in PREFIX {
+    for prefix in get_prefixs() {
         for lib in LIBS {
-            let p = Path::new(prefix).join(lib).join("cmake");
+            let p = Path::new(&prefix).join(lib).join("cmake");
             if p.exists() {
                 ava.push(p);
             }
@@ -31,7 +50,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in PREFIX {
+    for lib in get_prefixs() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
         };
