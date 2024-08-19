@@ -149,3 +149,16 @@ pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_message);
+
+#[test]
+fn test_prefix() {
+    std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+    assert_eq!(
+        get_prefixs(),
+        vec![
+            "/usr".to_string(),
+            "/usr/local".to_string(),
+            "/data/data/com.termux/files/usr".to_string()
+        ]
+    )
+}
