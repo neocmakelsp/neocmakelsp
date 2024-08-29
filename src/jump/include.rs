@@ -12,6 +12,7 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use std::sync::LazyLock;
+
 fn ismodule(tojump: &str) -> bool {
     tojump.split('.').count() == 1
 }
@@ -26,7 +27,19 @@ pub(super) async fn cmpinclude(
         root_dir.join(subpath)
     } else {
         #[cfg(unix)]
-        let glob_pattern = format!("/usr/share/cmake*/Modules/{subpath}.cmake");
+        let glob_pattern = {
+            #[cfg(not(target_os = "android"))]
+            {
+                format!("/usr/share/cmake*/Modules/{subpath}.cmake")
+            }
+            #[cfg(target_os = "android")]
+            {
+                let Ok(prefix) = std::env::var("PREFIX") else {
+                    return None;
+                };
+                format!("{prefix}/cmake*/Modules/{subpath}.cmake")
+            }
+        };
         #[cfg(not(unix))]
         let glob_pattern = {
             let Ok(prefix) = std::env::var("CMAKE_PREFIX_PATH") else {
