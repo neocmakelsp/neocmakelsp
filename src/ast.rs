@@ -232,3 +232,13 @@ fn getsubast(
         Some(asts)
     }
 }
+
+#[test]
+fn test_ast() {
+    let context = include_str!("../assert/base/formatbefore.cmake");
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(context, None).unwrap();
+
+    assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+}
