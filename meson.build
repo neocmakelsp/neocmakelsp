@@ -1,7 +1,7 @@
 project(
   'neocmakelsp',
   'rust',
-  version: '0.8.0',
+  version: '0.8.2',
   meson_version : '>= 1.1.0'
 )
 
