@@ -35,6 +35,25 @@ pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
 
+fn gen_module_pattern(subpath: &str) -> Option<String> {
+    #[cfg(unix)]
+    #[cfg(not(target_os = "android"))]
+    {
+        Some(format!("/usr/share/cmake*/Modules/{subpath}.cmake"))
+    }
+    #[cfg(target_os = "android")]
+    {
+        let Ok(prefix) = std::env::var("PREFIX") else {
+            return None;
+        };
+        Some(format!("{prefix}/cmake*/Modules/{subpath}.cmake"))
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
@@ -331,33 +350,18 @@ fn getsubdef(
                             } else {
                                 // NOTE: Module file now is not works on windows
                                 // Maybe also not works on android, please make pr for me
-                                #[cfg(not(unix))]
-                                continue;
-                                #[cfg(unix)]
-                                {
-                                    let glob_pattern = {
-                                        #[cfg(not(target_os = "android"))]
-                                        {
-                                            format!("/usr/share/cmake*/Modules/{name}.cmake")
-                                        }
-                                        #[cfg(target_os = "android")]
-                                        {
-                                            let Ok(prefix) = std::env::var("PREFIX") else {
-                                                continue;
-                                            };
-                                            format!("{prefix}/cmake*/Modules/{name}.cmake")
-                                        }
-                                    };
-                                    let Some(path) = glob::glob(&glob_pattern)
-                                        .into_iter()
-                                        .flatten()
-                                        .flatten()
-                                        .next()
-                                    else {
-                                        continue;
-                                    };
-                                    (true, path)
-                                }
+                                let Some(glob_pattern) = gen_module_pattern(name) else {
+                                    continue;
+                                };
+                                let Some(path) = glob::glob(&glob_pattern)
+                                    .into_iter()
+                                    .flatten()
+                                    .flatten()
+                                    .next()
+                                else {
+                                    continue;
+                                };
+                                (true, path)
                             }
                         };
                         if include_files.contains(&subpath) {
@@ -516,4 +520,29 @@ fn get_cmake_package_defs(
     }
 
     Some(complete_infos)
+}
+
+#[test]
+fn test_module_pattern() {
+    #[cfg(unix)]
+    #[cfg(not(target_os = "android"))]
+    assert_eq!(
+        gen_module_pattern("GNUInstallDirs"),
+        Some("/usr/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
+    );
+    #[cfg(target_os = "android")]
+    {
+        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+        assert_eq!(
+            gen_module_pattern("GNUInstallDirs"),
+            Some(
+                "/data/data/com.termux/files/usr/share/cmake*/Modules/GNUInstallDirs.cmake"
+                    .to_string()
+            )
+        );
+    }
+    #[cfg(not(unix))]
+    {
+        assert_eq!(gen_module_pattern("GNUInstallDirs"), None);
+    }
 }

@@ -1,4 +1,4 @@
-use super::Location;
+use super::{gen_module_pattern, Location};
 use lsp_types::{MessageType, Url};
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
@@ -26,27 +26,7 @@ pub(super) async fn cmpinclude(
         let root_dir = localpath.parent().unwrap();
         root_dir.join(subpath)
     } else {
-        #[cfg(unix)]
-        let glob_pattern = {
-            #[cfg(not(target_os = "android"))]
-            {
-                format!("/usr/share/cmake*/Modules/{subpath}.cmake")
-            }
-            #[cfg(target_os = "android")]
-            {
-                let Ok(prefix) = std::env::var("PREFIX") else {
-                    return None;
-                };
-                format!("{prefix}/cmake*/Modules/{subpath}.cmake")
-            }
-        };
-        #[cfg(not(unix))]
-        let glob_pattern = {
-            let Ok(prefix) = std::env::var("CMAKE_PREFIX_PATH") else {
-                return None;
-            };
-            format!("{prefix}/cmake*/Modules/{subpath}.cmake")
-        };
+        let glob_pattern = gen_module_pattern(subpath)?;
         glob::glob(glob_pattern.as_str())
             .into_iter()
             .flatten()
