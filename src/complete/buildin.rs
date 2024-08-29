@@ -56,19 +56,19 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
             _ => break,
         };
     }
-    return format!("{}({})", key, v.join(" "));
+    format!("{}({})", key, v.join(" "))
 }
 
 fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
     let keys: Vec<_> = re
-        .find_iter(&raw_info)
+        .find_iter(raw_info)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let contents: Vec<_> = re.split(&raw_info).collect();
+    let contents: Vec<_> = re.split(raw_info).collect();
     let contents = &contents[1..].to_vec();
 
     let mut completes = HashMap::new();
@@ -130,32 +130,16 @@ fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-/// CMake build in commands
-pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
-    let output = Command::new("cmake")
-        .arg("--help-commands")
-        .output()?
-        .stdout;
-    let temp = String::from_utf8_lossy(&output);
-    gen_buildin_commands(&temp.to_string())
-});
-
-/// cmake buildin vars
-pub static BUILDIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+fn gen_buildin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
-    let output = Command::new("cmake")
-        .arg("--help-variables")
-        .output()?
-        .stdout;
-    let temp = String::from_utf8_lossy(&output);
     let key: Vec<_> = re
-        .find_iter(&temp)
+        .find_iter(raw_info)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).collect();
+    let content: Vec<_> = re.split(raw_info).collect();
     let context = &content[1..];
     Ok(zip(key, context)
         .map(|(akey, message)| CompletionItem {
@@ -166,21 +150,18 @@ pub static BUILDIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::n
             ..Default::default()
         })
         .collect())
-});
+}
 
-/// Cmake buildin modules
-pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+fn gen_buildin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
-    let output = Command::new("cmake").arg("--help-modules").output()?.stdout;
-    let temp = String::from_utf8_lossy(&output);
     let key: Vec<_> = re
-        .find_iter(&temp)
+        .find_iter(raw_info)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let content: Vec<_> = re.split(&temp).collect();
+    let content: Vec<_> = re.split(raw_info).collect();
     let context = &content[1..];
     Ok(zip(key, context)
         .map(|(akey, message)| CompletionItem {
@@ -191,10 +172,40 @@ pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new
             ..Default::default()
         })
         .collect())
+}
+
+/// CMake build in commands
+pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+    let output = Command::new("cmake")
+        .arg("--help-commands")
+        .output()?
+        .stdout;
+    let temp = String::from_utf8_lossy(&output);
+    gen_buildin_commands(&temp)
 });
+
+/// cmake buildin vars
+pub static BUILDIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+    let output = Command::new("cmake")
+        .arg("--help-variables")
+        .output()?
+        .stdout;
+    let temp = String::from_utf8_lossy(&output);
+    gen_buildin_variables(&temp)
+});
+
+/// Cmake buildin modules
+pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+    let output = Command::new("cmake").arg("--help-modules").output()?.stdout;
+    let temp = String::from_utf8_lossy(&output);
+    gen_buildin_modules(&temp)
+});
+
 #[cfg(test)]
 mod tests {
     use std::iter::zip;
+
+    use crate::complete::buildin::{gen_buildin_modules, gen_buildin_variables};
 
     use super::gen_buildin_commands;
     #[test]
@@ -211,11 +222,31 @@ mod tests {
     }
 
     #[test]
-    fn tst_cmakecommand_buildin() {
+    fn tst_cmake_command_buildin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assert/cmake_help_commands.txt");
 
         let output = gen_buildin_commands(&output);
+
+        assert!(output.is_ok());
+    }
+
+    #[test]
+    fn tst_cmake_variables_buildin() {
+        // NOTE: In case the command fails, ignore test
+        let output = include_str!("../../assert/cmake_help_variables.txt");
+
+        let output = gen_buildin_variables(&output);
+
+        assert!(output.is_ok());
+    }
+
+    #[test]
+    fn tst_cmake_modules_buildin() {
+        // NOTE: In case the command fails, ignore test
+        let output = include_str!("../../assert/cmake_help_commands.txt");
+
+        let output = gen_buildin_modules(&output);
 
         assert!(output.is_ok());
     }
