@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["**/*.cmake", "**/*.json"]
+extend-exclude = ["**/*.cmake", "**/*.json", "assert/cmake_output.txt"]
