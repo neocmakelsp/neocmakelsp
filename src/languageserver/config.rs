@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct Config {
     pub format: Option<FormatConfig>,
     pub scan_cmake_in_package: Option<bool>,
@@ -42,7 +42,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct FormatConfig {
     pub enable: Option<bool>,
 }
@@ -53,7 +53,7 @@ impl Default for FormatConfig {
     }
 }
 
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct LintConfig {
     pub enable: Option<bool>,
 }

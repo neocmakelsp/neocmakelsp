@@ -202,7 +202,6 @@ mod tests {
             assert_eq!(split, after);
         }
     }
-    use std::process::Command;
 
     use tower_lsp::lsp_types::CompletionItem;
 
@@ -210,9 +209,7 @@ mod tests {
     #[test]
     fn tst_cmakecommand_buildin() {
         // NOTE: In case the command fails, ignore test
-        let Ok(output) = Command::new("cmake").arg("--help-commands").output() else {
-            return;
-        };
+        let output = include_str!("../../assert/cmake_output.txt");
 
         if let Ok(messages) = &*BUILDIN_COMMAND {
             let mut complete: Vec<CompletionItem> = vec![];
@@ -228,17 +225,10 @@ mod tests {
         }
 
         let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
-        let output = output.stdout;
-        let temp = String::from_utf8_lossy(&output);
-        let _key: Vec<_> = re.find_iter(&temp).collect();
-        let splits: Vec<_> = re.split(&temp).collect();
+        let key: Vec<_> = re.find_iter(&output).collect();
+        let splits: Vec<_> = re.split(&output).collect();
 
-        //for akey in key {
-        //    println!("{}", akey.as_str());
-        //}
-        let _newsplit = &splits[1..];
-        //for split in newsplit.iter() {
-        //    println!("{split}");
-        //}
+        assert!(!key.is_empty());
+        assert!(!splits.is_empty());
     }
 }
