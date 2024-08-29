@@ -335,13 +335,25 @@ fn getsubdef(
                                 continue;
                                 #[cfg(unix)]
                                 {
-                                    let Some(path) = glob::glob(
-                                        format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
-                                    )
-                                    .into_iter()
-                                    .flatten()
-                                    .flatten()
-                                    .next() else {
+                                    let glob_pattern = {
+                                        #[cfg(not(target_os = "android"))]
+                                        {
+                                            format!("/usr/share/cmake*/Modules/{name}.cmake")
+                                        }
+                                        #[cfg(target_os = "android")]
+                                        {
+                                            let Ok(prefix) = std::env::var("PREFIX") else {
+                                                continue;
+                                            };
+                                            format!("{prefix}/cmake*/Modules/{name}.cmake")
+                                        }
+                                    };
+                                    let Some(path) = glob::glob(&glob_pattern)
+                                        .into_iter()
+                                        .flatten()
+                                        .flatten()
+                                        .next()
+                                    else {
                                         continue;
                                     };
                                     (true, path)
