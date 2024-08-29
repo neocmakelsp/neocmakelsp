@@ -16,64 +16,59 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(input, None).unwrap();
     let mut node = tree.root_node().child(0).unwrap();
-    if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
-        let mut v: Vec<String> = vec![];
-        let mut i = 0;
-        node = node.child(2).unwrap();
-        if node.kind() == CMakeNodeKinds::ARGUMENT_LIST {
-            let source: Vec<&str> = input.split('\n').collect();
-            node = node.child(0).unwrap();
-            let mut last_position = node.end_position();
-            loop {
-                if node.kind() == CMakeNodeKinds::ARGUMENT {
-                    i += 1;
-                    let start_position = node.start_position();
-                    let padding = if last_position.row == start_position.row || v.is_empty() {
-                        "".to_owned()
-                    } else {
-                        "\n".to_owned() + &source[start_position.row][0..start_position.column]
-                    };
-
-                    // support at most 9 tab-stops.
-                    if i < 10 {
-                        v.push(format!(
-                            "{}${{{}:{}}}",
-                            padding,
-                            i,
-                            get_node_content(&source, &node)
-                        ));
-                    } else {
-                        v.push(format!("{}{}", padding, get_node_content(&source, &node)));
-                    }
-                    last_position = node.end_position();
-                }
-                match node.next_sibling() {
-                    Some(c) => node = c,
-                    _ => break,
-                };
-            }
-            return format!("{}({})", key, v.join(" "));
-        }
+    if node.kind() != CMakeNodeKinds::NORMAL_COMMAND {
+        return input.to_string();
     }
-    input.to_string()
+    let mut v: Vec<String> = vec![];
+    let mut i = 0;
+    node = node.child(2).unwrap();
+    if node.kind() != CMakeNodeKinds::ARGUMENT_LIST {
+        return input.to_string();
+    };
+    let source: Vec<&str> = input.split('\n').collect();
+    node = node.child(0).unwrap();
+    let mut last_position = node.end_position();
+    loop {
+        if node.kind() == CMakeNodeKinds::ARGUMENT {
+            i += 1;
+            let start_position = node.start_position();
+            let padding = if last_position.row == start_position.row || v.is_empty() {
+                "".to_owned()
+            } else {
+                "\n".to_owned() + &source[start_position.row][0..start_position.column]
+            };
+
+            // support at most 9 tab-stops.
+            if i < 10 {
+                v.push(format!(
+                    "{}${{{}:{}}}",
+                    padding,
+                    i,
+                    get_node_content(&source, &node)
+                ));
+            } else {
+                v.push(format!("{}{}", padding, get_node_content(&source, &node)));
+            }
+            last_position = node.end_position();
+        }
+        match node.next_sibling() {
+            Some(c) => node = c,
+            _ => break,
+        };
+    }
+    return format!("{}({})", key, v.join(" "));
 }
 
-/// CMake build in commands
-pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
-    let output = Command::new("cmake")
-        .arg("--help-commands")
-        .output()?
-        .stdout;
-    let temp = String::from_utf8_lossy(&output);
     let keys: Vec<_> = re
-        .find_iter(&temp)
+        .find_iter(&raw_info)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let contents: Vec<_> = re.split(&temp).collect();
+    let contents: Vec<_> = re.split(&raw_info).collect();
     let contents = &contents[1..].to_vec();
 
     let mut completes = HashMap::new();
@@ -133,6 +128,16 @@ pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::ne
             }
         })
         .collect())
+}
+
+/// CMake build in commands
+pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+    let output = Command::new("cmake")
+        .arg("--help-commands")
+        .output()?
+        .stdout;
+    let temp = String::from_utf8_lossy(&output);
+    gen_buildin_commands(&temp.to_string())
 });
 
 /// cmake buildin vars
@@ -190,6 +195,8 @@ pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new
 #[cfg(test)]
 mod tests {
     use std::iter::zip;
+
+    use super::gen_buildin_commands;
     #[test]
     fn tst_regex() {
         let re = regex::Regex::new(r"-+").unwrap();
@@ -203,32 +210,13 @@ mod tests {
         }
     }
 
-    use tower_lsp::lsp_types::CompletionItem;
-
-    use super::BUILDIN_COMMAND;
     #[test]
     fn tst_cmakecommand_buildin() {
         // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assert/cmake_output.txt");
+        let output = include_str!("../../assert/cmake_help_commands.txt");
 
-        if let Ok(messages) = &*BUILDIN_COMMAND {
-            let mut complete: Vec<CompletionItem> = vec![];
-            complete.append(&mut messages.clone());
-            for var in complete {
-                println!(
-                    "{} -- {:?} -- {:?} -- {:?}",
-                    var.label, var.kind, var.insert_text, var.insert_text_format
-                );
-            }
-        } else {
-            assert!(false);
-        }
+        let output = gen_buildin_commands(&output);
 
-        let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
-        let key: Vec<_> = re.find_iter(&output).collect();
-        let splits: Vec<_> = re.split(&output).collect();
-
-        assert!(!key.is_empty());
-        assert!(!splits.is_empty());
+        assert!(output.is_ok());
     }
 }
