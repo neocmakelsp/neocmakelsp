@@ -1,29 +1,22 @@
 project('neocmakelsp', 'rust', version: '0.8.2', meson_version: '>= 1.1.0')
 
-cargo = find_program('cargo', version: '>= 1.80')
+find_program('cargo', version: '>= 1.80')
 
 find_program('rustc', version: '>= 1.80')
 
 if get_option('debug')
   command = [
-    cargo,
-    'build',
-  ]
-  install_command = [
-    'cp',
+    './cargo_wrapper.py',
+    'debug',
     meson.global_source_root() / 'target' / 'debug' / meson.project_name(),
-    '@OUTPUT@',
+    meson.global_build_root() / '@OUTPUT@',
   ]
 else
   command = [
-    cargo,
-    'build',
-    '--release',
-  ]
-  install_command = [
-    'cp',
-    meson.global_source_root() / 'target' / 'debug' / meson.project_name(),
-    '@OUTPUT@',
+    './cargo_wrapper.py',
+    'release',
+    meson.global_source_root() / 'target' / 'release' / meson.project_name(),
+    meson.global_build_root() / '@OUTPUT@',
   ]
 endif
 
@@ -36,16 +29,6 @@ fish_compeletion_dir = datadir / 'fish' / 'functions'
 bash_compeletion_dir = datadir / 'bash-compeletion' / 'completions'
 zsh_compeletion_dir = datadir / 'zsh' / 'site-functions'
 
-# This output is fake, I just use it to precompile neocmakelsp
-preinstall = custom_target(
-  'neocmakelsp_pre',
-  output: 'fake_neocmakelsp',
-  build_by_default: true,
-  console: true,
-  install: false,
-  command: command,
-)
-
 custom_target(
   'neocmakelsp',
   output: 'neocmakelsp',
@@ -53,8 +36,7 @@ custom_target(
   install: true,
   install_dir: bindir,
   console: true,
-  command: install_command,
-  depends: [preinstall],
+  command: command,
 )
 
 install_data('completions/zsh/_neocmakelsp', install_dir: zsh_compeletion_dir)
