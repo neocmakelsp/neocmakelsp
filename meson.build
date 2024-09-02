@@ -8,7 +8,6 @@ if get_option('debug')
   command = [
     cargo,
     'build',
-
   ]
   install_command = [
     'cp',
