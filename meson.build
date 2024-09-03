@@ -4,11 +4,11 @@ find_program('cargo', version: '>= 1.80')
 
 find_program('rustc', version: '>= 1.80')
 
-find_program('python')
+python = find_program('python')
 
 if get_option('debug')
   command = [
-    'python',
+    python,
     meson.global_source_root() / 'cargo_wrapper.py',
     'debug',
     meson.global_source_root() / 'target' / 'debug' / meson.project_name(),
@@ -16,7 +16,7 @@ if get_option('debug')
   ]
 else
   command = [
-    'python',
+    python,
     meson.global_source_root() / 'cargo_wrapper.py',
     'release',
     meson.global_source_root() / 'target' / 'release' / meson.project_name(),
