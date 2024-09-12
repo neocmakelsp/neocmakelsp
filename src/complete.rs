@@ -29,6 +29,13 @@ pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+fn remove_bracked<'a>(origin: &'a str) -> &'a str {
+    if origin.starts_with("\"") {
+        return &origin[1..origin.len() - 1];
+    }
+    origin
+}
+
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
 
@@ -288,7 +295,7 @@ fn getsubcomplete(
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let name = &source[h][x..y];
+                        let name = remove_bracked(&source[h][x..y]);
                         let (is_buildin, subpath) = {
                             if name.split('.').count() != 1 {
                                 (false, local_path.parent().unwrap().join(name))
@@ -586,4 +593,12 @@ fn get_cmake_package_complete(
     }
 
     Some(complete_infos)
+}
+
+#[test]
+fn brank_remove_test() {
+    let testa = "\"abc\"";
+    let target_str = "abc";
+    assert_eq!(remove_bracked(testa), target_str);
+    assert_eq!(remove_bracked(target_str), target_str);
 }
