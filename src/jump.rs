@@ -36,6 +36,8 @@ pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
 
+// FIXME: I do not know the way to gen module_pattern on windows
+#[allow(unused_variables)]
 fn gen_module_pattern(subpath: &str) -> Option<String> {
     #[cfg(unix)]
     #[cfg(not(target_os = "android"))]
