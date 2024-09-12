@@ -6,7 +6,7 @@ use crate::fileapi;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
-use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
+use crate::utils::{remove_bracked, replace_placeholders, CACHE_CMAKE_PACKAGES_WITHKEYS};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -28,13 +28,6 @@ pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 /// Include the top CMakeList.txt
 pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-fn remove_bracked<'a>(origin: &'a str) -> &'a str {
-    if origin.starts_with("\"") {
-        return &origin[1..origin.len() - 1];
-    }
-    origin
-}
 
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
@@ -295,7 +288,10 @@ fn getsubcomplete(
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let name = remove_bracked(&source[h][x..y]);
+                        let Some(name) = replace_placeholders(remove_bracked(&source[h][x..y]))
+                        else {
+                            continue;
+                        };
                         let (is_buildin, subpath) = {
                             if name.split('.').count() != 1 {
                                 (false, local_path.parent().unwrap().join(name))
@@ -593,12 +589,4 @@ fn get_cmake_package_complete(
     }
 
     Some(complete_infos)
-}
-
-#[test]
-fn brank_remove_test() {
-    let testa = "\"abc\"";
-    let target_str = "abc";
-    assert_eq!(remove_bracked(testa), target_str);
-    assert_eq!(remove_bracked(target_str), target_str);
 }

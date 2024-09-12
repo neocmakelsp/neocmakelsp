@@ -27,10 +27,10 @@ pub struct CacheEntryProperties {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheEntry {
-    name: String,
+    pub(super) name: String,
     properties: Vec<CacheEntryProperties>,
     r#type: String,
-    value: String,
+    pub(super) value: String,
 }
 
 impl CacheEntry {

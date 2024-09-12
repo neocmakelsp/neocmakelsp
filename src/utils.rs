@@ -1,11 +1,11 @@
 mod findpackage;
 pub mod treehelper;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
 
-//use anyhow::Result;
-//use once_cell::sync::Lazy;
-//use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+
+static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub enum FileType {
@@ -34,6 +34,8 @@ pub struct CMakePackage {
 pub use findpackage::*;
 use tree_sitter::Node;
 
+use crate::fileapi;
+
 pub fn get_node_content(source: &[&str], node: &Node) -> String {
     let mut content: String;
     let x = node.start_position().column;
@@ -60,4 +62,58 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
         }
     }
     content
+}
+
+pub fn remove_bracked<'a>(origin: &'a str) -> &'a str {
+    if origin.starts_with("\"") {
+        return &origin[1..origin.len() - 1];
+    }
+    origin
+}
+
+pub fn replace_placeholders(template: &str) -> Option<String> {
+    if !template.contains("${") {
+        return Some(template.to_string());
+    }
+    let values = fileapi::get_entries_data()?;
+    replace_placeholders_with_hashmap(template, &values)
+}
+
+fn replace_placeholders_with_hashmap(
+    template: &str,
+    values: &HashMap<String, String>,
+) -> Option<String> {
+    let mut result = template.to_string();
+
+    for caps in PLACE_HODER_REGEX.captures_iter(template) {
+        let key = &caps[1];
+        match values.get(key) {
+            Some(value) => {
+                result = result.replace(&caps[0], value);
+            }
+            None => return None,
+        }
+    }
+    Some(result)
+}
+
+#[test]
+fn brank_remove_test() {
+    let testa = "\"abc\"";
+    let target_str = "abc";
+    assert_eq!(remove_bracked(testa), target_str);
+    assert_eq!(remove_bracked(target_str), target_str);
+}
+
+#[test]
+fn replace_placeholders_tst() {
+    let mut values = HashMap::new();
+    values.insert("ROOT_DIR".to_string(), "/usr".to_string());
+
+    let template = "${ROOT_DIR}/abc";
+
+    assert_eq!(
+        replace_placeholders_with_hashmap(template, &values),
+        Some("/usr/abc".to_string())
+    );
 }

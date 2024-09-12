@@ -12,6 +12,7 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
+        replace_placeholders,
         treehelper::{get_position_string, point_to_position},
         CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
@@ -174,9 +175,17 @@ pub async fn godef(
                 PositionType::NotFind => None,
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => None,
-                PositionType::Include => include::cmpinclude(originuri, &tofind, client).await,
+                PositionType::Include => {
+                    let Some(fixed_url) = replace_placeholders(&tofind) else {
+                        return None;
+                    };
+                    include::cmpinclude(originuri, &fixed_url, client).await
+                }
                 PositionType::SubDir => {
-                    subdirectory::cmpsubdirectory(originuri, &tofind, client).await
+                    let Some(fixed_url) = replace_placeholders(&tofind) else {
+                        return None;
+                    };
+                    subdirectory::cmpsubdirectory(originuri, &fixed_url, client).await
                 }
             }
         }

@@ -7,6 +7,7 @@ use serde_json::Value;
 use tower_lsp::lsp_types::CompletionItem;
 
 use std::{
+    collections::HashMap,
     path::Path,
     sync::{LazyLock, OnceLock},
 };
@@ -25,6 +26,17 @@ pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<()> {
 #[inline]
 pub fn get_complete_data() -> Option<Vec<CompletionItem>> {
     Some(CACHE_DATA.get()?.gen_completions())
+}
+
+#[inline]
+pub fn get_entries_data() -> Option<HashMap<String, String>> {
+    let entries = &CACHE_DATA.get()?.entries;
+    let mut map = HashMap::new();
+
+    for entry in entries {
+        map.insert(entry.name.clone(), entry.value.clone());
+    }
+    Some(map)
 }
 
 pub static DEFAULT_QUERY: LazyLock<Option<QueryJson>> = LazyLock::new(QueryJson::from_command);

@@ -49,7 +49,7 @@ pub fn get_position_string(location: Position, root: Node, source: &str) -> Opti
                 };
             }
             // if is the same line
-            else if child.start_position().row == child.end_position().row
+            if child.start_position().row == child.end_position().row
                 && neolocation.column <= child.end_position().column
                 && neolocation.column >= child.start_position().column
             {
