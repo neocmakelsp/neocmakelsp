@@ -176,15 +176,11 @@ pub async fn godef(
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => None,
                 PositionType::Include => {
-                    let Some(fixed_url) = replace_placeholders(&tofind) else {
-                        return None;
-                    };
+                    let fixed_url = replace_placeholders(&tofind)?;
                     include::cmpinclude(originuri, &fixed_url, client).await
                 }
                 PositionType::SubDir => {
-                    let Some(fixed_url) = replace_placeholders(&tofind) else {
-                        return None;
-                    };
+                    let fixed_url = replace_placeholders(&tofind)?;
                     subdirectory::cmpsubdirectory(originuri, &fixed_url, client).await
                 }
             }

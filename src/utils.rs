@@ -64,7 +64,7 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
     content
 }
 
-pub fn remove_bracked<'a>(origin: &'a str) -> &'a str {
+pub fn remove_bracked(origin: &str) -> &str {
     if origin.starts_with("\"") {
         return &origin[1..origin.len() - 1];
     }
