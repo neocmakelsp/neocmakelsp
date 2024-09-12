@@ -57,7 +57,7 @@ jobs:
             - name: Run fmt check
               run: cargo fmt --all -- --check
             - name: Run clippy check
-              run: cargo clippy
+              run: cargo clippy -- -D warnings
             - name: Run tests
               run: cargo test --verbose
             - name: Run tests for musl
