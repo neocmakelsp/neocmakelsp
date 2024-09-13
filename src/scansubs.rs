@@ -9,7 +9,8 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::CMakeNodeKinds;
+use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::remove_quotation};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -63,10 +64,9 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
     let mut course = tree.walk();
     for node in tree.children(&mut course) {
         match node.kind() {
-            "normal_command" => {
+            CMakeNodeKinds::NORMAL_COMMAND => {
                 let h = node.start_position().row;
                 let ids = node.child(0).unwrap();
-                //let ids = ids.child(2).unwrap();
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let command_name = &source[h][x..y];
@@ -88,7 +88,7 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
                     }
                 }
             }
-            "if_condition" | "foreach_loop" | "body" => {
+            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 bufs.append(&mut scan_node(source, node, path.as_ref()));
             }
             _ => {}
@@ -163,7 +163,7 @@ fn get_subdir_from_tree(
             if !innodepath.is_empty() {
                 output.append(&mut innodepath);
             }
-            if node.kind() == "normal_command" {
+            if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
                 let h = node.start_position().row;
                 let ids = node.child(0).unwrap();
                 //let ids = ids.child(2).unwrap();
@@ -188,23 +188,4 @@ fn get_subdir_from_tree(
         }
         output
     }
-}
-
-fn remove_quotation(input: &str) -> &str {
-    if input.split('"').count() == 3 {
-        input.split('"').collect::<Vec<&str>>()[1]
-    } else {
-        input
-    }
-}
-
-#[test]
-fn tst_quotantion() {
-    let a = r#"
-    "aa"
-    "#;
-    assert_eq!("aa", remove_quotation(a));
-
-    let b = "sdfds";
-    assert_eq!(b, "sdfds");
 }

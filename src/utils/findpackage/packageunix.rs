@@ -48,7 +48,12 @@ fn get_available_libs(prefixs: &Vec<String>) -> Vec<PathBuf> {
     ava
 }
 
-fn get_cmake_message(prefixs: &Vec<String>) -> HashMap<String, CMakePackage> {
+#[inline]
+fn get_cmake_message() -> HashMap<String, CMakePackage> {
+    get_cmake_message_with_prefixs(&get_prefixs())
+}
+
+fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
     for prefix in prefixs {
         let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
@@ -145,9 +150,9 @@ fn get_cmake_message(prefixs: &Vec<String>) -> HashMap<String, CMakePackage> {
 }
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
-    LazyLock::new(|| get_cmake_message(&get_prefixs()).into_values().collect());
+    LazyLock::new(|| get_cmake_message().into_values().collect());
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
-    LazyLock::new(|| get_cmake_message(&get_prefixs()));
+    LazyLock::new(get_cmake_message);
 
 #[test]
 fn test_prefix() {
@@ -223,5 +228,5 @@ fn test_package_search() {
             },
         ),
     ]);
-    assert_eq!(get_cmake_message(&vec![prefix]), target);
+    assert_eq!(get_cmake_message_with_prefixs(&vec![prefix]), target);
 }
