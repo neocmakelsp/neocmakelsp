@@ -167,6 +167,25 @@ pub async fn getcomplete(
         Some(CompletionResponse::Array(complete))
     }
 }
+
+#[derive(Debug)]
+struct LineCommentTmp<'a> {
+    start_y: usize,
+    comment: &'a str,
+}
+
+impl<'a> LineCommentTmp<'a> {
+    fn is_node_comment(&self, start_y: usize) -> bool {
+        if start_y <= self.start_y {
+            return false;
+        }
+        start_y - self.start_y == 1 && !self.comment.is_empty()
+    }
+    fn comment(&self) -> &str {
+        self.comment[1..].trim_start()
+    }
+}
+
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
@@ -186,8 +205,13 @@ fn getsubcomplete(
             return None;
         }
     }
+
     let mut course = input.walk();
     let mut complete: Vec<CompletionItem> = vec![];
+    let mut line_comment_tmp = LineCommentTmp {
+        start_y: 0,
+        comment: "",
+    };
     for child in input.children(&mut course) {
         if let Some(location) = location {
             if child.start_position().row as u32 > location.line {
@@ -196,6 +220,15 @@ fn getsubcomplete(
             }
         }
         match child.kind() {
+            CMakeNodeKinds::LINE_COMMENT => {
+                let start_y = child.start_position().row;
+                let start_x = child.start_position().column;
+                let end_x = child.end_position().column;
+                line_comment_tmp = LineCommentTmp {
+                    start_y,
+                    comment: &source[start_y][start_x..end_x],
+                }
+            }
             CMakeNodeKinds::BRACKET_COMMENT => {
                 let start_y = child.start_position().row;
                 let end_y = child.end_position().row;
@@ -224,14 +257,16 @@ fn getsubcomplete(
                 let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
+                let mut document_info = format!("defined function\nfrom: {}", local_path.display());
+
+                if line_comment_tmp.is_node_comment(h) {
+                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                }
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        local_path.display()
-                    ))),
+                    documentation: Some(Documentation::String(document_info)),
                     ..Default::default()
                 });
             }
@@ -251,15 +286,18 @@ fn getsubcomplete(
                 let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
+                let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
+
+                println!("{line_comment_tmp:?}, {h}");
+                if line_comment_tmp.is_node_comment(h) {
+                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                }
 
                 complete.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        local_path.display()
-                    ))),
+                    documentation: Some(Documentation::String(document_info)),
                     ..Default::default()
                 });
             }
@@ -831,4 +869,23 @@ Example using both :command:`configure_package_config_file` and
 #]=======================================================================]
         "#;
     assert_eq!(rst_doc_read(doc, "FileExample.cmake").len(), 2)
+}
+
+#[test]
+fn comment_mark_test() {
+    let temp = LineCommentTmp {
+        start_y: 1,
+        comment: "",
+    };
+
+    assert!(!temp.is_node_comment(2));
+
+    let temp = LineCommentTmp {
+        start_y: 1,
+        comment: "# ABCD",
+    };
+    assert!(temp.is_node_comment(2));
+    assert!(!temp.is_node_comment(1));
+    assert!(!temp.is_node_comment(0));
+    assert_eq!(temp.comment(), "ABCD");
 }
