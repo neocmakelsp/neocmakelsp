@@ -65,7 +65,10 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
 }
 
 pub fn remove_bracked(origin: &str) -> &str {
-    origin.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(origin)
+    origin
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .unwrap_or(origin)
 }
 
 pub fn replace_placeholders(template: &str) -> Option<String> {
