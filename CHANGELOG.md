@@ -1,5 +1,10 @@
 # Neocmakelsp
 
+## 0.8.3
+- support read value from fileapi and use it in compeleting
+- fix jumping to buildin cmake file not works on temux
+- fix meson build, induced a python wrapper
+
 ## 0.8.1
 
 - Compatible with vcpkg package manager
