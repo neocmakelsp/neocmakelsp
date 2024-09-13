@@ -47,3 +47,26 @@ impl CacheEntry {
         }
     }
 }
+
+#[test]
+fn gen_completion_test() {
+    let cache = CacheEntry {
+        name: "test".to_string(),
+        properties: vec![],
+        r#type: "Path".to_string(),
+        value: "/usr/share".to_string(),
+    };
+
+    assert_eq!(
+        cache.gen_completion(),
+        CompletionItem {
+            label: "test".to_string(),
+            documentation: Some(Documentation::String(
+                "type: Path, value: /usr/share".to_string()
+            )),
+            detail: Some("Cached Values".to_string()),
+            kind: Some(CompletionItemKind::VALUE),
+            ..Default::default()
+        }
+    )
+}

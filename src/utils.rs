@@ -116,6 +116,12 @@ fn replace_placeholders_tst() {
         replace_placeholders_with_hashmap(template, &values),
         Some("/usr/abc".to_string())
     );
+
+    let template = "/home/abc";
+    assert_eq!(
+        replace_placeholders_with_hashmap(template, &values),
+        Some("/home/abc".to_string())
+    );
 }
 
 // FIXME: I do not know the way to gen module_pattern on windows
