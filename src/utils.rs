@@ -148,6 +148,24 @@ pub fn gen_module_pattern(subpath: &str) -> Option<String> {
     }
 }
 
+#[derive(Debug)]
+pub struct LineCommentTmp<'a> {
+    pub start_y: usize,
+    pub comment: &'a str,
+}
+
+impl<'a> LineCommentTmp<'a> {
+    pub fn is_node_comment(&self, start_y: usize) -> bool {
+        if start_y <= self.start_y {
+            return false;
+        }
+        start_y - self.start_y == 1 && !self.comment.is_empty()
+    }
+    pub fn comment(&self) -> &str {
+        self.comment[1..].trim_start()
+    }
+}
+
 #[test]
 fn test_module_pattern() {
     #[cfg(unix)]

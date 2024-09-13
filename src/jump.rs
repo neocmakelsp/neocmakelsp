@@ -14,7 +14,7 @@ use crate::{
     utils::{
         gen_module_pattern, replace_placeholders,
         treehelper::{get_position_string, point_to_position},
-        CACHE_CMAKE_PACKAGES_WITHKEYS,
+        LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
     CMakeNodeKinds,
 };
@@ -242,6 +242,10 @@ fn getsubdef(
     }
     let mut course = input.walk();
     let mut defs: Vec<(String, Location, String)> = vec![];
+    let mut line_comment_tmp = LineCommentTmp {
+        start_y: 0,
+        comment: "",
+    };
     for child in input.children(&mut course) {
         if let Some(location) = location {
             if child.start_position().row as u32 > location.line {
@@ -252,6 +256,15 @@ fn getsubdef(
         let start = point_to_position(child.start_position());
         let end = point_to_position(child.end_position());
         match child.kind() {
+            CMakeNodeKinds::LINE_COMMENT => {
+                let start_y = child.start_position().row;
+                let start_x = child.start_position().column;
+                let end_x = child.end_position().column;
+                line_comment_tmp = LineCommentTmp {
+                    start_y,
+                    comment: &source[start_y][start_x..end_x],
+                }
+            }
             CMakeNodeKinds::FUNCTION_DEF => {
                 let Some(function_whole) = child.child(0) else {
                     continue;
@@ -268,13 +281,18 @@ fn getsubdef(
                 let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
+                let mut document_info = format!("defined function\nfrom: {}", local_path.display());
+
+                if line_comment_tmp.is_node_comment(h) {
+                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                }
                 defs.push((
                     name.to_string(),
                     Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
-                    format!("function in {}", local_path.display()),
+                    document_info,
                 ));
             }
             CMakeNodeKinds::MACRO_DEF => {
@@ -293,13 +311,18 @@ fn getsubdef(
                 let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
+                let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
+
+                if line_comment_tmp.is_node_comment(h) {
+                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                }
                 defs.push((
                     name.to_string(),
                     Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
-                    format!("macro in {}", local_path.display()),
+                    document_info,
                 ));
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
@@ -446,18 +469,23 @@ fn getsubdef(
                     let h = ids.start_position().row;
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
-                    let name = &source[h][x..y].split(' ').next();
-
-                    let Some(name) = name.map(|name| name.to_string()) else {
+                    let Some(name) = &source[h][x..y].split(' ').next() else {
                         continue;
                     };
+                    let mut document_info =
+                        format!("defined variable\nfrom: {}", local_path.display());
+
+                    if line_comment_tmp.is_node_comment(h) {
+                        document_info =
+                            format!("{}\n{}", document_info, line_comment_tmp.comment());
+                    }
                     defs.push((
                         name.to_string(),
                         Location {
                             uri: Url::from_file_path(local_path).unwrap(),
                             range: Range { start, end },
                         },
-                        format!("value in {}", local_path.display()),
+                        document_info,
                     ));
                 }
             }

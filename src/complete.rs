@@ -7,7 +7,8 @@ use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::utils::{
-    gen_module_pattern, remove_bracked, replace_placeholders, CACHE_CMAKE_PACKAGES_WITHKEYS,
+    gen_module_pattern, remove_bracked, replace_placeholders, LineCommentTmp,
+    CACHE_CMAKE_PACKAGES_WITHKEYS,
 };
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use std::collections::HashMap;
@@ -165,24 +166,6 @@ pub async fn getcomplete(
         None
     } else {
         Some(CompletionResponse::Array(complete))
-    }
-}
-
-#[derive(Debug)]
-struct LineCommentTmp<'a> {
-    start_y: usize,
-    comment: &'a str,
-}
-
-impl<'a> LineCommentTmp<'a> {
-    fn is_node_comment(&self, start_y: usize) -> bool {
-        if start_y <= self.start_y {
-            return false;
-        }
-        start_y - self.start_y == 1 && !self.comment.is_empty()
-    }
-    fn comment(&self) -> &str {
-        self.comment[1..].trim_start()
     }
 }
 
