@@ -23,7 +23,7 @@ fn get_prefix() -> Option<String> {
 
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = Vec::new();
-    let Ok(prefix) = get_prefix() else {
+    let Some(prefix) = get_prefix() else {
         return ava;
     };
     let p = Path::new(&prefix).join("cmake");
@@ -34,7 +34,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 }
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
-    let Ok(prefix) = get_prefix() else {
+    let Some(prefix) = get_prefix() else {
         return HashMap::new();
     };
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
