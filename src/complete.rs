@@ -122,7 +122,12 @@ pub async fn getcomplete(
     if let Some(mut cmake_cache) = fileapi::get_complete_data() {
         complete.append(&mut cmake_cache);
     }
-    let postype = get_pos_type(location, tree.root_node(), source, PositionType::NotFind);
+    let postype = get_pos_type(
+        location,
+        tree.root_node(),
+        &source.lines().collect(),
+        PositionType::Unknown,
+    );
     match postype {
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) = getsubcomplete(
@@ -157,6 +162,10 @@ pub async fn getcomplete(
             if let Ok(messages) = &*BUILDIN_MODULE {
                 complete.append(&mut messages.clone());
             }
+        }
+        PositionType::Comment => {
+            client.log_message(MessageType::INFO, "Empty").await;
+            return None;
         }
         _ => {}
     }

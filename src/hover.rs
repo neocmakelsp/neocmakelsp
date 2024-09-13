@@ -14,8 +14,13 @@ use tree_sitter::Node;
 use crate::jump::JUMP_CACHE;
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
-    let message = get_position_string(location, root, source)?;
-    let inner_result = match get_pos_type(location, root, source, PositionType::NotFind) {
+    let message = get_position_string(location, root, &source.lines().collect())?;
+    let inner_result = match get_pos_type(
+        location,
+        root,
+        &source.lines().collect(),
+        PositionType::Unknown,
+    ) {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
             let message = message.split('_').collect::<Vec<&str>>()[0];

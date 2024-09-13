@@ -18,14 +18,12 @@ use crate::{
     },
     CMakeNodeKinds,
 };
-use lsp_types::{MessageType, Position, Range, Url};
 use std::sync::LazyLock;
-use tower_lsp::lsp_types;
+use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 mod findpackage;
 mod include;
 mod subdirectory;
 use crate::utils::treehelper::{get_pos_type, PositionType};
-use lsp_types::Location;
 
 use tree_sitter::Node;
 
@@ -120,10 +118,15 @@ pub async fn godef(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
-    let positionstring = get_position_string(location, tree.root_node(), source);
+    let positionstring = get_position_string(location, tree.root_node(), &source.lines().collect());
     match positionstring {
-        Some(tofind) if (tofind != "(" && tofind != ")") => {
-            let jumptype = get_pos_type(location, tree.root_node(), source, PositionType::Variable);
+        Some(tofind) => {
+            let jumptype = get_pos_type(
+                location,
+                tree.root_node(),
+                &source.lines().collect(),
+                PositionType::Variable,
+            );
             match jumptype {
                 PositionType::Variable => {
                     let mut locations = vec![];
@@ -153,7 +156,7 @@ pub async fn godef(
                     let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
                     findpackage::cmpfindpackage(tofind, client).await
                 }
-                PositionType::NotFind => None,
+                PositionType::Unknown | PositionType::Comment => None,
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => None,
                 PositionType::Include => {
@@ -166,8 +169,7 @@ pub async fn godef(
                 }
             }
         }
-        None => None,
-        _ => {
+        None => {
             client.log_message(MessageType::INFO, "Empty").await;
             None
         }
