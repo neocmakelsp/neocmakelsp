@@ -16,7 +16,7 @@ pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
 
 fn get_prefix() -> Option<String> {
     if let Ok(mystem_prefix) = std::env::var("MSYSTEM_PREFIX") {
-        return mystem_prefix;
+        return Some(mystem_prefix);
     }
     std::env::var("CMAKE_PREFIX_PATH").ok()
 }
@@ -75,8 +75,6 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         tojump,
                         from: "System".to_string(),
                     });
-
-                //ava.push(path);
             }
         }
     }

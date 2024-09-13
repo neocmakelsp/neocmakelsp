@@ -11,11 +11,9 @@ use crate::utils::{CMakePackage, FileType};
 
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
+#[inline]
 pub fn did_vcpkg_project(path: &Path) -> bool {
-    if path.is_dir() && path.join("vcpkg.json").is_file() {
-        return true;
-    }
-    false
+    path.is_dir() && path.join("vcpkg.json").is_file()
 }
 
 pub static VCPKG_PREFIX: LazyLock<Arc<Mutex<Vec<&str>>>> =
