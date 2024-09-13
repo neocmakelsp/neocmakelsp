@@ -35,9 +35,9 @@ fn get_prefixs() -> Vec<String> {
         .collect()
 }
 
-fn get_available_libs() -> Vec<PathBuf> {
+fn get_available_libs(prefixs: &Vec<String>) -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = vec![];
-    for prefix in get_prefixs() {
+    for prefix in prefixs {
         for lib in LIBS {
             let p = Path::new(&prefix).join(lib).join("cmake");
             if p.exists() {
@@ -48,10 +48,10 @@ fn get_available_libs() -> Vec<PathBuf> {
     ava
 }
 
-fn get_cmake_message() -> HashMap<String, CMakePackage> {
+fn get_cmake_message(prefixs: &Vec<String>) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for lib in get_prefixs() {
-        let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
+    for prefix in prefixs {
+        let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
             continue;
         };
         for path in paths.flatten() {
@@ -90,15 +90,14 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         tojump,
                         from: "System".to_string(),
                     });
-
-                //ava.push(path);
             }
         }
     }
-    for lib in get_available_libs() {
+    for lib in get_available_libs(prefixs) {
         let Ok(paths) = std::fs::read_dir(lib) else {
             continue;
         };
+
         for path in paths.flatten() {
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
@@ -146,9 +145,9 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
 }
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
-    LazyLock::new(|| get_cmake_message().into_values().collect());
+    LazyLock::new(|| get_cmake_message(&get_prefixs()).into_values().collect());
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
-    LazyLock::new(get_cmake_message);
+    LazyLock::new(|| get_cmake_message(&get_prefixs()));
 
 #[test]
 fn test_prefix() {
@@ -161,4 +160,47 @@ fn test_prefix() {
             "/data/data/com.termux/files/usr".to_string()
         ]
     )
+}
+
+#[test]
+fn test_package_search() {
+    use std::fs;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+
+    let share_dir = dir.path().join("share");
+    let cmake_dir = share_dir.join("cmake");
+    let vulkan_dir = cmake_dir.join("VulkanHeaders");
+    fs::create_dir_all(&vulkan_dir).unwrap();
+    let vulkan_config_cmake = vulkan_dir.join("VulkanHeadersConfig.cmake");
+
+    File::create(&vulkan_config_cmake).unwrap();
+    let vulkan_config_version_cmake = vulkan_dir.join("VulkanHeadersConfigVersion.cmake");
+    let mut vulkan_config_version_file = File::create(&vulkan_config_version_cmake).unwrap();
+    writeln!(
+        vulkan_config_version_file,
+        r#"set(PACKAGE_VERSION "1.3.295")"#
+    )
+    .unwrap();
+
+    let prefix = fs::canonicalize(dir.path())
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
+    let target = HashMap::from_iter([(
+        "VulkanHeaders".to_string(),
+        CMakePackage {
+            name: "VulkanHeaders".to_string(),
+            filetype: FileType::Dir,
+            filepath: vulkan_dir.to_str().unwrap().to_string(),
+            version: Some("\"1.3.295\"".to_string()),
+            tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
+            from: "System".to_string(),
+        },
+    )]);
+    assert_eq!(get_cmake_message(&vec![prefix]), target);
 }

@@ -23,6 +23,7 @@ mod packagemac;
 use packagemac as cmakepackage;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::CMakeNodeKinds;
 use std::{collections::HashMap, sync::LazyLock};
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: LazyLock<regex::Regex> =
@@ -61,7 +62,7 @@ fn get_version(source: &str) -> Option<String> {
     let input = tree.root_node();
     let mut course = input.walk();
     for child in input.children(&mut course) {
-        if child.kind() == "normal_command" {
+        if child.kind() == CMakeNodeKinds::NORMAL_COMMAND {
             let h = child.start_position().row;
             let ids = child.child(0).unwrap();
             let x = ids.start_position().column;

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub enum FileType {
     Dir,
     File,
@@ -21,7 +21,7 @@ impl std::fmt::Display for FileType {
     }
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct CMakePackage {
     pub name: String,
     pub filetype: FileType,
