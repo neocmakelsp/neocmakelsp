@@ -1,5 +1,11 @@
 # Neocmakelsp
 
+## 0.8.4
+- Fix jump to buildin cmake file still not works on temux
+- Try to support find_package on MSYSTEM
+- Add some unit test. Now it is 30% coverage!
+- Now hover and complete will show the comment of cmake
+
 ## 0.8.3
 - support reading value from fileapi and use it in compeleting
 - fix jumping to buildin cmake file not works on temux
