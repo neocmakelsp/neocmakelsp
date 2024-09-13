@@ -288,7 +288,6 @@ fn getsubcomplete(
                 };
                 let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
 
-                println!("{line_comment_tmp:?}, {h}");
                 if line_comment_tmp.is_node_comment(h) {
                     document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
                 }
@@ -411,19 +410,24 @@ fn getsubcomplete(
                                 let h = ids.start_position().row;
                                 let x = ids.start_position().column;
                                 let y = ids.end_position().column;
-                                let name = &source[h][x..y].split(' ').next();
-
-                                let Some(name) = name.map(|name| name.to_string()) else {
+                                let Some(name) = &source[h][x..y].split(' ').next() else {
                                     continue;
                                 };
+                                let mut document_info =
+                                    format!("defined variable\nfrom: {}", local_path.display());
+
+                                if line_comment_tmp.is_node_comment(h) {
+                                    document_info = format!(
+                                        "{}\n{}",
+                                        document_info,
+                                        line_comment_tmp.comment()
+                                    );
+                                }
                                 complete.push(CompletionItem {
                                     label: name.to_string(),
                                     kind: Some(CompletionItemKind::VALUE),
                                     detail: Some("Value".to_string()),
-                                    documentation: Some(Documentation::String(format!(
-                                        "defined variable\nfrom: {}",
-                                        local_path.display()
-                                    ))),
+                                    documentation: Some(Documentation::String(document_info)),
                                     ..Default::default()
                                 });
                             }

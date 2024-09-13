@@ -1,3 +1,4 @@
+use crate::fileapi;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use crate::utils::treehelper::get_pos_type;
@@ -62,5 +63,12 @@ PackageVersion: {}
     }
 
     let jump_cache = JUMP_CACHE.lock().await;
-    Some(jump_cache.get(&message)?.1.clone())
+    let cached_info = jump_cache.get(&message)?.1.clone();
+    // use cache_data to show info first
+    if let Some(cache_data) = fileapi::get_entries_data() {
+        if let Some(value) = cache_data.get(&message) {
+            return Some(format!("{cached_info}\ncurrent cached value : {value}"));
+        }
+    }
+    Some(cached_info)
 }
