@@ -117,3 +117,49 @@ fn replace_placeholders_tst() {
         Some("/usr/abc".to_string())
     );
 }
+
+// FIXME: I do not know the way to gen module_pattern on windows
+#[allow(unused_variables)]
+pub fn gen_module_pattern(subpath: &str) -> Option<String> {
+    #[cfg(unix)]
+    #[cfg(not(target_os = "android"))]
+    {
+        Some(format!("/usr/share/cmake*/Modules/{subpath}.cmake"))
+    }
+    #[cfg(target_os = "android")]
+    {
+        let Ok(prefix) = std::env::var("PREFIX") else {
+            return None;
+        };
+        Some(format!("{prefix}/share/cmake*/Modules/{subpath}.cmake"))
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
+#[test]
+fn test_module_pattern() {
+    #[cfg(unix)]
+    #[cfg(not(target_os = "android"))]
+    assert_eq!(
+        gen_module_pattern("GNUInstallDirs"),
+        Some("/usr/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
+    );
+    #[cfg(target_os = "android")]
+    {
+        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+        assert_eq!(
+            gen_module_pattern("GNUInstallDirs"),
+            Some(
+                "/data/data/com.termux/files/usr/share/cmake*/Modules/GNUInstallDirs.cmake"
+                    .to_string()
+            )
+        );
+    }
+    #[cfg(not(unix))]
+    {
+        assert_eq!(gen_module_pattern("GNUInstallDirs"), None);
+    }
+}

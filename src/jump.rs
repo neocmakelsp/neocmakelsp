@@ -12,7 +12,7 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        replace_placeholders,
+        gen_module_pattern, replace_placeholders,
         treehelper::{get_position_string, point_to_position},
         CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
@@ -35,27 +35,6 @@ pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
-
-// FIXME: I do not know the way to gen module_pattern on windows
-#[allow(unused_variables)]
-fn gen_module_pattern(subpath: &str) -> Option<String> {
-    #[cfg(unix)]
-    #[cfg(not(target_os = "android"))]
-    {
-        Some(format!("/usr/share/cmake*/Modules/{subpath}.cmake"))
-    }
-    #[cfg(target_os = "android")]
-    {
-        let Ok(prefix) = std::env::var("PREFIX") else {
-            return None;
-        };
-        Some(format!("{prefix}/cmake*/Modules/{subpath}.cmake"))
-    }
-    #[cfg(not(unix))]
-    {
-        None
-    }
-}
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
@@ -527,29 +506,4 @@ fn get_cmake_package_defs(
     }
 
     Some(complete_infos)
-}
-
-#[test]
-fn test_module_pattern() {
-    #[cfg(unix)]
-    #[cfg(not(target_os = "android"))]
-    assert_eq!(
-        gen_module_pattern("GNUInstallDirs"),
-        Some("/usr/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
-    );
-    #[cfg(target_os = "android")]
-    {
-        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
-        assert_eq!(
-            gen_module_pattern("GNUInstallDirs"),
-            Some(
-                "/data/data/com.termux/files/usr/share/cmake*/Modules/GNUInstallDirs.cmake"
-                    .to_string()
-            )
-        );
-    }
-    #[cfg(not(unix))]
-    {
-        assert_eq!(gen_module_pattern("GNUInstallDirs"), None);
-    }
 }

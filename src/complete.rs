@@ -6,7 +6,9 @@ use crate::fileapi;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
-use crate::utils::{remove_bracked, replace_placeholders, CACHE_CMAKE_PACKAGES_WITHKEYS};
+use crate::utils::{
+    gen_module_pattern, remove_bracked, replace_placeholders, CACHE_CMAKE_PACKAGES_WITHKEYS,
+};
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -296,13 +298,15 @@ fn getsubcomplete(
                             if name.split('.').count() != 1 {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
-                                let Some(path) = glob::glob(
-                                    format!("/usr/share/cmake*/Modules/{name}.cmake").as_str(),
-                                )
-                                .into_iter()
-                                .flatten()
-                                .flatten()
-                                .next() else {
+                                let Some(glob_pattern) = gen_module_pattern(&name) else {
+                                    continue;
+                                };
+                                let Some(path) = glob::glob(&glob_pattern)
+                                    .into_iter()
+                                    .flatten()
+                                    .flatten()
+                                    .next()
+                                else {
                                     continue;
                                 };
                                 (true, path)
