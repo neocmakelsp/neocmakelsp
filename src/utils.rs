@@ -64,7 +64,7 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
     content
 }
 
-pub fn remove_bracked(origin: &str) -> &str {
+pub fn remove_quotation(origin: &str) -> &str {
     origin
         .strip_prefix('"')
         .and_then(|s| s.strip_suffix('"'))
@@ -101,8 +101,8 @@ fn replace_placeholders_with_hashmap(
 fn brank_remove_test() {
     let testa = "\"abc\"";
     let target_str = "abc";
-    assert_eq!(remove_bracked(testa), target_str);
-    assert_eq!(remove_bracked(target_str), target_str);
+    assert_eq!(remove_quotation(testa), target_str);
+    assert_eq!(remove_quotation(target_str), target_str);
 }
 
 #[test]

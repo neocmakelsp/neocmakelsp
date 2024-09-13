@@ -10,6 +10,10 @@ use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
+fn remove_prefix(s: &str) -> &str {
+    s.strip_prefix(r"\\?\").unwrap_or(s)
+}
+
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
 
@@ -35,6 +39,11 @@ fn get_available_libs(prefix: &str) -> Vec<PathBuf> {
     ava
 }
 
+fn safe_canonicalize<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
+    use path_absolutize::Absolutize;
+    Ok(path.as_ref().absolutize()?.into_owned())
+}
+
 #[inline]
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let Some(prefix) = get_prefix() else {
@@ -47,7 +56,6 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
     if let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) {
         for path in paths.flatten() {
-            println!("{path:?}");
             let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
                 continue;
             };
@@ -55,7 +63,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
             let mut version: Option<String> = None;
             let mut ispackage = false;
             for f in files.flatten() {
-                tojump.push(fs::canonicalize(f.clone()).unwrap());
+                tojump.push(safe_canonicalize(&f).unwrap());
                 if CMAKECONFIG.is_match(f.to_str().unwrap()) {
                     ispackage = true;
                 }
@@ -78,7 +86,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     .or_insert_with(|| CMakePackage {
                         name: packagename.to_string(),
                         filetype: FileType::Dir,
-                        filepath: path.to_str().unwrap().to_string(),
+                        filepath: remove_prefix(path.to_str().unwrap()).to_string(),
                         version,
                         tojump,
                         from: "System".to_string(),
@@ -95,12 +103,16 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let packagepath = path.path().to_str().unwrap().to_string();
+            let packagepath = safe_canonicalize(path.path())
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string();
             let (packagetype, packagename) = {
                 if path.metadata().unwrap().is_dir() {
                     if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
                         for path in paths.flatten() {
-                            let filepath = fs::canonicalize(path.path()).unwrap();
+                            let filepath = safe_canonicalize(path.path()).unwrap();
                             if path.metadata().unwrap().is_file() {
                                 let filename = path.file_name().to_str().unwrap().to_string();
                                 if CMAKEREGEX.is_match(&filename) {
@@ -116,7 +128,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     }
                     (FileType::Dir, pathname)
                 } else {
-                    let filepath = fs::canonicalize(path.path()).unwrap();
+                    let filepath = safe_canonicalize(path.path()).unwrap();
                     tojump.push(filepath);
                     let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
                     (FileType::File, pathname)
@@ -168,7 +180,7 @@ fn test_package_search() {
     let mut ecm_config_version_file = File::create(&ecm_config_version_cmake).unwrap();
     writeln!(ecm_config_version_file, r#"set(PACKAGE_VERSION "6.5.0")"#).unwrap();
 
-    let prefix = fs::canonicalize(dir.path())
+    let prefix = safe_canonicalize(dir.path())
         .unwrap()
         .to_str()
         .unwrap()

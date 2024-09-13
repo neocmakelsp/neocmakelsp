@@ -82,7 +82,7 @@ fn get_version(source: &str) -> Option<String> {
                         let x = version.start_position().column;
                         let y = version.end_position().column;
                         let version = &newsource[h][x..y];
-                        return Some(remove_bracked(version).to_string());
+                        return Some(remove_quotation(version).to_string());
                     }
                 }
             }
@@ -147,7 +147,7 @@ pub mod packagepkgconfig {
 pub use cmakepackage::*;
 pub use vcpkg::*;
 
-use super::{remove_bracked, CMakePackage};
+use super::{remove_quotation, CMakePackage};
 
 #[test]
 fn regextest() {
