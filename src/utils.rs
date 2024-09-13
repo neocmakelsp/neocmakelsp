@@ -135,7 +135,10 @@ pub fn gen_module_pattern(subpath: &str) -> Option<String> {
     }
     #[cfg(not(unix))]
     {
-        None
+        let Ok(prefix) = std::env::var("MSYSTEM_PREFIX") else {
+            return None;
+        };
+        Some(format!("{prefix}/share/cmake*/Modules/{subpath}.cmake"))
     }
 }
 
@@ -160,6 +163,10 @@ fn test_module_pattern() {
     }
     #[cfg(not(unix))]
     {
-        assert_eq!(gen_module_pattern("GNUInstallDirs"), None);
+        std::env::set_var("PREFIX", "C:/msys64");
+        assert_eq!(
+            gen_module_pattern("GNUInstallDirs"),
+            Some("C:/msys64/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
+        );
     }
 }

@@ -14,9 +14,16 @@ pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_message);
 
+fn get_prefix() -> Option<String> {
+    if let Some(mystem_prefix) = std::env::var("MSYSTEM_PREFIX") {
+        return mystem_prefix;
+    }
+    std::env::var("CMAKE_PREFIX_PATH").ok()
+}
+
 fn get_available_libs() -> Vec<PathBuf> {
     let mut ava: Vec<PathBuf> = Vec::new();
-    let Ok(prefix) = std::env::var("CMAKE_PREFIX_PATH") else {
+    let Ok(prefix) = get_prefix() else {
         return ava;
     };
     let p = Path::new(&prefix).join("cmake");
@@ -27,7 +34,7 @@ fn get_available_libs() -> Vec<PathBuf> {
 }
 
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
-    let Ok(prefix) = std::env::var("CMAKE_PREFIX_PATH") else {
+    let Ok(prefix) = get_prefix() else {
         return HashMap::new();
     };
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
