@@ -284,7 +284,7 @@ fn getsubdef(
                 let mut document_info = format!("defined function\nfrom: {}", local_path.display());
 
                 if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
                 defs.push((
                     name.to_string(),
@@ -314,7 +314,7 @@ fn getsubdef(
                 let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
 
                 if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
                 defs.push((
                     name.to_string(),
@@ -477,7 +477,7 @@ fn getsubdef(
 
                     if line_comment_tmp.is_node_comment(h) {
                         document_info =
-                            format!("{}\n{}", document_info, line_comment_tmp.comment());
+                            format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                     }
                     defs.push((
                         name.to_string(),

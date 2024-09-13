@@ -243,7 +243,7 @@ fn getsubcomplete(
                 let mut document_info = format!("defined function\nfrom: {}", local_path.display());
 
                 if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
                 complete.push(CompletionItem {
                     label: name.to_string(),
@@ -272,7 +272,7 @@ fn getsubcomplete(
                 let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
 
                 if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n{}", document_info, line_comment_tmp.comment());
+                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
 
                 complete.push(CompletionItem {
@@ -401,7 +401,7 @@ fn getsubcomplete(
 
                                 if line_comment_tmp.is_node_comment(h) {
                                     document_info = format!(
-                                        "{}\n{}",
+                                        "{}\n\n{}",
                                         document_info,
                                         line_comment_tmp.comment()
                                     );

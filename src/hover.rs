@@ -67,7 +67,7 @@ PackageVersion: {}
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data() {
         if let Some(value) = cache_data.get(&message) {
-            return Some(format!("{cached_info}\ncurrent cached value : {value}"));
+            return Some(format!("current cached value : {value}\n\n{cached_info}"));
         }
     }
     Some(cached_info)
