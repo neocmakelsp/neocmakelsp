@@ -185,22 +185,43 @@ fn test_package_search() {
     )
     .unwrap();
 
+    let ecm_dir = share_dir.join("ECM").join("cmake");
+    fs::create_dir_all(&ecm_dir).unwrap();
+    let ecm_config_cmake = ecm_dir.join("ECMConfig.cmake");
+    File::create(&ecm_config_cmake).unwrap();
+    let ecm_config_version_cmake = ecm_dir.join("ECMConfigVersion.cmake");
+    let mut ecm_config_version_file = File::create(&ecm_config_version_cmake).unwrap();
+    writeln!(ecm_config_version_file, r#"set(PACKAGE_VERSION "6.5.0")"#).unwrap();
+
     let prefix = fs::canonicalize(dir.path())
         .unwrap()
         .to_str()
         .unwrap()
         .to_string();
 
-    let target = HashMap::from_iter([(
-        "VulkanHeaders".to_string(),
-        CMakePackage {
-            name: "VulkanHeaders".to_string(),
-            filetype: FileType::Dir,
-            filepath: vulkan_dir.to_str().unwrap().to_string(),
-            version: Some("\"1.3.295\"".to_string()),
-            tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
-            from: "System".to_string(),
-        },
-    )]);
+    let target = HashMap::from_iter([
+        (
+            "VulkanHeaders".to_string(),
+            CMakePackage {
+                name: "VulkanHeaders".to_string(),
+                filetype: FileType::Dir,
+                filepath: vulkan_dir.to_str().unwrap().to_string(),
+                version: Some("1.3.295".to_string()),
+                tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
+                from: "System".to_string(),
+            },
+        ),
+        (
+            "ECM".to_string(),
+            CMakePackage {
+                name: "ECM".to_string(),
+                filetype: FileType::Dir,
+                filepath: ecm_dir.to_str().unwrap().to_string(),
+                version: Some("6.5.0".to_string()),
+                tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
+                from: "System".to_string(),
+            },
+        ),
+    ]);
     assert_eq!(get_cmake_message(&vec![prefix]), target);
 }
