@@ -31,3 +31,4 @@ treesitter_kind_collector = "0.2.0"
 
 [dev-dependencies]
 tower = { version = "0.5.0", features = ["util"] }
+tempfile = "3.12.0"

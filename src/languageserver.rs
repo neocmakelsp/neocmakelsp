@@ -523,12 +523,14 @@ impl LanguageServer for Backend {
         } else {
             1
         };
+        let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
         match storemap.get(&uri) {
             Some(context) => Ok(getformat(
                 context,
                 &self.client,
                 space_line,
                 input.options.insert_spaces,
+                insert_final_newline,
             )
             .await),
             None => Ok(None),

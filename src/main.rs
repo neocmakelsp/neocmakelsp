@@ -1,8 +1,7 @@
+use ini::Ini;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
-//use std::process::Command;
-use ini::Ini;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_lsp::{Client, LspService, Server};
@@ -49,17 +48,42 @@ struct Backend {
     root_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
-fn editconfig_setting() -> Option<(bool, u32)> {
+#[derive(Debug, PartialEq, Eq)]
+struct EditConfigSetting {
+    use_space: bool,
+    indent_size: u32,
+    insert_final_newline: bool,
+}
+
+impl Default for EditConfigSetting {
+    fn default() -> Self {
+        Self {
+            use_space: true,
+            indent_size: 2,
+            insert_final_newline: false,
+        }
+    }
+}
+
+fn editconfig_setting() -> Option<EditConfigSetting> {
     let editconfig_path = std::path::Path::new(".editorconfig");
     if !editconfig_path.exists() {
         return None;
     }
+    editconfig_setting_read(editconfig_path)
+}
+
+fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditConfigSetting> {
     let conf = Ini::load_from_file(editconfig_path).unwrap();
 
     let cmakesession = conf.section(Some("CMakeLists.txt"))?;
 
     let indent_style = cmakesession.get("indent_style").unwrap_or("space");
     let use_space = indent_style == "space";
+
+    let insert_final_newline =
+        cmakesession.get("insert_final_newline").unwrap_or("false") == "true";
+
     let indent_size = cmakesession.get("indent_size").unwrap_or("2");
     let indent_size: u32 = if use_space {
         indent_size.parse::<u32>().unwrap_or(2)
@@ -67,7 +91,11 @@ fn editconfig_setting() -> Option<(bool, u32)> {
         1
     };
 
-    Some((use_space, indent_size))
+    Some(EditConfigSetting {
+        use_space,
+        indent_size,
+        insert_final_newline,
+    })
 }
 
 #[tokio::main]
@@ -152,7 +180,11 @@ async fn main() {
         } => {
             use ignore::Walk;
             use std::path::Path;
-            let (use_space, spacelen) = editconfig_setting().unwrap_or((true, 2));
+            let EditConfigSetting {
+                use_space,
+                indent_size,
+                insert_final_newline,
+            } = editconfig_setting().unwrap_or_default();
             let format_file = |format_file: &Path| {
                 let mut file = match std::fs::OpenOptions::new()
                     .read(true)
@@ -170,7 +202,8 @@ async fn main() {
                     println!("cannot read {} : error {}", format_file.display(), e);
                     return;
                 }
-                match formatting::get_format_cli(&buf, spacelen, use_space) {
+                match formatting::get_format_cli(&buf, indent_size, use_space, insert_final_newline)
+                {
                     Some(context) => {
                         if hasoverride {
                             if let Err(e) = file.set_len(0) {
@@ -217,5 +250,92 @@ async fn main() {
             }
         }
         NeocmakeCli::GenCompletions { shell } => shellcomplete::generate_shell_completions(shell),
+    }
+}
+
+#[cfg(test)]
+mod editorconfig_test {
+    use super::{editconfig_setting_read, EditConfigSetting};
+    use std::io::prelude::*;
+    use tempfile::NamedTempFile;
+    #[test]
+    fn tst_editconfig_tab() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let content = r#"
+root = true
+
+[*.{cmake}]
+indent_style = tab
+indent_size = 2
+
+[CMakeLists.txt]
+indent_style = tab
+indent_size = 2
+
+[*.{lua}]
+indent_style = space
+indent_size = 4
+"#;
+        writeln!(temp_file, "{}", content).unwrap();
+
+        assert_eq!(
+            editconfig_setting_read(temp_file),
+            Some(EditConfigSetting {
+                use_space: false,
+                indent_size: 1,
+                insert_final_newline: false
+            })
+        )
+    }
+    #[test]
+    fn tst_editconfig_space() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let content = r#"
+root = true
+
+[CMakeLists.txt]
+indent_style = space
+indent_size = 2
+
+[*.{lua}]
+indent_style = space
+indent_size = 4
+"#;
+        writeln!(temp_file, "{}", content).unwrap();
+
+        assert_eq!(
+            editconfig_setting_read(temp_file),
+            Some(EditConfigSetting {
+                use_space: true,
+                indent_size: 2,
+                insert_final_newline: false
+            })
+        )
+    }
+    #[test]
+    fn tst_editconfig_lastline() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let content = r#"
+root = true
+
+[CMakeLists.txt]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+
+[*.{lua}]
+indent_style = space
+indent_size = 4
+"#;
+        writeln!(temp_file, "{}", content).unwrap();
+
+        assert_eq!(
+            editconfig_setting_read(temp_file),
+            Some(EditConfigSetting {
+                use_space: true,
+                indent_size: 2,
+                insert_final_newline: true
+            })
+        )
     }
 }

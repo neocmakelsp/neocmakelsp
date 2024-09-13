@@ -63,6 +63,7 @@ pub async fn getformat(
     client: &tower_lsp::Client,
     spacelen: u32,
     use_space: bool,
+    insert_final_newline: bool,
 ) -> Option<Vec<TextEdit>> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
@@ -85,6 +86,10 @@ pub async fn getformat(
         0,
     );
     for _ in endline..source.lines().count() {
+        new_text.push('\n');
+    }
+
+    if insert_final_newline {
         new_text.push('\n');
     }
 
@@ -227,7 +232,12 @@ fn format_content(
     (new_text, endline)
 }
 
-pub fn get_format_cli(source: &str, spacelen: u32, use_space: bool) -> Option<String> {
+pub fn get_format_cli(
+    source: &str,
+    indent_size: u32,
+    use_space: bool,
+    insert_final_newline: bool,
+) -> Option<String> {
     let source = strip_trailing_newline_document(source);
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
@@ -239,13 +249,17 @@ pub fn get_format_cli(source: &str, spacelen: u32, use_space: bool) -> Option<St
     let (mut new_text, endline) = format_content(
         tree.root_node(),
         &source.lines().collect(),
-        spacelen,
+        indent_size,
         use_space,
         0,
         0,
         0,
     );
     for _ in endline..source.lines().count() {
+        new_text.push('\n');
+    }
+
+    if insert_final_newline {
         new_text.push('\n');
     }
     Some(new_text)
@@ -267,8 +281,10 @@ fn strip_newline_works() {
 fn tst_format_function() {
     let source = include_str!("../assert/function/formatbefore.cmake");
     let sourceafter = include_str!("../assert/function/formatafter.cmake");
-    let formatstr = get_format_cli(source, 1, false).unwrap();
+    let formatstr = get_format_cli(source, 1, false, false).unwrap();
+    let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
+    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
 }
 
 #[cfg(unix)]
@@ -276,8 +292,10 @@ fn tst_format_function() {
 fn tst_format_base() {
     let source = include_str!("../assert/base/formatbefore.cmake");
     let sourceafter = include_str!("../assert/base/formatafter.cmake");
-    let formatstr = get_format_cli(source, 1, false).unwrap();
+    let formatstr = get_format_cli(source, 1, false, false).unwrap();
+    let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
+    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
 }
 
 #[cfg(unix)]
@@ -285,6 +303,8 @@ fn tst_format_base() {
 fn tst_format_lastline() {
     let source = include_str!("../assert/lastline/before.cmake");
     let sourceafter = include_str!("../assert/lastline/after.cmake");
-    let formatstr = get_format_cli(source, 4, true).unwrap();
+    let formatstr = get_format_cli(source, 4, true, false).unwrap();
+    let formatstr_with_lastline = get_format_cli(source, 4, true, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
+    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
 }
