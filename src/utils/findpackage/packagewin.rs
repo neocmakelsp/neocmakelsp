@@ -35,6 +35,7 @@ fn get_available_libs(prefix: &str) -> Vec<PathBuf> {
     ava
 }
 
+#[inline]
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let Some(prefix) = get_prefix() else {
         return HashMap::new();
@@ -46,6 +47,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
     if let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) {
         for path in paths.flatten() {
+            println!("{path:?}");
             let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
                 continue;
             };

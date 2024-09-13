@@ -10,6 +10,7 @@ use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::CMakeNodeKinds;
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -63,7 +64,7 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
     let mut course = tree.walk();
     for node in tree.children(&mut course) {
         match node.kind() {
-            "normal_command" => {
+            CMakeNodeKinds::NORMAL_COMMAND => {
                 let h = node.start_position().row;
                 let ids = node.child(0).unwrap();
                 //let ids = ids.child(2).unwrap();
@@ -88,7 +89,7 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
                     }
                 }
             }
-            "if_condition" | "foreach_loop" | "body" => {
+            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 bufs.append(&mut scan_node(source, node, path.as_ref()));
             }
             _ => {}
