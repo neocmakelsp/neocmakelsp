@@ -9,8 +9,11 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
-use crate::CMakeNodeKinds;
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::remove_quotation};
+use crate::{
+    consts::TREESITTER_CMAKE_LANGUAGE,
+    utils::{remove_quotation, remove_quotation_and_replace_placeholders},
+    CMakeNodeKinds,
+};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -77,7 +80,9 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &source[h][x..y];
-                        let name = remove_quotation(name);
+                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
+                            continue;
+                        };
                         let subpath = path
                             .as_ref()
                             .parent()

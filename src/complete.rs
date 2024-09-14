@@ -7,7 +7,7 @@ use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType};
 use crate::utils::{
-    gen_module_pattern, remove_quotation, replace_placeholders, LineCommentTmp,
+    gen_module_pattern, remove_quotation_and_replace_placeholders, LineCommentTmp,
     CACHE_CMAKE_PACKAGES_WITHKEYS,
 };
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
@@ -314,7 +314,8 @@ fn getsubcomplete(
                         let h = ids.start_position().row;
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let Some(name) = replace_placeholders(remove_quotation(&source[h][x..y]))
+                        let Some(name) =
+                            remove_quotation_and_replace_placeholders(&source[h][x..y])
                         else {
                             continue;
                         };

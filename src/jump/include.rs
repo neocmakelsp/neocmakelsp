@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::LazyLock;
 
 fn ismodule(tojump: &str) -> bool {
-    tojump.split('.').count() == 1
+    !tojump.ends_with(".cmake")
 }
 
 pub(super) fn cmpinclude(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {

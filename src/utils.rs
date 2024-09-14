@@ -68,6 +68,10 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
     content
 }
 
+pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
+    replace_placeholders(remove_quotation(origin_template))
+}
+
 pub fn remove_quotation(origin: &str) -> &str {
     origin
         .strip_prefix('"')

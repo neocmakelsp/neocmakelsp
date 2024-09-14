@@ -7,6 +7,7 @@ use super::Backend;
 use crate::ast;
 use crate::complete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document_link;
 use crate::fileapi;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::filewatcher;
@@ -312,6 +313,13 @@ impl LanguageServer for Backend {
                     None
                 },
                 references_provider: Some(OneOf::Left(true)),
+
+                document_link_provider: Some(DocumentLinkOptions {
+                    resolve_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: Some(false),
+                    },
+                }),
                 ..ServerCapabilities::default()
             },
         })
@@ -653,5 +661,21 @@ impl LanguageServer for Backend {
             Some(context) => Ok(semantic_token::semantic_token(&self.client, context).await),
             None => Ok(None),
         }
+    }
+
+    async fn document_link(&self, input: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        let uri = input.text_document.uri;
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return Err(LspError::internal_error());
+            }
+        };
+        let storemap = BUFFERS_CACHE.lock().await;
+        let Some(context) = storemap.get(&uri) else {
+            return Ok(None);
+        };
+        Ok(document_link::document_link_search(context, file_path))
     }
 }
