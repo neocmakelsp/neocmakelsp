@@ -37,6 +37,9 @@ use tree_sitter::Node;
 
 use crate::fileapi;
 
+// NOTE: this function is just used on unix platfrom,
+// so now windows not use it
+#[allow(unused)]
 pub fn get_node_content(source: &[&str], node: &Node) -> String {
     let mut content: String;
     let x = node.start_position().column;
