@@ -115,13 +115,13 @@ pub async fn godef(
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
-    let localtions = godef_inner(location, source, originuri, is_jump).await;
-    if localtions.is_none() {
+    let locations = godef_inner(location, source, originuri, is_jump).await;
+    if locations.is_none() {
         client
             .log_message(MessageType::INFO, "Not find any locations")
             .await;
     }
-    localtions
+    locations
 }
 
 async fn godef_inner(
@@ -576,7 +576,7 @@ mod jump_test {
         let subdir_file = subdir.join("CMakeLists.txt");
         File::create_new(&subdir_file).unwrap();
 
-        let localtions = godef_inner(
+        let locations = godef_inner(
             Position {
                 line: 0,
                 character: 20,
@@ -589,7 +589,7 @@ mod jump_test {
         .unwrap();
 
         assert_eq!(
-            localtions,
+            locations,
             vec![Location {
                 uri: Url::from_file_path(subdir_file).unwrap(),
                 range: lsp_types::Range {
@@ -629,7 +629,7 @@ add_subdirectory(abcd_test)
         let subdir_file = subdir.join("CMakeLists.txt");
         File::create_new(&subdir_file).unwrap();
 
-        let localtions = godef_inner(
+        let locations = godef_inner(
             Position {
                 line: 2,
                 character: 18,
@@ -642,7 +642,7 @@ add_subdirectory(abcd_test)
         .unwrap();
 
         assert_eq!(
-            localtions,
+            locations,
             vec![Location {
                 uri: Url::from_file_path(top_cmake).unwrap(),
                 range: lsp_types::Range {
