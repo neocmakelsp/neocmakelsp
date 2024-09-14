@@ -56,7 +56,31 @@ fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
             _ => break,
         };
     }
-    format!("{}({})", key, v.join(" "))
+    let snippet_pre = format!("{}({})", key, v.join(" "));
+    let mut lines: Vec<&str> = vec![];
+    for line in snippet_pre.lines() {
+        lines.push(line.trim_end());
+    }
+    lines.join("\n")
+}
+
+#[test]
+fn tst_convert_to_lsp_snippet() {
+    let snippet_example = r#"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
+                  TEST | VARIABLE | CACHED_VARIABLE>
+                  PROPERTY <name> [INHERITED]
+                  [BRIEF_DOCS <brief-doc> [docs...]]
+                  [FULL_DOCS <full-doc> [docs...]]
+                  [INITIALIZE_FROM_VARIABLE <variable>])
+"#;
+    let snippet_result = convert_to_lsp_snippet("define_property", snippet_example);
+    let snippet_target = r#"define_property(${1:<GLOBAL} ${2:|} ${3:DIRECTORY} ${4:|} ${5:TARGET} ${6:|} ${7:SOURCE} ${8:|}
+                  ${9:TEST} | VARIABLE | CACHED_VARIABLE>
+                  PROPERTY <name> [INHERITED]
+                  [BRIEF_DOCS <brief-doc> [docs...]]
+                  [FULL_DOCS <full-doc> [docs...]]
+                  [INITIALIZE_FROM_VARIABLE <variable>])"#;
+    assert_eq!(snippet_result, snippet_target);
 }
 
 fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
