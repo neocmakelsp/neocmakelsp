@@ -136,12 +136,7 @@ async fn godef_inner(
 
     let tofind = get_position_string(location, tree.root_node(), &source.lines().collect())?;
 
-    let jumptype = get_pos_type(
-        location,
-        tree.root_node(),
-        &source.lines().collect(),
-        PositionType::Variable,
-    );
+    let jumptype = get_pos_type(location, tree.root_node(), source);
 
     match jumptype {
         PositionType::Variable => {

@@ -218,14 +218,21 @@ pub fn is_comment(location: Point, root: Node) -> bool {
     false
 }
 
-// FIXME: there is bug
-// find_package(SS)
-// cannot get the type of find_package
-pub fn get_pos_type(
+#[inline]
+pub fn get_pos_type(location: Position, root: Node, source: &str) -> PositionType {
+    get_pos_type_inner(
+        location,
+        root,
+        &source.lines().collect(),
+        PositionType::Unknown,
+    )
+}
+
+fn get_pos_type_inner(
     location: Position,
     root: Node,
     source: &Vec<&str>,
-    inputtype: PositionType,
+    input_type: PositionType,
 ) -> PositionType {
     let neolocation = position_to_point(location);
     let mut course = root.walk();
@@ -256,12 +263,12 @@ pub fn get_pos_type(
                 | CMakeNodeKinds::UNQUOTED_ARGUMENT
                 | CMakeNodeKinds::VARIABLE_REF
                 | CMakeNodeKinds::VARIABLE => PositionType::Variable,
-                CMakeNodeKinds::ARGUMENT => match inputtype {
+                CMakeNodeKinds::ARGUMENT => match input_type {
                     PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
-                        inputtype
+                        input_type
                     }
                     #[cfg(unix)]
-                    PositionType::FindPkgConfig => inputtype,
+                    PositionType::FindPkgConfig => input_type,
                     _ => PositionType::Variable,
                 },
                 CMakeNodeKinds::LINE_COMMENT | CMakeNodeKinds::BRACKET_COMMENT => {
@@ -269,6 +276,7 @@ pub fn get_pos_type(
                 }
                 _ => PositionType::Variable,
             };
+
             if child.child_count() != 0 {
                 match jumptype {
                     PositionType::FindPackage
@@ -297,7 +305,7 @@ pub fn get_pos_type(
                     }
                     PositionType::Variable => {
                         let currenttype =
-                            get_pos_type(location, child, source, PositionType::Variable);
+                            get_pos_type_inner(location, child, source, PositionType::Variable);
                         match currenttype {
                             PositionType::Unknown => {}
                             _ => return currenttype,
@@ -352,8 +360,7 @@ endfunction()
                 character: 3
             },
             input,
-            &source.lines().collect(),
-            PositionType::Unknown
+            source,
         ),
         PositionType::Comment
     );
@@ -364,8 +371,7 @@ endfunction()
                 character: 4
             },
             input,
-            &source.lines().collect(),
-            PositionType::Unknown
+            source,
         ),
         PositionType::Variable
     )

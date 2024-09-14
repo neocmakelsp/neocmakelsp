@@ -122,12 +122,7 @@ pub async fn getcomplete(
     if let Some(mut cmake_cache) = fileapi::get_complete_data() {
         complete.append(&mut cmake_cache);
     }
-    let postype = get_pos_type(
-        location,
-        tree.root_node(),
-        &source.lines().collect(),
-        PositionType::Unknown,
-    );
+    let postype = get_pos_type(location, tree.root_node(), source);
     match postype {
         PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) = getsubcomplete(
