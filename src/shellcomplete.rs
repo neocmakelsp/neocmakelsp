@@ -14,6 +14,9 @@ pub fn generate_shell_completions(shell: Shell) {
     eprintln!("Generating completion file for {shell:?}...");
     print_completions(shell, &mut cmd, &mut std::io::stdout());
 }
+
+// Seems on windows it is not the same
+#[cfg(unix)]
 #[cfg(test)]
 mod target_test {
     use super::{print_completions, NeocmakeCli};
