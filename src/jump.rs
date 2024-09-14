@@ -237,7 +237,6 @@ fn getsubdef(
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
 ) -> Option<Vec<(String, Location, String)>> {
-
     let mut course = input.walk();
     let mut defs: Vec<(String, Location, String)> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
