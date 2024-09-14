@@ -105,23 +105,25 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
 
             let packagepath = Url::from_file_path(path.path()).unwrap();
             let (packagetype, packagename) = {
-                if path.metadata().unwrap().is_dir() {
-                    if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
-                        for path in paths.flatten() {
-                            let filepath = safe_canonicalize(path.path()).unwrap();
-                            if path.metadata().unwrap().is_file() {
-                                let filename = path.file_name().to_str().unwrap().to_string();
-                                if CMAKEREGEX.is_match(&filename) {
-                                    tojump.push(filepath.clone());
-                                    if CMAKECONFIGVERSION.is_match(&filename) {
-                                        if let Ok(context) = fs::read_to_string(&filepath) {
-                                            version = get_version(&context);
-                                        }
+                if path.metadata().is_ok_and(|data| data.is_dir()) {
+                    let Ok(paths) = std::fs::read_dir(path.path()) else {
+                        continue;
+                    };
+                    for path in paths.flatten() {
+                        let filepath = safe_canonicalize(path.path()).unwrap();
+                        if path.metadata().unwrap().is_file() {
+                            let filename = path.file_name().to_str().unwrap().to_string();
+                            if CMAKEREGEX.is_match(&filename) {
+                                tojump.push(filepath.clone());
+                                if CMAKECONFIGVERSION.is_match(&filename) {
+                                    if let Ok(context) = fs::read_to_string(&filepath) {
+                                        version = get_version(&context);
                                     }
                                 }
                             }
                         }
                     }
+
                     (FileType::Dir, pathname)
                 } else {
                     tojump.push(safe_canonicalize(path.path()).unwrap());
