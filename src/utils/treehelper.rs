@@ -229,13 +229,13 @@ pub fn get_pos_type(location: Point, root: Node, source: &str) -> PositionType {
 }
 
 fn node_in_range(node: Point, range_node: Node) -> bool {
-    let range_start_positon = range_node.start_position();
+    let range_start_position = range_node.start_position();
     let range_end_position = range_node.end_position();
-    if range_end_position.row < node.row || range_start_positon.row > node.row {
+    if range_end_position.row < node.row || range_start_position.row > node.row {
         return false;
     };
 
-    if range_start_positon.row == node.row && range_start_positon.column > node.column {
+    if range_start_position.row == node.row && range_start_position.column > node.column {
         return false;
     }
     if range_end_position.row == node.row && range_end_position.column < node.column {
