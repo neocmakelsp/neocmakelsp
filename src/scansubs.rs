@@ -97,18 +97,18 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
     bufs
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+#[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct TreeDir {
-    dir: PathBuf,
+    current_file: PathBuf,
     subdirs: Option<Vec<TreeDir>>,
 }
 
 impl fmt::Display for TreeDir {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.subdirs {
-            None => writeln!(f, "{}", self.dir.display()),
+            None => writeln!(f, "{}", self.current_file.display()),
             Some(dirs) => {
-                writeln!(f, "{}", self.dir.display())?;
+                writeln!(f, "{}", self.current_file.display())?;
                 for dir in dirs {
                     let message = dir.to_string();
                     for mes in message.lines() {
@@ -127,7 +127,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
         return None;
     };
     let mut top = TreeDir {
-        dir: path.into(),
+        current_file: path.into(),
         subdirs: None,
     };
     let mut parse = tree_sitter::Parser::new();
@@ -207,4 +207,31 @@ async fn test_scan_sub() {
     assert_eq!(bufs, vec![subdir_file.clone()]);
     let cache_data = TREE_MAP.lock().await;
     assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));
+}
+
+#[test]
+fn test_tree_dir() {
+    use std::fs;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake = dir.path().join("CMakeLists.txt");
+    let mut top_file = File::create_new(&top_cmake).unwrap();
+    writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
+    let subdir = dir.path().join("abcd_test");
+    fs::create_dir_all(&subdir).unwrap();
+    let subdir_file = subdir.join("CMakeLists.txt");
+    File::create_new(&subdir_file).unwrap();
+    let tree_dir = get_treedir(&top_cmake).unwrap();
+    assert_eq!(
+        tree_dir,
+        TreeDir {
+            current_file: top_cmake,
+            subdirs: Some(vec![TreeDir {
+                current_file: subdir_file,
+                subdirs: None,
+            }])
+        }
+    )
 }
