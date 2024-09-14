@@ -5,6 +5,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::Url;
+
 use std::sync::LazyLock;
 
 use crate::utils::{CMakePackage, FileType};
@@ -63,6 +65,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 }
             }
             if ispackage {
+                let filepath = Url::from_file_path(&path).unwrap();
                 let packagename = path
                     .parent()
                     .unwrap()
@@ -75,13 +78,11 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     .or_insert_with(|| CMakePackage {
                         name: packagename.to_string(),
                         filetype: FileType::Dir,
-                        filepath: path.to_str().unwrap().to_string(),
+                        filepath,
                         version,
                         tojump,
                         from: "Vcpkg".to_string(),
                     });
-
-                //ava.push(path);
             }
         }
     }
@@ -94,7 +95,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let packagepath = path.path().to_str().unwrap().to_string();
+            let packagepath = Url::from_file_path(path.path()).unwrap();
             let (packagetype, packagename) = {
                 if path.metadata().unwrap().is_dir() {
                     if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {

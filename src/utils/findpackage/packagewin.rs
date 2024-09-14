@@ -6,13 +6,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::Url;
+
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
 const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
-
-fn remove_prefix(s: &str) -> &str {
-    s.strip_prefix(r"\\?\").unwrap_or(s)
-}
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
@@ -74,6 +72,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                 }
             }
             if ispackage {
+                let filepath = Url::from_file_path(&path).unwrap();
                 let packagename = path
                     .parent()
                     .unwrap()
@@ -86,7 +85,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     .or_insert_with(|| CMakePackage {
                         name: packagename.to_string(),
                         filetype: FileType::Dir,
-                        filepath: remove_prefix(path.to_str().unwrap()).to_string(),
+                        filepath,
                         version,
                         tojump,
                         from: "System".to_string(),
@@ -103,11 +102,8 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let packagepath = safe_canonicalize(path.path())
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
+
+            let packagepath = Url::from_file_path(path.path()).unwrap();
             let (packagetype, packagename) = {
                 if path.metadata().unwrap().is_dir() {
                     if let Ok(paths) = std::fs::read_dir(path.path().to_str().unwrap()) {
@@ -128,8 +124,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     }
                     (FileType::Dir, pathname)
                 } else {
-                    let filepath = safe_canonicalize(path.path()).unwrap();
-                    tojump.push(filepath);
+                    tojump.push(safe_canonicalize(path.path()).unwrap());
                     let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
                     (FileType::File, pathname)
                 }
@@ -192,7 +187,7 @@ fn test_package_search() {
             CMakePackage {
                 name: "VulkanHeaders".to_string(),
                 filetype: FileType::Dir,
-                filepath: vulkan_dir.to_str().unwrap().to_string(),
+                filepath: Url::from_file_path(vulkan_dir).unwrap(),
                 version: Some("1.3.295".to_string()),
                 tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
                 from: "System".to_string(),
@@ -203,7 +198,7 @@ fn test_package_search() {
             CMakePackage {
                 name: "ECM".to_string(),
                 filetype: FileType::Dir,
-                filepath: ecm_dir.to_str().unwrap().to_string(),
+                filepath: Url::from_file_path(ecm_dir).unwrap(),
                 version: Some("6.5.0".to_string()),
                 tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
                 from: "System".to_string(),
