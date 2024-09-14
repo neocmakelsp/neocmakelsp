@@ -202,9 +202,24 @@ fn test_vcpkgpackage_search() {
 
     let mut libs = VCPKG_LIBS.lock().unwrap();
     libs.push("x64-linux");
+    libs.push("share/cmake");
     drop(libs);
 
     let share_path = dir.path().join("share");
+
+    let cmake_dir = share_path.join("cmake");
+
+    let vulkan_dir = cmake_dir.join("VulkanHeaders");
+    fs::create_dir_all(&vulkan_dir).unwrap();
+    let vulkan_config_cmake = vulkan_dir.join("VulkanHeadersConfig.cmake");
+    File::create(&vulkan_config_cmake).unwrap();
+    let vulkan_config_version_cmake = vulkan_dir.join("VulkanHeadersConfigVersion.cmake");
+    let mut vulkan_config_version_file = File::create(&vulkan_config_version_cmake).unwrap();
+    writeln!(
+        vulkan_config_version_file,
+        r#"set(PACKAGE_VERSION "1.3.295")"#
+    )
+    .unwrap();
 
     let ecm_dir = share_path.join("ECM").join("cmake");
     fs::create_dir_all(&ecm_dir).unwrap();
@@ -214,16 +229,35 @@ fn test_vcpkgpackage_search() {
     let mut ecm_config_version_file = File::create(&ecm_config_version_cmake).unwrap();
     writeln!(ecm_config_version_file, r#"set(PACKAGE_VERSION "6.5.0")"#).unwrap();
 
-    let target = HashMap::from_iter([(
-        "ECM".to_string(),
-        CMakePackage {
-            name: "ECM".to_string(),
-            filetype: FileType::Dir,
-            filepath: Url::from_file_path(ecm_dir).unwrap(),
-            version: Some("6.5.0".to_string()),
-            tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
-            from: "Vcpkg".to_string(),
-        },
-    )]);
+    let target = HashMap::from_iter([
+        (
+            "VulkanHeaders".to_string(),
+            CMakePackage {
+                name: "VulkanHeaders".to_string(),
+                filetype: FileType::Dir,
+                filepath: Url::from_file_path(vulkan_dir).unwrap(),
+                version: Some("1.3.295".to_string()),
+                tojump: vec![
+                    safe_canonicalize(&vulkan_config_cmake).unwrap(),
+                    safe_canonicalize(&vulkan_config_version_cmake).unwrap(),
+                ],
+                from: "Vcpkg".to_string(),
+            },
+        ),
+        (
+            "ECM".to_string(),
+            CMakePackage {
+                name: "ECM".to_string(),
+                filetype: FileType::Dir,
+                filepath: Url::from_file_path(ecm_dir).unwrap(),
+                version: Some("6.5.0".to_string()),
+                tojump: vec![
+                    safe_canonicalize(&ecm_config_cmake).unwrap(),
+                    safe_canonicalize(&ecm_config_version_cmake).unwrap(),
+                ],
+                from: "Vcpkg".to_string(),
+            },
+        ),
+    ]);
     assert_eq!(get_cmake_message(), target);
 }
