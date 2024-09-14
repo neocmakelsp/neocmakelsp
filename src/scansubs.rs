@@ -154,38 +154,57 @@ fn get_subdir_from_tree(
     parent: &Path,
 ) -> Vec<PathBuf> {
     if tree.is_error() {
-        vec![]
-    } else {
-        let mut course = tree.walk();
-        let mut output = vec![];
-        for node in tree.children(&mut course) {
-            let mut innodepath = get_subdir_from_tree(source, node, parent);
-            if !innodepath.is_empty() {
-                output.append(&mut innodepath);
-            }
-            if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
-                let h = node.start_position().row;
-                let ids = node.child(0).unwrap();
-                //let ids = ids.child(2).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let command_name = &source[h][x..y];
-                if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
-                    let ids = node.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &source[h][x..y];
-                        let name = remove_quotation(name);
-                        let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
-                        if subpath.exists() {
-                            output.push(subpath);
-                        }
+        return vec![];
+    }
+    let mut course = tree.walk();
+    let mut output = vec![];
+    for node in tree.children(&mut course) {
+        let mut innodepath = get_subdir_from_tree(source, node, parent);
+        if !innodepath.is_empty() {
+            output.append(&mut innodepath);
+        }
+        if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
+            let h = node.start_position().row;
+            let ids = node.child(0).unwrap();
+            //let ids = ids.child(2).unwrap();
+            let x = ids.start_position().column;
+            let y = ids.end_position().column;
+            let command_name = &source[h][x..y];
+            if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
+                let ids = node.child(2).unwrap();
+                if ids.start_position().row == ids.end_position().row {
+                    let h = ids.start_position().row;
+                    let x = ids.start_position().column;
+                    let y = ids.end_position().column;
+                    let name = &source[h][x..y];
+                    let name = remove_quotation(name);
+                    let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
+                    if subpath.exists() {
+                        output.push(subpath);
                     }
                 }
             }
         }
-        output
     }
+    output
+}
+
+#[tokio::test]
+async fn test_scan_sub() {
+    use std::fs;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake = dir.path().join("CMakeLists.txt");
+    let mut top_file = File::create_new(&top_cmake).unwrap();
+    writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
+    let subdir = dir.path().join("abcd_test");
+    fs::create_dir_all(&subdir).unwrap();
+    let subdir_file = subdir.join("CMakeLists.txt");
+    File::create_new(&subdir_file).unwrap();
+    let bufs = scan_dir(&top_cmake).await;
+    assert_eq!(bufs, vec![subdir_file.clone()]);
+    let cache_data = TREE_MAP.lock().await;
+    assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));
 }
