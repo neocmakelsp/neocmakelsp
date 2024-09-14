@@ -1,5 +1,5 @@
 use super::{gen_module_pattern, Location};
-use lsp_types::{MessageType, Url};
+use lsp_types::Url;
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
 
@@ -17,11 +17,7 @@ fn ismodule(tojump: &str) -> bool {
     tojump.split('.').count() == 1
 }
 
-pub(super) async fn cmpinclude(
-    localpath: &Path,
-    subpath: &str,
-    client: &tower_lsp::Client,
-) -> Option<Vec<Location>> {
+pub(super) fn cmpinclude(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {
     let target = if !ismodule(subpath) {
         let root_dir = localpath.parent().unwrap();
         root_dir.join(subpath)
@@ -35,10 +31,6 @@ pub(super) async fn cmpinclude(
     };
 
     if target.exists() {
-        let target = target.to_str().unwrap();
-        client
-            .log_message(MessageType::INFO, format!("Jump Path is {target}"))
-            .await;
         Some(vec![Location {
             range: lsp_types::Range {
                 start: lsp_types::Position {

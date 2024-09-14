@@ -106,6 +106,7 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
 
     None
 }
+
 /// find the definition
 pub async fn godef(
     location: Position,
@@ -114,64 +115,70 @@ pub async fn godef(
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
+    let localtions = godef_inner(location, source, originuri, is_jump).await;
+    if localtions.is_none() {
+        client
+            .log_message(MessageType::INFO, "Not find any locations")
+            .await;
+    }
+    localtions
+}
+
+async fn godef_inner(
+    location: Position,
+    source: &str,
+    originuri: &PathBuf,
+    is_jump: bool,
+) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None);
-    let tree = thetree.unwrap();
-    let positionstring = get_position_string(location, tree.root_node(), &source.lines().collect());
-    match positionstring {
-        Some(tofind) => {
-            let jumptype = get_pos_type(
-                location,
-                tree.root_node(),
-                &source.lines().collect(),
-                PositionType::Variable,
-            );
-            match jumptype {
-                PositionType::Variable => {
-                    let mut locations = vec![];
-                    if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
-                        if is_jump {
-                            return Some(vec![jump_cache]);
-                        } else {
-                            locations.push(jump_cache);
-                        }
-                    }
+    let tree = parse.parse(source, None)?;
 
-                    let newsource: Vec<&str> = source.lines().collect();
-                    if let Some(mut defdata) =
-                        simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
-                    {
-                        locations.append(&mut defdata);
-                    }
-                    if locations.is_empty() {
-                        None
-                    } else {
-                        Some(locations)
-                    }
+    let tofind = get_position_string(location, tree.root_node(), &source.lines().collect())?;
+
+    let jumptype = get_pos_type(
+        location,
+        tree.root_node(),
+        &source.lines().collect(),
+        PositionType::Variable,
+    );
+
+    match jumptype {
+        PositionType::Variable => {
+            let mut locations = vec![];
+            if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
+                if is_jump {
+                    return Some(vec![jump_cache]);
                 }
-                PositionType::FindPackage
-                | PositionType::TargetLink
-                | PositionType::TargetInclude => {
-                    let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
-                    findpackage::cmpfindpackage(tofind, client).await
-                }
-                PositionType::Unknown | PositionType::Comment => None,
-                #[cfg(unix)]
-                PositionType::FindPkgConfig => None,
-                PositionType::Include => {
-                    let fixed_url = replace_placeholders(&tofind)?;
-                    include::cmpinclude(originuri, &fixed_url, client).await
-                }
-                PositionType::SubDir => {
-                    let fixed_url = replace_placeholders(&tofind)?;
-                    subdirectory::cmpsubdirectory(originuri, &fixed_url, client).await
-                }
+                locations.push(jump_cache);
+            }
+
+            let newsource: Vec<&str> = source.lines().collect();
+            if let Some(mut defdata) =
+                simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
+            {
+                locations.append(&mut defdata);
+            }
+            if locations.is_empty() {
+                None
+            } else {
+                Some(locations)
             }
         }
-        None => {
-            client.log_message(MessageType::INFO, "Empty").await;
-            None
+        PositionType::FindPackage | PositionType::TargetLink | PositionType::TargetInclude => {
+            let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
+            findpackage::cmpfindpackage(tofind)
+        }
+        PositionType::Unknown | PositionType::Comment => None,
+        #[cfg(unix)]
+        PositionType::FindPkgConfig => None,
+        PositionType::Include => {
+            let fixed_url = replace_placeholders(&tofind)?;
+            include::cmpinclude(originuri, &fixed_url)
+        }
+        PositionType::SubDir => {
+            let fixed_url = replace_placeholders(&tofind)?;
+            subdirectory::cmpsubdirectory(originuri, &fixed_url)
         }
     }
 }
@@ -485,7 +492,16 @@ fn getsubdef(
                         name.to_string(),
                         Location {
                             uri: Url::from_file_path(local_path).unwrap(),
-                            range: Range { start, end },
+                            range: Range {
+                                start: Position {
+                                    line: h as u32,
+                                    character: x as u32,
+                                },
+                                end: Position {
+                                    line: h as u32,
+                                    character: y as u32,
+                                },
+                            },
                         },
                         document_info,
                     ));
@@ -536,4 +552,110 @@ fn get_cmake_package_defs(
     }
 
     Some(complete_infos)
+}
+#[cfg(test)]
+mod jump_test {
+    use super::*;
+
+    #[tokio::test]
+    async fn tst_jump_subdir() {
+        use std::fs;
+
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let jump_file_src = r#"add_subdirectory(abcd_test)"#;
+
+        let dir = tempdir().unwrap();
+        let top_cmake = dir.path().join("CMakeLists.txt");
+        let mut top_file = File::create_new(&top_cmake).unwrap();
+        top_file.write(jump_file_src.as_bytes()).unwrap();
+        let subdir = dir.path().join("abcd_test");
+        fs::create_dir_all(&subdir).unwrap();
+        let subdir_file = subdir.join("CMakeLists.txt");
+        File::create_new(&subdir_file).unwrap();
+
+        let localtions = godef_inner(
+            Position {
+                line: 0,
+                character: 20,
+            },
+            &jump_file_src,
+            &top_cmake,
+            true,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            localtions,
+            vec![Location {
+                uri: Url::from_file_path(subdir_file).unwrap(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: lsp_types::Position {
+                        line: 0,
+                        character: 0,
+                    },
+                }
+            }]
+        )
+    }
+
+    #[tokio::test]
+    async fn tst_jump_variable() {
+        use std::fs;
+
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let jump_file_src = r#"
+set(ABCD 1234)
+message(INFO "${ABCD}")
+add_subdirectory(abcd_test)
+"#;
+
+        let dir = tempdir().unwrap();
+        let top_cmake = dir.path().join("CMakeLists.txt");
+        let mut top_file = File::create_new(&top_cmake).unwrap();
+        top_file.write(jump_file_src.as_bytes()).unwrap();
+        let subdir = dir.path().join("abcd_test");
+        fs::create_dir_all(&subdir).unwrap();
+        let subdir_file = subdir.join("CMakeLists.txt");
+        File::create_new(&subdir_file).unwrap();
+
+        let localtions = godef_inner(
+            Position {
+                line: 2,
+                character: 18,
+            },
+            &jump_file_src,
+            &top_cmake,
+            true,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            localtions,
+            vec![Location {
+                uri: Url::from_file_path(top_cmake).unwrap(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 1,
+                        character: 4,
+                    },
+                    end: lsp_types::Position {
+                        line: 1,
+                        character: 8,
+                    },
+                }
+            }]
+        )
+    }
 }
