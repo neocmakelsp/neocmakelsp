@@ -168,13 +168,14 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PositionType {
-    Variable,
-    FindPackage,
+    VarOrFun,       // the variable defined in cmake file or macro or fun
+    ArgumentOrList, // Not the ${abc} kind, just normake argument
+    FindPackage,    // normal_command start with find_package
     #[cfg(unix)]
-    FindPkgConfig,
+    FindPkgConfig, // PkgConfig file
     SubDir,
     Include,
-    Unknown,
+    Unknown, // Unknown type, use as the input
     TargetInclude,
     TargetLink,
     Comment,
@@ -256,25 +257,27 @@ fn get_pos_type_inner(
                         "add_subdirectory" => PositionType::SubDir,
                         "target_include_directories" => PositionType::TargetInclude,
                         "target_link_libraries" => PositionType::TargetLink,
-                        _ => PositionType::Variable,
+                        _ => PositionType::VarOrFun,
                     }
                 }
+                CMakeNodeKinds::UNQUOTED_ARGUMENT | CMakeNodeKinds::ARGUMENT_LIST => {
+                    PositionType::ArgumentOrList
+                }
                 CMakeNodeKinds::NORMAL_VAR
-                | CMakeNodeKinds::UNQUOTED_ARGUMENT
                 | CMakeNodeKinds::VARIABLE_REF
-                | CMakeNodeKinds::VARIABLE => PositionType::Variable,
+                | CMakeNodeKinds::VARIABLE => PositionType::VarOrFun,
                 CMakeNodeKinds::ARGUMENT => match input_type {
                     PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
                         input_type
                     }
                     #[cfg(unix)]
                     PositionType::FindPkgConfig => input_type,
-                    _ => PositionType::Variable,
+                    _ => PositionType::VarOrFun,
                 },
                 CMakeNodeKinds::LINE_COMMENT | CMakeNodeKinds::BRACKET_COMMENT => {
                     PositionType::Comment
                 }
-                _ => PositionType::Variable,
+                _ => PositionType::VarOrFun,
             };
 
             if child.child_count() != 0 {
@@ -284,6 +287,11 @@ fn get_pos_type_inner(
                     | PositionType::Include
                     | PositionType::TargetInclude
                     | PositionType::TargetLink => {
+                        if let PositionType::VarOrFun =
+                            get_pos_type_inner(location, child, source, input_type)
+                        {
+                            return PositionType::VarOrFun;
+                        }
                         let name = get_position_string(location, root, source);
                         if let Some(name) = name {
                             let name = name.to_lowercase();
@@ -303,15 +311,19 @@ fn get_pos_type_inner(
                         }
                         return jumptype;
                     }
-                    PositionType::Variable => {
+                    PositionType::VarOrFun => {
                         let currenttype =
-                            get_pos_type_inner(location, child, source, PositionType::Variable);
+                            get_pos_type_inner(location, child, source, PositionType::VarOrFun);
                         match currenttype {
                             PositionType::Unknown => {}
                             _ => return currenttype,
                         };
                     }
-                    PositionType::Unknown | PositionType::Comment => {}
+                    PositionType::Unknown
+                    | PositionType::Comment
+                    | PositionType::ArgumentOrList => {
+                        return get_pos_type_inner(location, child, source, input_type)
+                    }
                 }
             }
             // if is the same line
@@ -346,6 +358,12 @@ fn tst_postype() {
 set(ABC, "abcd")
 function(abc)
 endfunction()
+find_package(PkgConfig)
+pkg_check_modules(zlib)
+target_link_libraries(ABC PUBLIC
+    ${zlib_LIBRARIES}
+    ${abcd}
+)
     "#;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
@@ -373,6 +391,62 @@ endfunction()
             input,
             source,
         ),
-        PositionType::Variable
+        PositionType::VarOrFun
+    );
+    assert_eq!(
+        get_pos_type(
+            Position {
+                line: 5,
+                character: 15
+            },
+            input,
+            source,
+        ),
+        PositionType::FindPackage
+    );
+    assert_eq!(
+        get_pos_type(
+            Position {
+                line: 5,
+                character: 1
+            },
+            input,
+            source,
+        ),
+        PositionType::VarOrFun
+    );
+    #[cfg(unix)]
+    assert_eq!(
+        get_pos_type(
+            Position {
+                line: 6,
+                character: 22
+            },
+            input,
+            source,
+        ),
+        PositionType::FindPkgConfig
+    );
+    assert_eq!(
+        get_pos_type(
+            Position {
+                line: 8,
+                character: 2
+            },
+            input,
+            source,
+        ),
+        PositionType::TargetLink
+    );
+    assert_eq!(
+        get_pos_type(
+            Position {
+                line: 9,
+                character: 6
+            },
+            input,
+            source,
+        ),
+        PositionType::VarOrFun
     )
 }

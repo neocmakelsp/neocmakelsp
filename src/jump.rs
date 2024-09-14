@@ -43,7 +43,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         tree.root_node(),
         &context.lines().collect(),
         path.as_ref(),
-        PositionType::Variable,
+        PositionType::VarOrFun,
         None,
         &mut Vec::new(),
         &mut Vec::new(),
@@ -139,7 +139,7 @@ async fn godef_inner(
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
     match jumptype {
-        PositionType::Variable => {
+        PositionType::VarOrFun => {
             let mut locations = vec![];
             if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
                 if is_jump {
@@ -164,7 +164,7 @@ async fn godef_inner(
             let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
             findpackage::cmpfindpackage(tofind)
         }
-        PositionType::Unknown | PositionType::Comment => None,
+        PositionType::Unknown | PositionType::Comment | PositionType::ArgumentOrList => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {
@@ -612,6 +612,8 @@ mod jump_test {
         let jump_file_src = r#"
 set(ABCD 1234)
 message(INFO "${ABCD}")
+set(ROOT_DIR "ABCD" STRING CACHE "ROOTDIR")
+include("${ROOT_DIR}/abcd_test")
 add_subdirectory(abcd_test)
 "#;
 
@@ -639,7 +641,7 @@ add_subdirectory(abcd_test)
         assert_eq!(
             locations,
             vec![Location {
-                uri: Url::from_file_path(top_cmake).unwrap(),
+                uri: Url::from_file_path(&top_cmake).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 1,
@@ -648,6 +650,34 @@ add_subdirectory(abcd_test)
                     end: lsp_types::Position {
                         line: 1,
                         character: 8,
+                    },
+                }
+            }]
+        );
+        let locations_2 = godef_inner(
+            Position {
+                line: 4,
+                character: 13,
+            },
+            &jump_file_src,
+            &top_cmake,
+            true,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            locations_2,
+            vec![Location {
+                uri: Url::from_file_path(top_cmake).unwrap(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 3,
+                        character: 4,
+                    },
+                    end: lsp_types::Position {
+                        line: 3,
+                        character: 12,
                     },
                 }
             }]

@@ -60,7 +60,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
         tree.root_node(),
         &context.lines().collect(),
         path.as_ref(),
-        PositionType::Variable,
+        PositionType::VarOrFun,
         None,
         &mut Vec::new(),
         &mut Vec::new(),
@@ -124,7 +124,7 @@ pub async fn getcomplete(
     }
     let postype = get_pos_type(location, tree.root_node(), source);
     match postype {
-        PositionType::Variable | PositionType::TargetLink | PositionType::TargetInclude => {
+        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) = getsubcomplete(
                 tree.root_node(),
                 &source.lines().collect(),
@@ -383,7 +383,7 @@ fn getsubcomplete(
                     match postype {
                         PositionType::TargetLink
                         | PositionType::TargetInclude
-                        | PositionType::Variable => {
+                        | PositionType::VarOrFun => {
                             if name == "set" || name == "option" {
                                 let Some(arguments) = child.child(2) else {
                                     continue;
@@ -487,7 +487,7 @@ fn getsubcomplete(
 
                                 if matches!(
                                     postype,
-                                    PositionType::TargetLink | PositionType::Variable
+                                    PositionType::TargetLink | PositionType::VarOrFun
                                 ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
@@ -502,7 +502,7 @@ fn getsubcomplete(
 
                                 if matches!(
                                     postype,
-                                    PositionType::TargetInclude | PositionType::Variable
+                                    PositionType::TargetInclude | PositionType::VarOrFun
                                 ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
@@ -542,7 +542,7 @@ fn getsubcomplete(
                                 if modernpkgconfig
                                     && matches!(
                                         postype,
-                                        PositionType::Variable | PositionType::TargetLink
+                                        PositionType::VarOrFun | PositionType::TargetLink
                                     )
                                 {
                                     complete.push(CompletionItem {
@@ -558,7 +558,7 @@ fn getsubcomplete(
 
                                 if matches!(
                                     postype,
-                                    PositionType::TargetLink | PositionType::Variable
+                                    PositionType::TargetLink | PositionType::VarOrFun
                                 ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_LIBRARIES"),
@@ -572,7 +572,7 @@ fn getsubcomplete(
                                 }
                                 if matches!(
                                     postype,
-                                    PositionType::TargetInclude | PositionType::Variable
+                                    PositionType::TargetInclude | PositionType::VarOrFun
                                 ) {
                                     complete.push(CompletionItem {
                                         label: format!("{package_name}_INCLUDE_DIRS"),
