@@ -6,18 +6,24 @@ import subprocess
 
 import shutil
 
+import os
+
 from pathlib import Path
 
-build_type: str = sys.argv[1]
+source_dir: str = sys.argv[1]
+
+os.chdir(source_dir)
+
+build_type: str = sys.argv[2]
 
 build_command = ["cargo", "build"]
 
 if build_type == "release":
     build_command.append("--release")
 
-source_path_str: str = sys.argv[2]
+source_path_str: str = sys.argv[3]
 
-target_path_str: str = sys.argv[3]
+target_path_str: str = sys.argv[4]
 
 subprocess.run(build_command, capture_output=False)
 
