@@ -16,7 +16,7 @@ fn shorter_var(arg: &str) -> String {
     if shorter.contains(' ') {
         shorter = format!("(arg_type: <{}>)", shorter);
     }
-    shorter = format!("[{shorter}]");
+    shorter = format!("<{shorter}>");
     shorter
 }
 
@@ -82,11 +82,11 @@ fn tst_convert_to_lsp_snippet() {
                   [FULL_DOCS <full-doc> [docs...]]
                   [INITIALIZE_FROM_VARIABLE <variable>])"#;
     let snippet_result = convert_to_lsp_snippet(snippet_example);
-    let snippet_target = r#"define_property(${1:[(arg_type: <GLOBAL | DIRECTORY |...>)]}
-                  PROPERTY ${2:[name]} [INHERITED]
-                  [BRIEF_DOCS ${3:[brief-doc]} [docs...]]
-                  [FULL_DOCS ${4:[full-doc]} [docs...]]
-                  [INITIALIZE_FROM_VARIABLE ${5:[variable]}])"#;
+    let snippet_target = r#"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
+                  PROPERTY ${2:<name>} [INHERITED]
+                  [BRIEF_DOCS ${3:<brief-doc>} [docs...]]
+                  [FULL_DOCS ${4:<full-doc>} [docs...]]
+                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])"#;
     assert_eq!(snippet_result, snippet_target);
 }
 
