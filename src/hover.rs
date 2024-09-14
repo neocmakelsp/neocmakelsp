@@ -1,8 +1,9 @@
 use crate::fileapi;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
+use crate::utils::treehelper::get_point_string;
 use crate::utils::treehelper::get_pos_type;
-use crate::utils::treehelper::get_position_string;
+use crate::utils::treehelper::position_to_point;
 use crate::utils::treehelper::PositionType;
 use crate::utils::treehelper::MESSAGE_STORAGE;
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
@@ -14,8 +15,9 @@ use tree_sitter::Node;
 use crate::jump::JUMP_CACHE;
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
-    let message = get_position_string(location, root, &source.lines().collect())?;
-    let inner_result = match get_pos_type(location, root, source) {
+    let current_point = position_to_point(location);
+    let message = get_point_string(current_point, root, &source.lines().collect())?;
+    let inner_result = match get_pos_type(current_point, root, source) {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
             let message = message.split('_').collect::<Vec<&str>>()[0];

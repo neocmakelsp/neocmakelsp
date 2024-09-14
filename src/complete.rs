@@ -5,7 +5,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{get_pos_type, PositionType};
+use crate::utils::treehelper::{get_pos_type, position_to_point, PositionType};
 use crate::utils::{
     gen_module_pattern, remove_quotation_and_replace_placeholders, LineCommentTmp,
     CACHE_CMAKE_PACKAGES_WITHKEYS,
@@ -122,7 +122,8 @@ pub async fn getcomplete(
     if let Some(mut cmake_cache) = fileapi::get_complete_data() {
         complete.append(&mut cmake_cache);
     }
-    let postype = get_pos_type(location, tree.root_node(), source);
+    let current_point = position_to_point(location);
+    let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             if let Some(mut message) = getsubcomplete(

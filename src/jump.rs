@@ -13,7 +13,7 @@ use crate::{
     scansubs::TREE_MAP,
     utils::{
         gen_module_pattern, replace_placeholders,
-        treehelper::{get_position_string, point_to_position},
+        treehelper::{get_point_string, point_to_position, position_to_point},
         LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
     CMakeNodeKinds,
@@ -114,7 +114,8 @@ pub async fn godef(
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
-    let locations = godef_inner(location, source, originuri, is_jump).await;
+    let current_point = position_to_point(location);
+    let locations = godef_inner(current_point, source, originuri, is_jump).await;
     if locations.is_none() {
         client
             .log_message(MessageType::INFO, "Not find any locations")
@@ -124,7 +125,7 @@ pub async fn godef(
 }
 
 async fn godef_inner(
-    location: Position,
+    location: tree_sitter::Point,
     source: &str,
     originuri: &PathBuf,
     is_jump: bool,
@@ -133,7 +134,7 @@ async fn godef_inner(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source, None)?;
 
-    let tofind = get_position_string(location, tree.root_node(), &source.lines().collect())?;
+    let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
 
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
@@ -535,6 +536,8 @@ fn get_cmake_package_defs(
 }
 #[cfg(test)]
 mod jump_test {
+    use tree_sitter::Point;
+
     use super::*;
 
     #[tokio::test]
@@ -557,10 +560,7 @@ mod jump_test {
         File::create_new(&subdir_file).unwrap();
 
         let locations = godef_inner(
-            Position {
-                line: 0,
-                character: 20,
-            },
+            Point { row: 0, column: 20 },
             &jump_file_src,
             &top_cmake,
             true,
@@ -612,10 +612,7 @@ add_subdirectory(abcd_test)
         File::create_new(&subdir_file).unwrap();
 
         let locations = godef_inner(
-            Position {
-                line: 2,
-                character: 18,
-            },
+            Point { row: 2, column: 18 },
             &jump_file_src,
             &top_cmake,
             true,
@@ -640,10 +637,7 @@ add_subdirectory(abcd_test)
             }]
         );
         let locations_2 = godef_inner(
-            Position {
-                line: 4,
-                character: 13,
-            },
+            Point { row: 4, column: 13 },
             &jump_file_src,
             &top_cmake,
             true,
