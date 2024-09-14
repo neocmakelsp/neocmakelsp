@@ -44,7 +44,6 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         &context.lines().collect(),
         path.as_ref(),
         PositionType::VarOrFun,
-        None,
         &mut Vec::new(),
         &mut Vec::new(),
         true,
@@ -233,17 +232,12 @@ fn getsubdef(
     source: &Vec<&str>,
     local_path: &Path,
     postype: PositionType,
-    location: Option<Position>,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
 ) -> Option<Vec<(String, Location, String)>> {
-    if let Some(location) = location {
-        if input.start_position().row as u32 > location.line {
-            return None;
-        }
-    }
+
     let mut course = input.walk();
     let mut defs: Vec<(String, Location, String)> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
@@ -251,12 +245,6 @@ fn getsubdef(
         comment: "",
     };
     for child in input.children(&mut course) {
-        if let Some(location) = location {
-            if child.start_position().row as u32 > location.line {
-                // if this child is below row, then break all loop
-                break;
-            }
-        }
         let start = point_to_position(child.start_position());
         let end = point_to_position(child.end_position());
         match child.kind() {
@@ -335,7 +323,6 @@ fn getsubdef(
                     source,
                     local_path,
                     postype,
-                    location,
                     include_files,
                     complete_packages,
                     true,
@@ -512,7 +499,6 @@ fn getsubdef(
             source,
             local_path,
             postype,
-            location,
             include_files,
             complete_packages,
             true,
