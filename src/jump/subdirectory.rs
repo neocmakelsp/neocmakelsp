@@ -2,6 +2,7 @@ use super::Location;
 use lsp_types::Url;
 use std::path::Path;
 use tower_lsp::lsp_types;
+
 pub(super) fn cmpsubdirectory(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {
     let dir = localpath.parent()?;
     let target = dir.join(subpath).join("CMakeLists.txt");
@@ -21,4 +22,38 @@ pub(super) fn cmpsubdirectory(localpath: &Path, subpath: &str) -> Option<Vec<Loc
         }]);
     }
     None
+}
+
+#[test]
+fn tst_cmp_subdirectory() {
+    use std::fs;
+
+    use std::fs::File;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake = dir.path().join("CMakeLists.txt");
+    File::create_new(&top_cmake).unwrap();
+    let subdir = dir.path().join("abcd_test");
+    fs::create_dir_all(&subdir).unwrap();
+    let subdir_file = subdir.join("CMakeLists.txt");
+    File::create_new(&subdir_file).unwrap();
+
+    let locations = cmpsubdirectory(&top_cmake, "abcd_test").unwrap();
+
+    assert_eq!(
+        locations,
+        vec![Location {
+            range: lsp_types::Range {
+                start: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            uri: Url::from_file_path(subdir_file).unwrap(),
+        }]
+    );
 }

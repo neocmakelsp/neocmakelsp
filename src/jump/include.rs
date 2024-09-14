@@ -48,6 +48,36 @@ pub(super) fn cmpinclude(localpath: &Path, subpath: &str) -> Option<Vec<Location
         None
     }
 }
+
+#[test]
+fn tst_cmp_included_cmake() {
+    use std::fs::File;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake = dir.path().join("CMakeLists.txt");
+    File::create_new(&top_cmake).unwrap();
+    let include_cmake = dir.path().join("abcd_test.cmake");
+    File::create_new(&include_cmake).unwrap();
+
+    let locations = cmpinclude(&top_cmake, "abcd_test.cmake").unwrap();
+
+    assert_eq!(
+        locations,
+        vec![Location {
+            range: lsp_types::Range {
+                start: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: lsp_types::Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            uri: Url::from_file_path(include_cmake).unwrap(),
+        }]
+    );
+}
 #[test]
 fn ut_ismodule() {
     assert_eq!(ismodule("GNUInstall"), true);
