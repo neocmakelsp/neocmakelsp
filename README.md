@@ -1,6 +1,7 @@
 # CMake LSP implementation based on Tower and Tree-sitter
 
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
+[![codecov](https://codecov.io/gh/neocmakelsp/neocmakelsp/graph/badge.svg?token=JKWSFR51TF)](https://codecov.io/gh/neocmakelsp/neocmakelsp)
 
  **Intelligent Code Completion**: Provides precise code completion suggestions by deeply analyzing CMake files, enhancing development efficiency.
 - **Real-time Error Detection**: Integrates Linting functionality to check for potential issues in your code, helping maintain code quality.
