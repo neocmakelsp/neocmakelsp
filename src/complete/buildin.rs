@@ -5,63 +5,72 @@ use std::sync::LazyLock;
 use std::{collections::HashMap, iter::zip};
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::client_support_snippet;
-use crate::utils::get_node_content;
-use crate::CMakeNodeKinds;
 
-/// convert input text to a snippet, if possible.
-fn convert_to_lsp_snippet(key: &str, input: &str) -> String {
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(input, None).unwrap();
-    let mut node = tree.root_node().child(0).unwrap();
-    if node.kind() != CMakeNodeKinds::NORMAL_COMMAND {
-        return input.to_string();
+fn shorter_var(arg: &str) -> String {
+    let mut shorter = arg.to_string();
+    let args = arg.split('\n').next().unwrap_or("");
+    if args.len() > 20 {
+        shorter = format!("{}...", &args[0..20]);
     }
-    let mut v: Vec<String> = vec![];
-    let mut i = 0;
-    node = node.child(2).unwrap();
-    if node.kind() != CMakeNodeKinds::ARGUMENT_LIST {
-        return input.to_string();
-    };
-    let source: Vec<&str> = input.split('\n').collect();
-    node = node.child(0).unwrap();
-    let mut last_position = node.end_position();
-    loop {
-        if node.kind() == CMakeNodeKinds::ARGUMENT {
+    if shorter.contains(' ') {
+        shorter = format!("(arg_type: <{}>)", shorter);
+    }
+    shorter = format!("[{shorter}]");
+    shorter
+}
+
+fn handle_sharp_bracket(arg: &str) -> &str {
+    let left_unique = arg.starts_with("<");
+    let right_unque = arg.ends_with(">");
+    match (left_unique, right_unque) {
+        (true, true) => &arg[1..arg.len() - 1],
+        (true, false) => &arg[1..],
+        (false, true) => &arg[..arg.len() - 1],
+        (false, false) => arg,
+    }
+}
+
+fn handle_squre_bracket(arg: &str) -> &str {
+    let left_unique = arg.starts_with("[");
+    let right_unque = arg.ends_with("]");
+    match (left_unique, right_unque) {
+        (true, true) => &arg[1..arg.len() - 1],
+        (true, false) => &arg[1..],
+        (false, true) => &arg[..arg.len() - 1],
+        (false, false) => arg,
+    }
+}
+
+static SNIPPET_GEN_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"<[^>]+>").unwrap());
+
+fn convert_to_lsp_snippet(input: &str) -> String {
+    let mut result = String::new();
+    let mut last_pos = 0; // Keep track of the last match position
+    let mut i = 1;
+    for caps in SNIPPET_GEN_REGEX.captures_iter(input) {
+        if let Some(matched) = caps.get(0) {
+            let var_name_pre = matched.as_str(); // Extract captured variable
+            let var_name_pre2 = handle_sharp_bracket(var_name_pre);
+            let var_name_pre3 = handle_squre_bracket(var_name_pre2);
+            let var_name = shorter_var(var_name_pre3);
+
+            // Add text before the match
+            result.push_str(&input[last_pos..matched.start()]);
+
+            // Replace the variable
+            result.push_str(&format!("${{{}:{}}}", i, var_name));
+            // Update last position to after this match
+            last_pos = matched.end();
             i += 1;
-            let start_position = node.start_position();
-            let padding = if last_position.row == start_position.row || v.is_empty() {
-                "".to_owned()
-            } else {
-                "\n".to_owned() + &source[start_position.row][0..start_position.column]
-            };
-
-            // support at most 9 tab-stops.
-            if i < 10 {
-                v.push(format!(
-                    "{}${{{}:{}}}",
-                    padding,
-                    i,
-                    get_node_content(&source, &node)
-                ));
-            } else {
-                v.push(format!("{}{}", padding, get_node_content(&source, &node)));
-            }
-            last_position = node.end_position();
         }
-        match node.next_sibling() {
-            Some(c) => node = c,
-            _ => break,
-        };
     }
-    let snippet_pre = format!("{}({})", key, v.join(" "));
-    let mut lines: Vec<&str> = vec![];
-    for line in snippet_pre.lines() {
-        lines.push(line.trim_end());
-    }
-    lines.join("\n")
+
+    // Add remaining part of the string
+    result.push_str(&input[last_pos..]);
+
+    result
 }
 
 #[test]
@@ -71,15 +80,13 @@ fn tst_convert_to_lsp_snippet() {
                   PROPERTY <name> [INHERITED]
                   [BRIEF_DOCS <brief-doc> [docs...]]
                   [FULL_DOCS <full-doc> [docs...]]
-                  [INITIALIZE_FROM_VARIABLE <variable>])
-"#;
-    let snippet_result = convert_to_lsp_snippet("define_property", snippet_example);
-    let snippet_target = r#"define_property(${1:<GLOBAL} ${2:|} ${3:DIRECTORY} ${4:|} ${5:TARGET} ${6:|} ${7:SOURCE} ${8:|}
-                  ${9:TEST} | VARIABLE | CACHED_VARIABLE>
-                  PROPERTY <name> [INHERITED]
-                  [BRIEF_DOCS <brief-doc> [docs...]]
-                  [FULL_DOCS <full-doc> [docs...]]
                   [INITIALIZE_FROM_VARIABLE <variable>])"#;
+    let snippet_result = convert_to_lsp_snippet(snippet_example);
+    let snippet_target = r#"define_property(${1:[(arg_type: <GLOBAL | DIRECTORY |...>)]}
+                  PROPERTY ${2:[name]} [INHERITED]
+                  [BRIEF_DOCS ${3:[brief-doc]} [docs...]]
+                  [FULL_DOCS ${4:[full-doc]} [docs...]]
+                  [INITIALIZE_FROM_VARIABLE ${5:[variable]}])"#;
     assert_eq!(snippet_result, snippet_target);
 }
 
@@ -135,7 +142,7 @@ fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
                     Some(m) => {
                         insert_text_format = InsertTextFormat::SNIPPET;
                         detail += " (Snippet)";
-                        convert_to_lsp_snippet(akey, m.name("signature").unwrap().as_str())
+                        convert_to_lsp_snippet(m.name("signature").unwrap().as_str())
                     }
                     _ => akey.to_string(),
                 }
