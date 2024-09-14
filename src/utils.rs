@@ -2,6 +2,7 @@ mod findpackage;
 pub mod treehelper;
 use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
 
+use crate::Url;
 use serde::{Deserialize, Serialize};
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
@@ -25,7 +26,7 @@ impl std::fmt::Display for FileType {
 pub struct CMakePackage {
     pub name: String,
     pub filetype: FileType,
-    pub filepath: String,
+    pub filepath: Url,
     pub version: Option<String>,
     pub tojump: Vec<PathBuf>,
     pub from: String,

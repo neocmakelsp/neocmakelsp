@@ -96,9 +96,11 @@ pub mod packagepkgconfig {
     use std::collections::HashMap;
     use std::sync::{Arc, LazyLock, Mutex};
 
+    use crate::Url;
+
     pub struct PkgConfig {
         pub libname: String,
-        pub path: String,
+        pub path: Url,
     }
 
     pub static QUERYSRULES: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
@@ -129,7 +131,7 @@ pub mod packagepkgconfig {
                         .entry(realname.to_string())
                         .or_insert_with(|| PkgConfig {
                             libname: realname,
-                            path: p.to_string(),
+                            path: Url::from_file_path(p).unwrap(),
                         });
                 }
             }

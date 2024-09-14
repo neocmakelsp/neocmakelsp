@@ -29,6 +29,7 @@ mod search;
 mod semantic_token;
 mod shellcomplete;
 mod utils;
+use tower_lsp::lsp_types::Url;
 
 use clapargs::NeocmakeCli;
 
