@@ -22,8 +22,8 @@ fn shorter_var(arg: &str) -> String {
 
 fn handle_sharp_bracket(arg: &str) -> &str {
     let left_unique = arg.starts_with("<");
-    let right_unque = arg.ends_with(">");
-    match (left_unique, right_unque) {
+    let right_unique = arg.ends_with(">");
+    match (left_unique, right_unique) {
         (true, true) => &arg[1..arg.len() - 1],
         (true, false) => &arg[1..],
         (false, true) => &arg[..arg.len() - 1],
@@ -31,10 +31,10 @@ fn handle_sharp_bracket(arg: &str) -> &str {
     }
 }
 
-fn handle_squre_bracket(arg: &str) -> &str {
+fn handle_square_bracket(arg: &str) -> &str {
     let left_unique = arg.starts_with("[");
-    let right_unque = arg.ends_with("]");
-    match (left_unique, right_unque) {
+    let right_unique = arg.ends_with("]");
+    match (left_unique, right_unique) {
         (true, true) => &arg[1..arg.len() - 1],
         (true, false) => &arg[1..],
         (false, true) => &arg[..arg.len() - 1],
@@ -53,7 +53,7 @@ fn convert_to_lsp_snippet(input: &str) -> String {
         if let Some(matched) = caps.get(0) {
             let var_name_pre = matched.as_str(); // Extract captured variable
             let var_name_pre2 = handle_sharp_bracket(var_name_pre);
-            let var_name_pre3 = handle_squre_bracket(var_name_pre2);
+            let var_name_pre3 = handle_square_bracket(var_name_pre2);
             let var_name = shorter_var(var_name_pre3);
 
             // Add text before the match
