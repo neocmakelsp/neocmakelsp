@@ -17,6 +17,7 @@ mod clapargs;
 mod complete;
 mod config;
 mod consts;
+mod document_link;
 mod fileapi;
 mod filewatcher;
 mod formatting;
@@ -29,7 +30,6 @@ mod search;
 mod semantic_token;
 mod shellcomplete;
 mod utils;
-mod document_link;
 use tower_lsp::lsp_types::Url;
 
 use clapargs::NeocmakeCli;
