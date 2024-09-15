@@ -13,6 +13,30 @@ use tower_lsp::lsp_types;
 use tree_sitter::Node;
 
 use crate::jump::JUMP_CACHE;
+
+const LIBRARIES_END: &str = "_LIBRARIES";
+const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
+
+fn get_the_packagename(package: &str) -> &str {
+    if package.ends_with(LIBRARIES_END) {
+        return &package[..package.len() - LIBRARIES_END.len()];
+    }
+    if package.ends_with(INCLUDE_DIRS_END) {
+        return &package[..package.len() - INCLUDE_DIRS_END.len()];
+    }
+    package
+}
+
+#[test]
+fn package_name_check_tst() {
+    let package_names = vec!["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
+    let output: Vec<&str> = package_names
+        .iter()
+        .map(|name| get_the_packagename(name))
+        .collect();
+    assert_eq!(output, vec!["abc", "def", "ghi"]);
+}
+
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
     let current_point = position_to_point(location);
@@ -34,10 +58,10 @@ Packagepath: {}
         }
 
         PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink => {
-            let message = message.split('_').collect::<Vec<&str>>()[0];
-            let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(message);
+            let package = get_the_packagename(&message);
+            let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package);
             if value.is_none() {
-                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&message.to_lowercase());
+                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&package.to_lowercase());
             }
             value.map(|context| {
                 format!(
