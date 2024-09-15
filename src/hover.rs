@@ -46,8 +46,8 @@ fn package_name_check_tst() {
 fn vcpkg_document_fmt(context: &PkgConfig) -> String {
     format!(
         "
-Packagename: {}
-Packagepath: {}
+PackageName: {}
+PackagePath: {}
 ",
         context.libname, context.path,
     )
@@ -58,7 +58,7 @@ fn cmakepackage_document_fmt(context: &CMakePackage) -> String {
     if context.tojump.is_empty() {
         return format!(
             "
-Packagename: {}
+PackageName: {}
 PackageDir: {}
 PackageVersion: {}
 ",
@@ -71,7 +71,7 @@ PackageVersion: {}
         "
 Packagename: {}
 PackageDir: {}
-Packagepath: {}
+PackageConfig: {}
 PackageVersion: {}
 ",
         context.name,
