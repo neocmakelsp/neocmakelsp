@@ -8,12 +8,12 @@ pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
         .map(|source| match &source.version {
             Some(version) => vec![
                 source.name.clone().cell(),
-                source.filepath.path().cell().justify(Justify::Left),
+                source.location.path().cell().justify(Justify::Left),
                 version.cell().justify(Justify::Left),
             ],
             None => vec![
                 source.name.clone().cell(),
-                source.filepath.path().cell().justify(Justify::Left),
+                source.location.path().cell().justify(Justify::Left),
                 "Unknown".cell().justify(Justify::Left),
             ],
         })

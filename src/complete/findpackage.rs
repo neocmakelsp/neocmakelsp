@@ -12,11 +12,11 @@ pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
             documentation: Some(Documentation::String(match &package.version {
                 None => format!(
                     "name: {}\nFiletype: {}\nFrom: {}\n",
-                    package.name, package.filetype, package.from
+                    package.name, package.packagetype, package.from
                 ),
                 Some(version) => format!(
                     "name: {}\nFiletype: {}\nFrom: {}\nversion: {}",
-                    package.name, package.filetype, package.from, version
+                    package.name, package.packagetype, package.from, version
                 ),
             })),
             ..Default::default()

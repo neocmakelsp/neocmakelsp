@@ -9,15 +9,15 @@ static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
 
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
-pub enum FileType {
+pub enum PackageType {
     Dir,
     File,
 }
-impl std::fmt::Display for FileType {
+impl std::fmt::Display for PackageType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FileType::Dir => write!(f, "Dir"),
-            FileType::File => write!(f, "File"),
+            PackageType::Dir => write!(f, "Dir"),
+            PackageType::File => write!(f, "File"),
         }
     }
 }
@@ -40,8 +40,8 @@ impl std::fmt::Display for CMakePackageFrom {
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct CMakePackage {
     pub name: String,
-    pub filetype: FileType,
-    pub filepath: Url,
+    pub packagetype: PackageType,
+    pub location: Url,
     pub version: Option<String>,
     pub tojump: Vec<PathBuf>,
     pub from: CMakePackageFrom,

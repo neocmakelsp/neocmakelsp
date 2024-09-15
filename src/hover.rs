@@ -63,7 +63,7 @@ PackageDir: {}
 PackageVersion: {}
 ",
             context.name,
-            context.filepath.path(),
+            context.location.path(),
             context.version.clone().unwrap_or("Undefined".to_string())
         );
     }
@@ -75,7 +75,7 @@ PackageConfig: {}
 PackageVersion: {}
 ",
         context.name,
-        context.filepath.path(),
+        context.location.path(),
         context.tojump[0].display(),
         context.version.clone().unwrap_or("Undefined".to_string())
     )
@@ -129,20 +129,21 @@ async fn tst_hover() {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     use crate::utils::CMakePackage;
     use crate::utils::CMakePackageFrom;
-    use crate::utils::FileType;
+    use crate::utils::PackageType;
     use crate::utils::MockFindPackageFunsTrait;
     use crate::utils::FIND_PACKAGE_FUNS_NAMESPACE;
     use std::collections::HashMap;
-    use std::path::Path;
+    use tempfile::tempdir;
     use tower_lsp::lsp_types::Url;
+    let dir = tempdir().unwrap();
+    let package_path = dir.path().join("share").join("bash-completion-fake");
+    let config_file = package_path.join("bash_completionConfig.cmake");
     let fake_package = CMakePackage {
         name: "bash-completion-fake".to_string(),
-        filetype: FileType::Dir,
-        filepath: Url::from_file_path("/usr/share/bash-completion-fake").unwrap(),
+        packagetype: PackageType::Dir,
+        location: Url::from_file_path(package_path).unwrap(),
         version: None,
-        tojump: vec![
-            Path::new("/usr/share/bash-completion/bash_completionConfig.cmake").to_path_buf(),
-        ],
+        tojump: vec![config_file],
         from: CMakePackageFrom::System,
     };
     let test_vals: HashMap<String, CMakePackage> =
