@@ -6,6 +6,10 @@ use crate::utils::treehelper::get_pos_type;
 use crate::utils::treehelper::position_to_point;
 use crate::utils::treehelper::PositionType;
 use crate::utils::treehelper::MESSAGE_STORAGE;
+
+#[cfg(unix)]
+use crate::utils::packagepkgconfig::PkgConfig;
+use crate::utils::CMakePackage;
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Position;
 /// Some tools for treesitter  to lsp_types
@@ -37,6 +41,46 @@ fn package_name_check_tst() {
     assert_eq!(output, vec!["abc", "def", "ghi"]);
 }
 
+#[inline]
+#[cfg(unix)]
+fn vcpkg_document_fmt(context: &PkgConfig) -> String {
+    format!(
+        "
+Packagename: {}
+Packagepath: {}
+",
+        context.libname, context.path,
+    )
+}
+
+#[inline]
+fn cmakepackage_document_fmt(context: &CMakePackage) -> String {
+    if context.tojump.is_empty() {
+        return format!(
+            "
+Packagename: {}
+PackageDir: {}
+PackageVersion: {}
+",
+            context.name,
+            context.filepath.path(),
+            context.version.clone().unwrap_or("Undefined".to_string())
+        );
+    }
+    format!(
+        "
+Packagename: {}
+PackageDir: {}
+Packagepath: {}
+PackageVersion: {}
+",
+        context.name,
+        context.filepath.path(),
+        context.tojump[0].display(),
+        context.version.clone().unwrap_or("Undefined".to_string())
+    )
+}
+
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
     let current_point = position_to_point(location);
@@ -44,17 +88,9 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     let inner_result = match get_pos_type(current_point, root, source) {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
-            let message = message.split('_').collect::<Vec<&str>>()[0];
-            let value = PKG_CONFIG_PACKAGES_WITHKEY.get(message);
-            value.map(|context| {
-                format!(
-                    "
-Packagename: {}
-Packagepath: {}
-",
-                    context.libname, context.path,
-                )
-            })
+            let package = get_the_packagename(&message);
+            let value = PKG_CONFIG_PACKAGES_WITHKEY.get(package);
+            value.map(vcpkg_document_fmt)
         }
 
         PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink => {
@@ -63,18 +99,7 @@ Packagepath: {}
             if value.is_none() {
                 value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&package.to_lowercase());
             }
-            value.map(|context| {
-                format!(
-                    "
-Packagename: {}
-Packagepath: {}
-PackageVersion: {}
-",
-                    context.name,
-                    context.tojump[0].display(),
-                    context.version.clone().unwrap_or("Undefined".to_string())
-                )
-            })
+            value.map(cmakepackage_document_fmt)
         }
         _ => {
             let mut value = MESSAGE_STORAGE.get(&message);
@@ -97,4 +122,63 @@ PackageVersion: {}
         }
     }
     Some(cached_info)
+}
+
+#[tokio::test]
+async fn tst_hover() {
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+    use crate::utils::CMakePackage;
+    use crate::utils::CMakePackageFrom;
+    use crate::utils::FileType;
+    use crate::utils::MockFindPackageFunsTrait;
+    use crate::utils::FIND_PACKAGE_FUNS_NAMESPACE;
+    use std::collections::HashMap;
+    use std::path::Path;
+    use tower_lsp::lsp_types::Url;
+    let fake_package = CMakePackage {
+        name: "bash-completion-fake".to_string(),
+        filetype: FileType::Dir,
+        filepath: Url::from_file_path("/usr/share/bash-completion-fake").unwrap(),
+        version: None,
+        tojump: vec![
+            Path::new("/usr/share/bash-completion/bash_completionConfig.cmake").to_path_buf(),
+        ],
+        from: CMakePackageFrom::System,
+    };
+    let test_vals: HashMap<String, CMakePackage> =
+        HashMap::from_iter([("bash-completion-fake".to_string(), fake_package.clone())]);
+    let mut mock = MockFindPackageFunsTrait::new();
+    mock.expect_get_cmake_packages().return_const(
+        test_vals
+            .clone()
+            .into_values()
+            .collect::<Vec<CMakePackage>>(),
+    );
+    mock.expect_get_cmake_packages_withkeys()
+        .return_const(test_vals);
+
+    let _ = std::mem::replace(
+        &mut *FIND_PACKAGE_FUNS_NAMESPACE.lock().unwrap(),
+        Box::new(mock),
+    );
+
+    println!("{:?}", *CACHE_CMAKE_PACKAGES_WITHKEYS);
+
+    let content = r#"
+find_package(bash-completion-fake)
+    "#;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(content, None).unwrap();
+    let document = get_hovered_doc(
+        Position {
+            line: 1,
+            character: 15,
+        },
+        thetree.root_node(),
+        &content,
+    )
+    .await
+    .unwrap();
+    assert_eq!(document, cmakepackage_document_fmt(&fake_package));
 }

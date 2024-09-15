@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::Url;
+use crate::{utils::CMakePackageFrom, Url};
 
 use std::sync::LazyLock;
 
@@ -92,7 +92,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         filepath,
                         version,
                         tojump,
-                        from: "Vcpkg".to_string(),
+                        from: CMakePackageFrom::Vcpkg,
                     });
             }
         }
@@ -142,7 +142,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     filepath: packagepath,
                     version,
                     tojump,
-                    from: "Vcpkg".to_string(),
+                    from: CMakePackageFrom::Vcpkg,
                 });
         }
     }
@@ -187,6 +187,8 @@ fn test_vcpkgpackage_search() {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
+
+    use crate::utils::CMakePackageFrom;
     let dir = tempdir().unwrap();
 
     let vcpkg_path = dir.path().join("vcpkg.json");
@@ -245,7 +247,7 @@ fn test_vcpkgpackage_search() {
                     safe_canonicalize(&vulkan_config_cmake).unwrap(),
                     safe_canonicalize(&vulkan_config_version_cmake).unwrap(),
                 ],
-                from: "Vcpkg".to_string(),
+                from: CMakePackageFrom::Vcpkg,
             },
         ),
         (
@@ -259,7 +261,7 @@ fn test_vcpkgpackage_search() {
                     safe_canonicalize(&ecm_config_cmake).unwrap(),
                     safe_canonicalize(&ecm_config_version_cmake).unwrap(),
                 ],
-                from: "Vcpkg".to_string(),
+                from: CMakePackageFrom::Vcpkg,
             },
         ),
     ]);

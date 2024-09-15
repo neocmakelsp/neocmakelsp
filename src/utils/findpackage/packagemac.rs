@@ -7,7 +7,7 @@ use std::{
 use crate::Url;
 use std::sync::LazyLock;
 
-use crate::utils::{CMakePackage, FileType};
+use crate::utils::{CMakePackage, CMakePackageFrom, FileType};
 
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
@@ -71,7 +71,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                         filepath,
                         version,
                         tojump,
-                        from: "System".to_string(),
+                        from: CMakePackageFrom::System,
                     });
             }
         }
@@ -120,7 +120,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     filepath: packagepath,
                     version,
                     tojump,
-                    from: "System".to_string(),
+                    from: CMakePackageFrom::System,
                 });
         }
     }

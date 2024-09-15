@@ -1,4 +1,4 @@
-use crate::utils::{CMakePackage, FileType};
+use crate::utils::{CMakePackage, CMakePackageFrom, FileType};
 use std::sync::LazyLock;
 use std::{
     collections::HashMap,
@@ -88,7 +88,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                         filepath,
                         version,
                         tojump,
-                        from: "System".to_string(),
+                        from: CMakePackageFrom::System,
                     });
             }
         }
@@ -139,7 +139,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     filepath: packagepath,
                     version,
                     tojump,
-                    from: "System".to_string(),
+                    from: CMakePackageFrom::System,
                 });
         }
     }

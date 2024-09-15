@@ -22,6 +22,21 @@ impl std::fmt::Display for FileType {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CMakePackageFrom {
+    System,
+    Vcpkg,
+}
+
+impl std::fmt::Display for CMakePackageFrom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Vcpkg => write!(f, "Vcpkg"),
+            Self::System => write!(f, "System"),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct CMakePackage {
     pub name: String,
@@ -29,7 +44,7 @@ pub struct CMakePackage {
     pub filepath: Url,
     pub version: Option<String>,
     pub tojump: Vec<PathBuf>,
-    pub from: String,
+    pub from: CMakePackageFrom,
 }
 
 pub use findpackage::*;

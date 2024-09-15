@@ -24,6 +24,14 @@ use packagemac as cmakepackage;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::CMakeNodeKinds;
+
+pub use cmakepackage::*;
+pub use vcpkg::*;
+
+use std::sync::Mutex;
+
+use mockall::automock;
+
 use std::{collections::HashMap, sync::LazyLock};
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: LazyLock<regex::Regex> =
@@ -36,16 +44,50 @@ static CMAKECONFIG: LazyLock<regex::Regex> =
 static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
 
-fn get_cmake_packages() -> Vec<CMakePackage> {
-    let mut cmake_packages = CMAKE_PACKAGES.clone();
-    cmake_packages.extend(VCPKG_CMAKE_PACKAGES.clone());
-    cmake_packages
+#[automock]
+pub trait FindPackageFunsTrait {
+    fn get_cmake_packages(&self) -> Vec<CMakePackage> {
+        let mut cmake_packages = CMAKE_PACKAGES.clone();
+        cmake_packages.extend(VCPKG_CMAKE_PACKAGES.clone());
+        cmake_packages
+    }
+    fn get_cmake_packages_withkeys(&self) -> HashMap<String, CMakePackage> {
+        let mut cmake_packages_keys = CMAKE_PACKAGES_WITHKEY.clone();
+        cmake_packages_keys.extend(VCPKG_CMAKE_PACKAGES_WITHKEY.clone());
+        cmake_packages_keys
+    }
+
+    #[cfg(unix)]
+    fn get_pkg_config_packages_withkey(&self) -> HashMap<String, packagepkgconfig::PkgConfig> {
+        packagepkgconfig::get_pkg_messages()
+    }
+
+    #[cfg(unix)]
+    fn get_pkg_config_packages(&self) -> Vec<packagepkgconfig::PkgConfig> {
+        packagepkgconfig::get_pkg_messages().into_values().collect()
+    }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct FindPackageFuns;
+
+impl FindPackageFunsTrait for FindPackageFuns {}
+
+pub static FIND_PACKAGE_FUNS_NAMESPACE: LazyLock<Mutex<Box<dyn FindPackageFunsTrait + Send>>> =
+    LazyLock::new(|| Mutex::new(Box::new(FindPackageFuns)));
+
 fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
-    let mut cmake_packages_keys = CMAKE_PACKAGES_WITHKEY.clone();
-    cmake_packages_keys.extend(VCPKG_CMAKE_PACKAGES_WITHKEY.clone());
-    cmake_packages_keys
+    FIND_PACKAGE_FUNS_NAMESPACE
+        .lock()
+        .unwrap()
+        .get_cmake_packages_withkeys()
+}
+
+fn get_cmake_packages() -> Vec<CMakePackage> {
+    FIND_PACKAGE_FUNS_NAMESPACE
+        .lock()
+        .unwrap()
+        .get_cmake_packages()
 }
 
 pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get_cmake_packages);
@@ -96,6 +138,7 @@ pub mod packagepkgconfig {
     use std::collections::HashMap;
     use std::sync::{Arc, LazyLock, Mutex};
 
+    use super::FIND_PACKAGE_FUNS_NAMESPACE;
     use crate::Url;
 
     pub struct PkgConfig {
@@ -109,7 +152,7 @@ pub mod packagepkgconfig {
         ))
     });
 
-    fn get_pkg_messages() -> HashMap<String, PkgConfig> {
+    pub(super) fn get_pkg_messages() -> HashMap<String, PkgConfig> {
         let mut packages: HashMap<String, PkgConfig> = HashMap::new();
         let mut generatepackage = || -> anyhow::Result<()> {
             for path in QUERYSRULES.lock().unwrap().iter() {
@@ -140,14 +183,27 @@ pub mod packagepkgconfig {
         let _ = generatepackage();
         packages
     }
+
+    fn get_pkg_config_packages_withkey() -> HashMap<String, PkgConfig> {
+        FIND_PACKAGE_FUNS_NAMESPACE
+            .lock()
+            .unwrap()
+            .get_pkg_config_packages_withkey()
+    }
+
+    fn get_pkg_config_packages() -> Vec<PkgConfig> {
+        FIND_PACKAGE_FUNS_NAMESPACE
+            .lock()
+            .unwrap()
+            .get_pkg_config_packages()
+    }
+
     pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
-        LazyLock::new(get_pkg_messages);
+        LazyLock::new(get_pkg_config_packages_withkey);
 
     pub static PKG_CONFIG_PACKAGES: LazyLock<Vec<PkgConfig>> =
-        LazyLock::new(|| get_pkg_messages().into_values().collect());
+        LazyLock::new(get_pkg_config_packages);
 }
-pub use cmakepackage::*;
-pub use vcpkg::*;
 
 use super::{remove_quotation, CMakePackage};
 

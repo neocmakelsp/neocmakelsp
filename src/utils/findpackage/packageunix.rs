@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use crate::Url;
 
-use crate::utils::{CMakePackage, FileType};
+use crate::utils::{CMakePackage, CMakePackageFrom, FileType};
 
 use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
 
@@ -18,10 +18,8 @@ const PREFIXS: [&str; 2] = ["/usr", "/usr/local"];
 
 const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
 
-static ENV_PREFIX: LazyLock<Option<String>> = LazyLock::new(|| std::env::var("PREFIX").ok());
-
 fn get_prefixs() -> Vec<String> {
-    if let Some(ref prefix) = *ENV_PREFIX {
+    if let Ok(prefix) = std::env::var("PREFIX") {
         let mut prefixs: Vec<String> = PREFIXS
             .to_vec()
             .iter()
@@ -96,7 +94,7 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
                         filepath,
                         version,
                         tojump,
-                        from: "System".to_string(),
+                        from: CMakePackageFrom::System,
                     });
             }
         }
@@ -145,7 +143,7 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
                     filepath: packagepath,
                     version,
                     tojump,
-                    from: "System".to_string(),
+                    from: CMakePackageFrom::System,
                 });
         }
     }
@@ -218,7 +216,7 @@ fn test_package_search() {
                 filepath: Url::from_file_path(vulkan_dir).unwrap(),
                 version: Some("1.3.295".to_string()),
                 tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
-                from: "System".to_string(),
+                from: CMakePackageFrom::System,
             },
         ),
         (
@@ -229,7 +227,7 @@ fn test_package_search() {
                 filepath: Url::from_file_path(ecm_dir).unwrap(),
                 version: Some("6.5.0".to_string()),
                 tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
-                from: "System".to_string(),
+                from: CMakePackageFrom::System,
             },
         ),
     ]);
