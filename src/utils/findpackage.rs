@@ -80,18 +80,26 @@ pub static FIND_PACKAGE_FUNS_NAMESPACE: LazyLock<Mutex<Box<dyn FindPackageFunsTr
 
 #[inline]
 fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
-    let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
-        return FindPackageFunsReal.get_cmake_packages_withkeys();
-    };
-    namespace.get_cmake_packages_withkeys()
+    if cfg!(test) {
+        FIND_PACKAGE_FUNS_NAMESPACE
+            .lock()
+            .unwrap()
+            .get_cmake_packages_withkeys()
+    } else {
+        FindPackageFunsReal.get_cmake_packages_withkeys()
+    }
 }
 
 #[inline]
 fn get_cmake_packages() -> Vec<CMakePackage> {
-    let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
-        return FindPackageFunsReal.get_cmake_packages();
-    };
-    namespace.get_cmake_packages()
+    if cfg!(test) {
+        FIND_PACKAGE_FUNS_NAMESPACE
+            .lock()
+            .unwrap()
+            .get_cmake_packages()
+    } else {
+        FindPackageFunsReal.get_cmake_packages()
+    }
 }
 
 pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get_cmake_packages);
@@ -190,18 +198,26 @@ pub mod packagepkgconfig {
 
     #[inline]
     fn get_pkg_config_packages_withkey() -> HashMap<String, PkgConfig> {
-        let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
-            return FindPackageFunsReal.get_pkg_config_packages_withkey();
-        };
-        namespace.get_pkg_config_packages_withkey()
+        if cfg!(test) {
+            FIND_PACKAGE_FUNS_NAMESPACE
+                .lock()
+                .unwrap()
+                .get_pkg_config_packages_withkey()
+        } else {
+            FindPackageFunsReal.get_pkg_config_packages_withkey()
+        }
     }
 
     #[inline]
     fn get_pkg_config_packages() -> Vec<PkgConfig> {
-        let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
-            return FindPackageFunsReal.get_pkg_config_packages();
-        };
-        namespace.get_pkg_config_packages()
+        if cfg!(test) {
+            FIND_PACKAGE_FUNS_NAMESPACE
+                .lock()
+                .unwrap()
+                .get_pkg_config_packages()
+        } else {
+            FindPackageFunsReal.get_pkg_config_packages()
+        }
     }
 
     pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
