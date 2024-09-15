@@ -869,7 +869,7 @@ fn comment_mark_test() {
 }
 
 #[test]
-fn test_compelete() {
+fn test_complete() {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;

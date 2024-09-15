@@ -94,7 +94,7 @@ pub fn scanner_package_complete(
 mod include_scan_test {
     use super::*;
     #[test]
-    fn test_compelete_scan_1() {
+    fn test_complete_scan_1() {
         use std::fs::File;
         use std::io::Write;
         use tempfile::tempdir;
@@ -185,7 +185,7 @@ endfunction()
     }
 
     #[test]
-    fn test_compelete_scan_2() {
+    fn test_complete_scan_2() {
         use std::fs::File;
         use std::io::Write;
         use tempfile::tempdir;
