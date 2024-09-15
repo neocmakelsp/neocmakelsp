@@ -28,7 +28,6 @@ ignore = "0.4.23"
 toml = "0.8.19"
 clap_complete = "4.5.26"
 treesitter_kind_collector = "0.2.0"
-mockall = "0.13.0"
 
 [target.'cfg(windows)'.dependencies]
 path-absolutize = "3.1.1"
