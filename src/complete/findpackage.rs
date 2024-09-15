@@ -64,9 +64,10 @@ pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
 pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
     let mut data: Vec<CompletionItem> = CACHE_CMAKE_PACKAGES
         .iter()
-        .filter(|package| package.name.starts_with(space))
-        .map(|package| CompletionItem {
-            label: package.name.strip_prefix(space).unwrap().to_string(),
+        .map(|package| Some((package.name.strip_prefix(space)?, package)))
+        .flatten()
+        .map(|(label, package)| CompletionItem {
+            label: label.to_string(),
             kind: Some(CompletionItemKind::MODULE),
             detail: Some("Module".to_string()),
             documentation: Some(Documentation::String(match &package.version {
