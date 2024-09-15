@@ -12,7 +12,7 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        gen_module_pattern, replace_placeholders,
+        gen_module_pattern, get_the_packagename, replace_placeholders,
         treehelper::{get_point_string, point_to_position, position_to_point},
         LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
@@ -161,7 +161,7 @@ async fn godef_inner(
             }
         }
         PositionType::FindPackage | PositionType::TargetLink | PositionType::TargetInclude => {
-            let tofind = tofind.split('_').collect::<Vec<&str>>()[0].to_string();
+            let tofind = get_the_packagename(&tofind);
             findpackage::cmpfindpackage(tofind)
         }
         PositionType::Unknown | PositionType::Comment | PositionType::ArgumentOrList => None,

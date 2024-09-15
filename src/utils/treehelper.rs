@@ -10,7 +10,7 @@ use tree_sitter::{Node, Point};
 
 use crate::CMakeNodeKinds;
 
-const BLACK_POS_STRING: [&str; 4] = ["(", ")", "{", "}"];
+const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 
 const SPECIALCOMMANDS: [&str; 3] = [
     "find_package",
@@ -424,6 +424,10 @@ test, here is BRACKET_COMMENT
     assert_eq!(
         get_pos_type(Point { row: 8, column: 2 }, input, source,),
         PositionType::TargetLink
+    );
+    assert_eq!(
+        get_pos_type(Point { row: 8, column: 4 }, input, source,),
+        PositionType::VarOrFun
     );
     assert_eq!(
         get_pos_type(Point { row: 9, column: 6 }, input, source,),

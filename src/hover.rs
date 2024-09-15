@@ -1,4 +1,5 @@
 use crate::fileapi;
+use crate::utils::get_the_packagename;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use crate::utils::treehelper::get_point_string;
@@ -17,29 +18,6 @@ use tower_lsp::lsp_types;
 use tree_sitter::Node;
 
 use crate::jump::JUMP_CACHE;
-
-const LIBRARIES_END: &str = "_LIBRARIES";
-const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
-
-fn get_the_packagename(package: &str) -> &str {
-    if let Some(after) = package.strip_suffix(LIBRARIES_END) {
-        return after;
-    }
-    if let Some(after) = package.strip_suffix(INCLUDE_DIRS_END) {
-        return after;
-    }
-    package
-}
-
-#[test]
-fn package_name_check_tst() {
-    let package_names = vec!["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
-    let output: Vec<&str> = package_names
-        .iter()
-        .map(|name| get_the_packagename(name))
-        .collect();
-    assert_eq!(output, vec!["abc", "def", "ghi"]);
-}
 
 #[inline]
 #[cfg(unix)]

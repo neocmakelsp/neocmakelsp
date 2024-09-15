@@ -4,8 +4,8 @@ use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Url;
 use tower_lsp::lsp_types;
 
-pub(super) fn cmpfindpackage(input: String) -> Option<Vec<Location>> {
-    CACHE_CMAKE_PACKAGES_WITHKEYS.get(&input).map(|context| {
+pub(super) fn cmpfindpackage(input: &str) -> Option<Vec<Location>> {
+    CACHE_CMAKE_PACKAGES_WITHKEYS.get(input).map(|context| {
         context
             .tojump
             .iter()

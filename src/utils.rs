@@ -217,3 +217,26 @@ fn test_module_pattern() {
         );
     }
 }
+
+const LIBRARIES_END: &str = "_LIBRARIES";
+const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
+
+pub fn get_the_packagename(package: &str) -> &str {
+    if let Some(after) = package.strip_suffix(LIBRARIES_END) {
+        return after;
+    }
+    if let Some(after) = package.strip_suffix(INCLUDE_DIRS_END) {
+        return after;
+    }
+    package
+}
+
+#[test]
+fn package_name_check_tst() {
+    let package_names = vec!["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
+    let output: Vec<&str> = package_names
+        .iter()
+        .map(|name| get_the_packagename(name))
+        .collect();
+    assert_eq!(output, vec!["abc", "def", "ghi"]);
+}
