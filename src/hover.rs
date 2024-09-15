@@ -129,8 +129,8 @@ async fn tst_hover() {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     use crate::utils::CMakePackage;
     use crate::utils::CMakePackageFrom;
-    use crate::utils::PackageType;
     use crate::utils::MockFindPackageFunsTrait;
+    use crate::utils::PackageType;
     use crate::utils::FIND_PACKAGE_FUNS_NAMESPACE;
     use std::collections::HashMap;
     use tempfile::tempdir;
