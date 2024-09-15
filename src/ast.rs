@@ -233,12 +233,38 @@ fn getsubast(
     }
 }
 
-#[test]
-fn test_ast() {
-    let context = include_str!("../assert/base/formatbefore.cmake");
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None).unwrap();
+#[cfg(test)]
+mod ast_test {
+    use super::*;
+    #[test]
+    fn test_ast_1() {
+        let context = include_str!("../assert/ast_test/bast_test.cmake");
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context, None).unwrap();
 
-    assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+    }
+
+    #[test]
+    fn test_ast_2() {
+        let context = include_str!("../assert/ast_test/nheko_test.cmake");
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context, None).unwrap();
+
+        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+    }
+
+    #[test]
+    fn test_ast_3() {
+        let context = r#"
+# Just comment here
+"#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(context, None).unwrap();
+
+        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_none());
+    }
 }
