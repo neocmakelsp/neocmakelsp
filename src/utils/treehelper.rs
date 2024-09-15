@@ -10,7 +10,7 @@ use tree_sitter::{Node, Point};
 
 use crate::CMakeNodeKinds;
 
-const BLACK_POS_STRING: [&str; 2] = ["(", ")"];
+const BLACK_POS_STRING: [&str; 4] = ["(", ")", "{", "}"];
 
 const SPECIALCOMMANDS: [&str; 3] = [
     "find_package",
