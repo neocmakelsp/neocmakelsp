@@ -23,7 +23,6 @@ pub fn scanner_include_complete(
     find_cmake_in_package: bool,
     is_buildin: bool,
 ) -> Option<Vec<CompletionItem>> {
-    println!("ggg");
     if is_buildin {
         if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
             if let Some(complete_items) = cache.get(path) {
@@ -31,7 +30,6 @@ pub fn scanner_include_complete(
             }
         }
     }
-    println!("ggg");
     let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

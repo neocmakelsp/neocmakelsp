@@ -174,6 +174,7 @@ pub async fn getcomplete(
     }
 }
 
+/// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
@@ -188,6 +189,10 @@ fn getsubcomplete(
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
 ) -> Option<Vec<CompletionItem>> {
+    assert!(matches!(
+        postype,
+        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
+    ));
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
             return None;
@@ -382,213 +387,193 @@ fn getsubcomplete(
                         }
                     }
                 } else {
-                    match postype {
-                        PositionType::TargetLink
-                        | PositionType::TargetInclude
-                        | PositionType::VarOrFun => {
-                            if name == "set" || name == "option" {
-                                let Some(arguments) = child.child(2) else {
-                                    continue;
-                                };
-                                let Some(ids) = arguments.child(0) else {
-                                    continue;
-                                };
-                                if ids.start_position().row != ids.end_position().row {
-                                    continue;
-                                }
-                                let h = ids.start_position().row;
-                                let x = ids.start_position().column;
-                                let y = ids.end_position().column;
-                                let Some(name) = &source[h][x..y].split(' ').next() else {
-                                    continue;
-                                };
-                                let mut document_info =
-                                    format!("defined variable\nfrom: {}", local_path.display());
+                    if name == "set" || name == "option" {
+                        let Some(arguments) = child.child(2) else {
+                            continue;
+                        };
+                        let Some(ids) = arguments.child(0) else {
+                            continue;
+                        };
+                        if ids.start_position().row != ids.end_position().row {
+                            continue;
+                        }
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let Some(name) = &source[h][x..y].split(' ').next() else {
+                            continue;
+                        };
+                        let mut document_info =
+                            format!("defined variable\nfrom: {}", local_path.display());
 
-                                if line_comment_tmp.is_node_comment(h) {
-                                    document_info = format!(
-                                        "{}\n\n{}",
-                                        document_info,
-                                        line_comment_tmp.comment()
-                                    );
+                        if line_comment_tmp.is_node_comment(h) {
+                            document_info =
+                                format!("{}\n\n{}", document_info, line_comment_tmp.comment());
+                        }
+                        complete.push(CompletionItem {
+                            label: name.to_string(),
+                            kind: Some(CompletionItemKind::VALUE),
+                            detail: Some("Value".to_string()),
+                            documentation: Some(Documentation::String(document_info)),
+                            ..Default::default()
+                        });
+                    }
+                    if name == "find_package" && child.child_count() >= 3 && should_in {
+                        let Some(argumentlist) = child.child(2) else {
+                            continue;
+                        };
+                        // use tree_sitter to find all packages
+                        let argument_count = argumentlist.child_count();
+                        if argument_count == 0 {
+                            continue;
+                        }
+                        let package_prefix_node = argumentlist.child(0).unwrap();
+                        let h = package_prefix_node.start_position().row;
+                        let x = package_prefix_node.start_position().column;
+                        let y = package_prefix_node.end_position().column;
+                        let package_name = &source[h][x..y];
+                        let mut component_part = Vec::new();
+                        let mut cmakepackages = Vec::new();
+                        let components_packages = {
+                            if argument_count >= 2 {
+                                let mut support_component = false;
+                                let mut components_packages = Vec::new();
+                                for index in 1..argument_count {
+                                    let package_prefix_node = argumentlist.child(index).unwrap();
+                                    let h = package_prefix_node.start_position().row;
+                                    let x = package_prefix_node.start_position().column;
+                                    let y = package_prefix_node.end_position().column;
+                                    let component = &source[h][x..y];
+                                    if component == "COMPONENTS" {
+                                        support_component = true;
+                                    } else if component != "REQUIRED" {
+                                        component_part.push(component.to_string());
+                                        components_packages
+                                            .push(format!("{package_name}::{component}"));
+                                    }
                                 }
+                                if support_component {
+                                    Some(components_packages)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        };
+
+                        if find_cmake_in_package && components_packages.is_some() {
+                            for package in component_part {
+                                cmakepackages.push(format!("{package_name}{package}"));
+                            }
+                        } else {
+                            cmakepackages.push(package_name.to_string());
+                        }
+                        // modern cmake like Qt5::Core
+                        if let Some(components) = components_packages {
+                            for component in components {
                                 complete.push(CompletionItem {
-                                    label: name.to_string(),
-                                    kind: Some(CompletionItemKind::VALUE),
-                                    detail: Some("Value".to_string()),
-                                    documentation: Some(Documentation::String(document_info)),
+                                    label: component,
+                                    kind: Some(CompletionItemKind::VARIABLE),
+                                    detail: Some("Variable".to_string()),
+                                    documentation: Some(Documentation::String(format!(
+                                        "package from: {package_name}",
+                                    ))),
                                     ..Default::default()
                                 });
                             }
-                            if name == "find_package" && child.child_count() >= 3 && should_in {
-                                let Some(argumentlist) = child.child(2) else {
-                                    continue;
-                                };
-                                // use tree_sitter to find all packages
-                                let argument_count = argumentlist.child_count();
-                                if argument_count == 0 {
-                                    continue;
-                                }
-                                let package_prefix_node = argumentlist.child(0).unwrap();
-                                let h = package_prefix_node.start_position().row;
-                                let x = package_prefix_node.start_position().column;
-                                let y = package_prefix_node.end_position().column;
-                                let package_name = &source[h][x..y];
-                                let mut component_part = Vec::new();
-                                let mut cmakepackages = Vec::new();
-                                let components_packages = {
-                                    if argument_count >= 2 {
-                                        let mut support_component = false;
-                                        let mut components_packages = Vec::new();
-                                        for index in 1..argument_count {
-                                            let package_prefix_node =
-                                                argumentlist.child(index).unwrap();
-                                            let h = package_prefix_node.start_position().row;
-                                            let x = package_prefix_node.start_position().column;
-                                            let y = package_prefix_node.end_position().column;
-                                            let component = &source[h][x..y];
-                                            if component == "COMPONENTS" {
-                                                support_component = true;
-                                            } else if component != "REQUIRED" {
-                                                component_part.push(component.to_string());
-                                                components_packages
-                                                    .push(format!("{package_name}::{component}"));
-                                            }
-                                        }
-                                        if support_component {
-                                            Some(components_packages)
-                                        } else {
-                                            None
-                                        }
-                                    } else {
-                                        None
-                                    }
-                                };
-
-                                if find_cmake_in_package && components_packages.is_some() {
-                                    for package in component_part {
-                                        cmakepackages.push(format!("{package_name}{package}"));
-                                    }
-                                } else {
-                                    cmakepackages.push(package_name.to_string());
-                                }
-                                // modern cmake like Qt5::Core
-                                if let Some(components) = components_packages {
-                                    for component in components {
-                                        complete.push(CompletionItem {
-                                            label: component,
-                                            kind: Some(CompletionItemKind::VARIABLE),
-                                            detail: Some("Variable".to_string()),
-                                            documentation: Some(Documentation::String(format!(
-                                                "package from: {package_name}",
-                                            ))),
-                                            ..Default::default()
-                                        });
-                                    }
-                                }
-
-                                if matches!(
-                                    postype,
-                                    PositionType::TargetLink | PositionType::VarOrFun
-                                ) {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_LIBRARIES"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Variable".to_string()),
-                                        documentation: Some(Documentation::String(format!(
-                                            "package: {package_name}",
-                                        ))),
-                                        ..Default::default()
-                                    });
-                                }
-
-                                if matches!(
-                                    postype,
-                                    PositionType::TargetInclude | PositionType::VarOrFun
-                                ) {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_INCLUDE_DIRS"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Variable".to_string()),
-                                        documentation: Some(Documentation::String(format!(
-                                            "package: {package_name}",
-                                        ))),
-                                        ..Default::default()
-                                    });
-                                }
-                                for package in cmakepackages {
-                                    if complete_packages.contains(&package) {
-                                        continue;
-                                    }
-                                    complete_packages.push(package.clone());
-                                    let Some(mut completeitem) = get_cmake_package_complete(
-                                        package.as_str(),
-                                        postype,
-                                        include_files,
-                                        complete_packages,
-                                    ) else {
-                                        continue;
-                                    };
-                                    complete.append(&mut completeitem);
-                                }
-                            }
-                            #[cfg(unix)]
-                            if name == "pkg_check_modules" && child.child_count() >= 3 {
-                                use crate::utils::get_node_content;
-                                let ids = child.child(2).unwrap();
-                                let names = get_node_content(source, &ids);
-                                let package_names: Vec<&str> = names.split(' ').collect();
-                                let package_name = package_names[0];
-
-                                let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
-                                if modernpkgconfig
-                                    && matches!(
-                                        postype,
-                                        PositionType::VarOrFun | PositionType::TargetLink
-                                    )
-                                {
-                                    complete.push(CompletionItem {
-                                        label: format!("PkgConfig::{package_name}"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Package".to_string()),
-                                        documentation: Some(Documentation::String(format!(
-                                            "package: {package_name}",
-                                        ))),
-                                        ..Default::default()
-                                    });
-                                }
-
-                                if matches!(
-                                    postype,
-                                    PositionType::TargetLink | PositionType::VarOrFun
-                                ) {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_LIBRARIES"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Package".to_string()),
-                                        documentation: Some(Documentation::String(format!(
-                                            "package: {package_name}",
-                                        ))),
-                                        ..Default::default()
-                                    });
-                                }
-                                if matches!(
-                                    postype,
-                                    PositionType::TargetInclude | PositionType::VarOrFun
-                                ) {
-                                    complete.push(CompletionItem {
-                                        label: format!("{package_name}_INCLUDE_DIRS"),
-                                        kind: Some(CompletionItemKind::VARIABLE),
-                                        detail: Some("Package".to_string()),
-                                        documentation: Some(Documentation::String(format!(
-                                            "package: {package_name}",
-                                        ))),
-                                        ..Default::default()
-                                    });
-                                }
-                            }
                         }
-                        _ => {}
+
+                        if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
+                            complete.push(CompletionItem {
+                                label: format!("{package_name}_LIBRARIES"),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            });
+                        }
+
+                        if matches!(
+                            postype,
+                            PositionType::TargetInclude | PositionType::VarOrFun
+                        ) {
+                            complete.push(CompletionItem {
+                                label: format!("{package_name}_INCLUDE_DIRS"),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            });
+                        }
+                        for package in cmakepackages {
+                            if complete_packages.contains(&package) {
+                                continue;
+                            }
+                            complete_packages.push(package.clone());
+                            let Some(mut completeitem) = get_cmake_package_complete(
+                                package.as_str(),
+                                postype,
+                                include_files,
+                                complete_packages,
+                            ) else {
+                                continue;
+                            };
+                            complete.append(&mut completeitem);
+                        }
+                    }
+                    #[cfg(unix)]
+                    if name == "pkg_check_modules" && child.child_count() >= 3 {
+                        use crate::utils::get_node_content;
+                        let ids = child.child(2).unwrap();
+                        let names = get_node_content(source, &ids);
+                        let package_names: Vec<&str> = names.split(' ').collect();
+                        let package_name = package_names[0];
+
+                        let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
+                        if modernpkgconfig
+                            && matches!(postype, PositionType::VarOrFun | PositionType::TargetLink)
+                        {
+                            complete.push(CompletionItem {
+                                label: format!("PkgConfig::{package_name}"),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            });
+                        }
+
+                        if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
+                            complete.push(CompletionItem {
+                                label: format!("{package_name}_LIBRARIES"),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            });
+                        }
+                        if matches!(
+                            postype,
+                            PositionType::TargetInclude | PositionType::VarOrFun
+                        ) {
+                            complete.push(CompletionItem {
+                                label: format!("{package_name}_INCLUDE_DIRS"),
+                                kind: Some(CompletionItemKind::VARIABLE),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            });
+                        }
                     }
                 }
             }
