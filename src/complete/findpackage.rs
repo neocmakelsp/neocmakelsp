@@ -39,6 +39,7 @@ static PKGCONFIG_KEYWORDS: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
         },
     ]
 });
+
 pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
     CACHE_CMAKE_PACKAGES
         .iter()
@@ -61,6 +62,11 @@ pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
         .collect()
 });
 
+// NOTE: remove who start with space
+// FIXME: I do not know how to do unit test here. Because the value in lazy will just init once.
+// I use moc way unit test the place in hover, so the global value is init there. Then here I
+// cannot set the test data. So I cannot comeout a better way to do the unit test which related
+// with the global values
 pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
     let mut data: Vec<CompletionItem> = CACHE_CMAKE_PACKAGES
         .iter()
