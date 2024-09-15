@@ -37,34 +37,36 @@ pub fn position_to_point(input: Position) -> Point {
 }
 
 /// get the position of the string
-pub fn get_point_string(neolocation: Point, root: Node, source: &Vec<&str>) -> Option<String> {
+pub fn get_point_string(location: Point, root: Node, source: &Vec<&str>) -> Option<String> {
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        // if is inside same line
-        if neolocation.row <= child.end_position().row
-            && neolocation.row >= child.start_position().row
-        {
-            if child.child_count() != 0 {
-                let mabepos = get_point_string(neolocation, child, source);
-                if mabepos
-                    .as_ref()
-                    .is_some_and(|message| !BLACK_POS_STRING.contains(&message.as_str()))
-                {
-                    return mabepos;
-                };
-            }
-            // if is the same line
-            if child.start_position().row == child.end_position().row
-                && neolocation.column <= child.end_position().column
-                && neolocation.column >= child.start_position().column
+        if !location_range_contain(location, child) {
+            continue;
+        }
+        if BLACK_POS_STRING.contains(&child.kind()) {
+            continue;
+        }
+        if child.child_count() != 0 {
+            let mabepos = get_point_string(location, child, source);
+            if mabepos
+                .as_ref()
+                .is_some_and(|message| !BLACK_POS_STRING.contains(&message.as_str()))
             {
-                let h = child.start_position().row;
-                let x = child.start_position().column;
-                let y = child.end_position().column;
+                return mabepos;
+            };
+        }
+        // if is the same line
+        if child.start_position().row == child.end_position().row
+            && location.column <= child.end_position().column
+            && location.column >= child.start_position().column
+        {
+            let h = child.start_position().row;
+            let x = child.start_position().column;
+            let y = child.end_position().column;
 
-                let message = &source[h][x..y];
-                return Some(message.to_string());
-            }
+            let message = &source[h][x..y];
+
+            return Some(message.to_string());
         }
     }
     None
@@ -76,26 +78,27 @@ pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
     //let newsource: Vec<&str> = source.lines().collect();
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        // if is inside same line
-        if neolocation.row <= child.end_position().row
-            && neolocation.row >= child.start_position().row
+        if !location_range_contain(neolocation, child) {
+            continue;
+        }
+        if BLACK_POS_STRING.contains(&child.kind()) {
+            continue;
+        }
+        if child.child_count() != 0 {
+            let mabepos = get_position_range(location, child);
+            if mabepos.is_some() {
+                return mabepos;
+            }
+        }
+        // if is the same line
+        else if child.start_position().row == child.end_position().row
+            && neolocation.column <= child.end_position().column
+            && neolocation.column >= child.start_position().column
         {
-            if child.child_count() != 0 {
-                let mabepos = get_position_range(location, child);
-                if mabepos.is_some() {
-                    return mabepos;
-                }
-            }
-            // if is the same line
-            else if child.start_position().row == child.end_position().row
-                && neolocation.column <= child.end_position().column
-                && neolocation.column >= child.start_position().column
-            {
-                return Some(Range {
-                    start: point_to_position(child.start_position()),
-                    end: point_to_position(child.end_position()),
-                });
-            }
+            return Some(Range {
+                start: point_to_position(child.start_position()),
+                end: point_to_position(child.end_position()),
+            });
         }
     }
     None
@@ -180,24 +183,24 @@ pub enum PositionType {
     Comment,
 }
 
-fn location_range_contain(start_point: Point, end_point: Point, location: Point) -> bool {
-    if start_point.row > location.row || end_point.row < location.row {
+fn location_range_contain(location: Point, range_node: Node) -> bool {
+    let range_start_position = range_node.start_position();
+    let range_end_position = range_node.end_position();
+    if range_end_position.row < location.row || range_start_position.row > location.row {
+        return false;
+    };
+
+    if range_start_position.row == location.row && range_start_position.column > location.column {
         return false;
     }
-    if start_point.row == end_point.row {
-        return start_point.column <= location.column && end_point.column >= location.column;
-    }
-    if start_point.row == location.row {
-        return start_point.column <= location.column;
-    }
-    if end_point.row == location.row {
-        return end_point.column >= location.column;
+    if range_end_position.row == location.row && range_end_position.column < location.column {
+        return false;
     }
     true
 }
 
 pub fn is_comment(location: Point, root: Node) -> bool {
-    if !location_range_contain(root.start_position(), root.end_position(), location) {
+    if !location_range_contain(location, root) {
         return false;
     }
     if root.kind() == CMakeNodeKinds::LINE_COMMENT {
@@ -205,7 +208,7 @@ pub fn is_comment(location: Point, root: Node) -> bool {
     }
     let mut cursor = root.walk();
     for child in root.children(&mut cursor) {
-        if !location_range_contain(child.start_position(), child.end_position(), location) {
+        if !location_range_contain(location, child) {
             continue;
         }
         if child.kind() == CMakeNodeKinds::LINE_COMMENT {
@@ -228,22 +231,6 @@ pub fn get_pos_type(location: Point, root: Node, source: &str) -> PositionType {
     )
 }
 
-fn node_in_range(node: Point, range_node: Node) -> bool {
-    let range_start_position = range_node.start_position();
-    let range_end_position = range_node.end_position();
-    if range_end_position.row < node.row || range_start_position.row > node.row {
-        return false;
-    };
-
-    if range_start_position.row == node.row && range_start_position.column > node.column {
-        return false;
-    }
-    if range_end_position.row == node.row && range_end_position.column < node.column {
-        return false;
-    }
-    true
-}
-
 fn get_pos_type_inner(
     location: Point,
     root: Node,
@@ -252,7 +239,7 @@ fn get_pos_type_inner(
 ) -> PositionType {
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        if !node_in_range(location, child) {
+        if !location_range_contain(location, child) {
             continue;
         }
 
@@ -357,10 +344,40 @@ A#ss\" #sss)";
 }
 
 #[test]
+fn test_point_string() {
+    let source = r#"
+# it is a comment
+set(ABC "abcd")
+set(EFT "${ABC}eft")
+function(abc)
+endfunction()
+find_package(PkgConfig)
+pkg_check_modules(zlib)
+target_link_libraries(ABC PUBLIC
+    ${zlib_LIBRARIES}
+    ${abcd}
+)
+include("abcd/efg.cmake")
+    "#;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let input = tree.root_node();
+    let source_lines = source.lines().collect();
+    let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
+    assert_eq!(pos_str_1, "ABC");
+    let pos_str_2 = get_point_string(Point { row: 3, column: 12 }, input, &source_lines).unwrap();
+    assert_eq!(pos_str_2, "ABC");
+    let pos_str_3 = get_point_string(Point { row: 3, column: 16 }, input, &source_lines).unwrap();
+    assert_eq!(pos_str_3, "${ABC}eft");
+}
+
+#[test]
 fn tst_postype() {
     let source = r#"
 # it is a comment
-set(ABC, "abcd")
+set(ABC "abcd")
 function(abc)
 endfunction()
 find_package(PkgConfig)
