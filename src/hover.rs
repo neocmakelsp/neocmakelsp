@@ -163,8 +163,6 @@ async fn tst_hover() {
         Box::new(mock),
     );
 
-    println!("{:?}", *CACHE_CMAKE_PACKAGES_WITHKEYS);
-
     let content = r#"
 find_package(bash-completion-fake)
     "#;
