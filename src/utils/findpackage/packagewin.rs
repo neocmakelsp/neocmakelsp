@@ -192,7 +192,7 @@ fn test_package_search() {
                 filepath: Url::from_file_path(vulkan_dir).unwrap(),
                 version: Some("1.3.295".to_string()),
                 tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
-                from: "System".to_string(),
+                from: CMakePackageFrom::System,
             },
         ),
         (
@@ -203,7 +203,7 @@ fn test_package_search() {
                 filepath: Url::from_file_path(ecm_dir).unwrap(),
                 version: Some("6.5.0".to_string()),
                 tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
-                from: "System".to_string(),
+                from: CMakePackageFrom::System,
             },
         ),
     ]);
