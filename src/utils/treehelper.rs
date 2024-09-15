@@ -169,10 +169,11 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
 });
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PositionType {
+pub enum PositionType<'a> {
     VarOrFun,       // the variable defined in cmake file or macro or fun
     ArgumentOrList, // Not the ${abc} kind, just normake argument
     FindPackage,    // normal_command start with find_package
+    FindPackageSpace(&'a str),
     #[cfg(unix)]
     FindPkgConfig, // PkgConfig file
     SubDir,
@@ -225,7 +226,7 @@ pub fn is_comment(location: Point, root: Node) -> bool {
 }
 
 #[inline]
-pub fn get_pos_type(location: Point, root: Node, source: &str) -> PositionType {
+pub fn get_pos_type<'a>(location: Point, root: Node, source: &'a str) -> PositionType<'a> {
     get_pos_type_inner(
         location,
         root,
@@ -234,12 +235,12 @@ pub fn get_pos_type(location: Point, root: Node, source: &str) -> PositionType {
     )
 }
 
-fn get_pos_type_inner(
+fn get_pos_type_inner<'a>(
     location: Point,
     root: Node,
-    source: &Vec<&str>,
-    input_type: PositionType,
-) -> PositionType {
+    source: &Vec<&'a str>,
+    input_type: PositionType<'a>,
+) -> PositionType<'a> {
     let mut course = root.walk();
     for child in root.children(&mut course) {
         if !location_range_contain(location, child) {
@@ -264,9 +265,20 @@ fn get_pos_type_inner(
                     _ => PositionType::VarOrFun,
                 }
             }
-            CMakeNodeKinds::UNQUOTED_ARGUMENT
-            | CMakeNodeKinds::ARGUMENT_LIST
-            | CMakeNodeKinds::QUOTED_ELEMENT => PositionType::ArgumentOrList,
+            CMakeNodeKinds::ARGUMENT_LIST => {
+                if child.child_count() >= 2 && input_type == PositionType::FindPackage {
+                    let first_argument = child.child(0).unwrap();
+                    let row = first_argument.start_position().row;
+                    let col_x = first_argument.start_position().column;
+                    let col_y = first_argument.end_position().column;
+                    let val = &source[row][col_x..col_y];
+                    return PositionType::FindPackageSpace(val);
+                }
+                PositionType::ArgumentOrList
+            }
+            CMakeNodeKinds::UNQUOTED_ARGUMENT | CMakeNodeKinds::QUOTED_ELEMENT => {
+                PositionType::ArgumentOrList
+            }
             CMakeNodeKinds::NORMAL_VAR
             | CMakeNodeKinds::VARIABLE_REF
             | CMakeNodeKinds::VARIABLE => PositionType::VarOrFun,
@@ -289,10 +301,12 @@ fn get_pos_type_inner(
                 | PositionType::Include
                 | PositionType::TargetInclude
                 | PositionType::TargetLink => {
-                    if let PositionType::VarOrFun =
-                        get_pos_type_inner(location, child, source, input_type)
-                    {
-                        return PositionType::VarOrFun;
+                    let inner_type = get_pos_type_inner(location, child, source, jumptype);
+                    if matches!(
+                        inner_type,
+                        PositionType::VarOrFun | PositionType::FindPackageSpace(_)
+                    ) {
+                        return inner_type;
                     }
                     let name = get_point_string(location, root, source);
                     if let Some(name) = name {
@@ -324,6 +338,8 @@ fn get_pos_type_inner(
                 PositionType::Unknown | PositionType::Comment | PositionType::ArgumentOrList => {
                     return get_pos_type_inner(location, child, source, input_type)
                 }
+                // NOTE: it should be designed to cannot be reach
+                PositionType::FindPackageSpace(_) => unreachable!(),
             }
         } else {
             // if is the same line
@@ -393,6 +409,7 @@ include("abcd/efg.cmake")
 #[[.rst:
 test, here is BRACKET_COMMENT
 ]]#
+find_package(Qt5 COMPONENTS Core)
     "#;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
@@ -447,5 +464,16 @@ test, here is BRACKET_COMMENT
     assert_eq!(
         get_pos_type(Point { row: 13, column: 3 }, input, source,),
         PositionType::Comment
+    );
+    assert_eq!(
+        get_pos_type(
+            Point {
+                row: 15,
+                column: 30
+            },
+            input,
+            source,
+        ),
+        PositionType::FindPackageSpace("Qt5")
     )
 }

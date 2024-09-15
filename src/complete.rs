@@ -147,6 +147,9 @@ pub async fn getcomplete(
                 complete.append(&mut messages.clone());
             }
         }
+        PositionType::FindPackageSpace(space) => {
+            complete.append(&mut findpackage::completion_items_with_prefix(space));
+        }
         PositionType::FindPackage => {
             complete.append(&mut findpackage::CMAKE_SOURCE.clone());
         }
