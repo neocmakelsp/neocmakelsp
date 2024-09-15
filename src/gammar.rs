@@ -16,7 +16,7 @@ pub(crate) struct LintConfigInfo {
 
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ErrorInfo {
     pub inner: Vec<(
         tree_sitter::Point,
@@ -264,18 +264,45 @@ fn scanner_include_error(path: &PathBuf) -> bool {
 }
 
 #[test]
-fn gammer_passed_check() {
-    let source = include_str!("../assert/gammer/include_check.cmake");
+fn gammer_passed_check_1() {
+    let source = include_str!("../assert/gammar/include_check.cmake");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&source, None).unwrap();
 
-    checkerror_inner(
+    let input = thetree.root_node();
+    assert_eq!(
+        checkerror_inner(
+            std::path::Path::new("."),
+            &source.lines().collect(),
+            input,
+            true,
+        ),
+        Some(ErrorInfo {
+            inner: vec![(
+                input.start_position(),
+                input.end_position(),
+                "Grammar error".to_string(),
+                None,
+            )]
+        })
+    );
+}
+
+#[test]
+fn gammer_passed_check_2() {
+    let source = include_str!("../assert/gammar/pass_test.cmake");
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(&source, None).unwrap();
+
+    assert!(checkerror_inner(
         std::path::Path::new("."),
         &source.lines().collect(),
         thetree.root_node(),
         true,
-    );
+    )
+    .is_none());
 }
 
 #[test]
