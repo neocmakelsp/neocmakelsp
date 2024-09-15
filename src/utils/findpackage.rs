@@ -68,26 +68,30 @@ pub trait FindPackageFunsTrait {
     }
 }
 
+// NOTE:This is the real function to find package
+// To use trait is to make it possible to moc the logic
 #[derive(Debug, Clone, Copy)]
-pub struct FindPackageFuns;
+pub struct FindPackageFunsReal;
 
-impl FindPackageFunsTrait for FindPackageFuns {}
+impl FindPackageFunsTrait for FindPackageFunsReal {}
 
 pub static FIND_PACKAGE_FUNS_NAMESPACE: LazyLock<Mutex<Box<dyn FindPackageFunsTrait + Send>>> =
-    LazyLock::new(|| Mutex::new(Box::new(FindPackageFuns)));
+    LazyLock::new(|| Mutex::new(Box::new(FindPackageFunsReal)));
 
+#[inline]
 fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
-    FIND_PACKAGE_FUNS_NAMESPACE
-        .lock()
-        .unwrap()
-        .get_cmake_packages_withkeys()
+    let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
+        return FindPackageFunsReal.get_cmake_packages_withkeys();
+    };
+    namespace.get_cmake_packages_withkeys()
 }
 
+#[inline]
 fn get_cmake_packages() -> Vec<CMakePackage> {
-    FIND_PACKAGE_FUNS_NAMESPACE
-        .lock()
-        .unwrap()
-        .get_cmake_packages()
+    let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
+        return FindPackageFunsReal.get_cmake_packages();
+    };
+    namespace.get_cmake_packages()
 }
 
 pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get_cmake_packages);
@@ -138,7 +142,7 @@ pub mod packagepkgconfig {
     use std::collections::HashMap;
     use std::sync::{Arc, LazyLock, Mutex};
 
-    use super::FIND_PACKAGE_FUNS_NAMESPACE;
+    use super::{FindPackageFunsReal, FindPackageFunsTrait, FIND_PACKAGE_FUNS_NAMESPACE};
     use crate::Url;
 
     pub struct PkgConfig {
@@ -184,18 +188,20 @@ pub mod packagepkgconfig {
         packages
     }
 
+    #[inline]
     fn get_pkg_config_packages_withkey() -> HashMap<String, PkgConfig> {
-        FIND_PACKAGE_FUNS_NAMESPACE
-            .lock()
-            .unwrap()
-            .get_pkg_config_packages_withkey()
+        let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
+            return FindPackageFunsReal.get_pkg_config_packages_withkey();
+        };
+        namespace.get_pkg_config_packages_withkey()
     }
 
+    #[inline]
     fn get_pkg_config_packages() -> Vec<PkgConfig> {
-        FIND_PACKAGE_FUNS_NAMESPACE
-            .lock()
-            .unwrap()
-            .get_pkg_config_packages()
+        let Ok(namespace) = FIND_PACKAGE_FUNS_NAMESPACE.lock() else {
+            return FindPackageFunsReal.get_pkg_config_packages();
+        };
+        namespace.get_pkg_config_packages()
     }
 
     pub static PKG_CONFIG_PACKAGES_WITHKEY: LazyLock<HashMap<String, PkgConfig>> =
