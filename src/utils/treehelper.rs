@@ -203,7 +203,8 @@ pub fn is_comment(location: Point, root: Node) -> bool {
     if !location_range_contain(location, root) {
         return false;
     }
-    if root.kind() == CMakeNodeKinds::LINE_COMMENT {
+    if root.kind() == CMakeNodeKinds::LINE_COMMENT || root.kind() == CMakeNodeKinds::BRACKET_COMMENT
+    {
         return true;
     }
     let mut cursor = root.walk();
@@ -211,7 +212,9 @@ pub fn is_comment(location: Point, root: Node) -> bool {
         if !location_range_contain(location, child) {
             continue;
         }
-        if child.kind() == CMakeNodeKinds::LINE_COMMENT {
+        if child.kind() == CMakeNodeKinds::LINE_COMMENT
+            || child.kind() == CMakeNodeKinds::BRACKET_COMMENT
+        {
             return true;
         }
         if child.child_count() != 0 && is_comment(location, child) {
@@ -387,6 +390,9 @@ target_link_libraries(ABC PUBLIC
     ${abcd}
 )
 include("abcd/efg.cmake")
+#[[.rst:
+test, here is BRACKET_COMMENT
+]]#
     "#;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
@@ -433,5 +439,9 @@ include("abcd/efg.cmake")
             source,
         ),
         PositionType::Include
+    );
+    assert_eq!(
+        get_pos_type(Point { row: 13, column: 3 }, input, source,),
+        PositionType::Comment
     )
 }
