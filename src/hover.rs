@@ -11,6 +11,7 @@ use crate::utils::treehelper::MESSAGE_STORAGE;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PkgConfig;
 use crate::utils::CMakePackage;
+
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Position;
 /// Some tools for treesitter  to lsp_types
@@ -105,42 +106,11 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
 #[tokio::test]
 async fn tst_hover() {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    use crate::utils::CMakePackage;
-    use crate::utils::CMakePackageFrom;
-    use crate::utils::MockFindPackageFunsTrait;
-    use crate::utils::PackageType;
-    use crate::utils::FIND_PACKAGE_FUNS_NAMESPACE;
-    use std::collections::HashMap;
-    use tempfile::tempdir;
-    use tower_lsp::lsp_types::Url;
-    let dir = tempdir().unwrap();
-    let package_path = dir.path().join("share").join("bash-completion-fake");
-    let config_file = package_path.join("bash_completionConfig.cmake");
-    let fake_package = CMakePackage {
-        name: "bash-completion-fake".to_string(),
-        packagetype: PackageType::Dir,
-        location: Url::from_file_path(package_path).unwrap(),
-        version: None,
-        tojump: vec![config_file],
-        from: CMakePackageFrom::System,
-    };
-    let test_vals: HashMap<String, CMakePackage> =
-        HashMap::from_iter([("bash-completion-fake".to_string(), fake_package.clone())]);
-    let mut mock = MockFindPackageFunsTrait::new();
-    mock.expect_get_cmake_packages().return_const(
-        test_vals
-            .clone()
-            .into_values()
-            .collect::<Vec<CMakePackage>>(),
-    );
-    mock.expect_get_cmake_packages_withkeys()
-        .return_const(test_vals);
+    use crate::utils::FindPackageFunsFake;
+    use crate::utils::FindPackageFunsTrait;
 
-    let _ = std::mem::replace(
-        &mut *FIND_PACKAGE_FUNS_NAMESPACE.lock().unwrap(),
-        Box::new(mock),
-    );
-
+    let fake_data = FindPackageFunsFake.get_cmake_packages_withkeys();
+    let fake_package = fake_data.get("bash-completion-fake").unwrap();
     let content = r#"
 find_package(bash-completion-fake)
     "#;

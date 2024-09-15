@@ -21,16 +21,15 @@ use packagewin as cmakepackage;
 mod packagemac;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
+use tower_lsp::lsp_types::Url;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::CMakeNodeKinds;
 
+use super::{remove_quotation, CMakePackage, CMakePackageFrom, PackageType};
+
 pub use cmakepackage::*;
 pub use vcpkg::*;
-
-use std::sync::Mutex;
-
-use mockall::automock;
 
 use std::{collections::HashMap, sync::LazyLock};
 // match file xx.cmake and CMakeLists.txt
@@ -44,7 +43,6 @@ static CMAKECONFIG: LazyLock<regex::Regex> =
 static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
 
-#[automock]
 pub trait FindPackageFunsTrait {
     fn get_cmake_packages(&self) -> Vec<CMakePackage> {
         let mut cmake_packages = CMAKE_PACKAGES.clone();
@@ -68,6 +66,46 @@ pub trait FindPackageFunsTrait {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct FindPackageFunsFake;
+
+impl FindPackageFunsFake {
+    pub fn fake_cmake_data(&self) -> HashMap<String, CMakePackage> {
+        use std::path::Path;
+        let fake_package = CMakePackage {
+            name: "bash-completion-fake".to_string(),
+            packagetype: PackageType::Dir,
+            #[cfg(unix)]
+            location: Url::from_file_path("/usr/share/bash-completion-fake").unwrap(),
+            #[cfg(not(unix))]
+            location: Url::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
+            version: None,
+            #[cfg(unix)]
+            tojump: vec![Path::new(
+                "/usr/share/bash-completion-fake/bash_completion-fake-config.cmake",
+            )
+            .to_path_buf()],
+            #[cfg(not(unix))]
+            tojump: vec![Path::new(
+                r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake",
+            )
+            .to_path_buf()],
+            from: CMakePackageFrom::System,
+        };
+
+        HashMap::from_iter([("bash-completion-fake".to_string(), fake_package.clone())])
+    }
+}
+
+impl FindPackageFunsTrait for FindPackageFunsFake {
+    fn get_cmake_packages(&self) -> Vec<CMakePackage> {
+        self.fake_cmake_data().into_values().collect()
+    }
+    fn get_cmake_packages_withkeys(&self) -> HashMap<String, CMakePackage> {
+        self.fake_cmake_data()
+    }
+}
+
 // NOTE:This is the real function to find package
 // To use trait is to make it possible to moc the logic
 #[derive(Debug, Clone, Copy)]
@@ -75,16 +113,10 @@ pub struct FindPackageFunsReal;
 
 impl FindPackageFunsTrait for FindPackageFunsReal {}
 
-pub static FIND_PACKAGE_FUNS_NAMESPACE: LazyLock<Mutex<Box<dyn FindPackageFunsTrait + Send>>> =
-    LazyLock::new(|| Mutex::new(Box::new(FindPackageFunsReal)));
-
 #[inline]
 fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
     if cfg!(test) {
-        FIND_PACKAGE_FUNS_NAMESPACE
-            .lock()
-            .unwrap()
-            .get_cmake_packages_withkeys()
+        FindPackageFunsFake.get_cmake_packages_withkeys()
     } else {
         FindPackageFunsReal.get_cmake_packages_withkeys()
     }
@@ -93,10 +125,7 @@ fn get_cmake_packages_withkeys() -> HashMap<String, CMakePackage> {
 #[inline]
 fn get_cmake_packages() -> Vec<CMakePackage> {
     if cfg!(test) {
-        FIND_PACKAGE_FUNS_NAMESPACE
-            .lock()
-            .unwrap()
-            .get_cmake_packages()
+        FindPackageFunsFake.get_cmake_packages()
     } else {
         FindPackageFunsReal.get_cmake_packages()
     }
@@ -150,7 +179,7 @@ pub mod packagepkgconfig {
     use std::collections::HashMap;
     use std::sync::{Arc, LazyLock, Mutex};
 
-    use super::{FindPackageFunsReal, FindPackageFunsTrait, FIND_PACKAGE_FUNS_NAMESPACE};
+    use super::{FindPackageFunsFake, FindPackageFunsReal, FindPackageFunsTrait};
     use crate::Url;
 
     pub struct PkgConfig {
@@ -199,10 +228,7 @@ pub mod packagepkgconfig {
     #[inline]
     fn get_pkg_config_packages_withkey() -> HashMap<String, PkgConfig> {
         if cfg!(test) {
-            FIND_PACKAGE_FUNS_NAMESPACE
-                .lock()
-                .unwrap()
-                .get_pkg_config_packages_withkey()
+            FindPackageFunsFake.get_pkg_config_packages_withkey()
         } else {
             FindPackageFunsReal.get_pkg_config_packages_withkey()
         }
@@ -211,10 +237,7 @@ pub mod packagepkgconfig {
     #[inline]
     fn get_pkg_config_packages() -> Vec<PkgConfig> {
         if cfg!(test) {
-            FIND_PACKAGE_FUNS_NAMESPACE
-                .lock()
-                .unwrap()
-                .get_pkg_config_packages()
+            FindPackageFunsFake.get_pkg_config_packages()
         } else {
             FindPackageFunsReal.get_pkg_config_packages()
         }
@@ -226,8 +249,6 @@ pub mod packagepkgconfig {
     pub static PKG_CONFIG_PACKAGES: LazyLock<Vec<PkgConfig>> =
         LazyLock::new(get_pkg_config_packages);
 }
-
-use super::{remove_quotation, CMakePackage};
 
 #[test]
 fn regextest() {
