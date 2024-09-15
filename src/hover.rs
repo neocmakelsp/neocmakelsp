@@ -18,11 +18,11 @@ const LIBRARIES_END: &str = "_LIBRARIES";
 const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
 
 fn get_the_packagename(package: &str) -> &str {
-    if package.ends_with(LIBRARIES_END) {
-        return &package[..package.len() - LIBRARIES_END.len()];
+    if let Some(after) = package.strip_suffix(LIBRARIES_END) {
+        return after;
     }
-    if package.ends_with(INCLUDE_DIRS_END) {
-        return &package[..package.len() - INCLUDE_DIRS_END.len()];
+    if let Some(after) = package.strip_suffix(INCLUDE_DIRS_END) {
+        return after;
     }
     package
 }
