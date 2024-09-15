@@ -22,11 +22,11 @@ pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResp
     }
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None);
-    let tree = thetree.unwrap();
+    let tree = parse.parse(context, None)?;
     getsubast(tree.root_node(), &context.lines().collect(), line > 10000)
         .map(DocumentSymbolResponse::Nested)
 }
+
 #[allow(deprecated)]
 fn getsubast(
     input: tree_sitter::Node,
@@ -53,6 +53,7 @@ fn getsubast(
                 let Some(name) = &source[h][x..y].split(' ').next() else {
                     continue;
                 };
+
                 asts.push(DocumentSymbol {
                     name: name.to_string(),
                     detail: None,
