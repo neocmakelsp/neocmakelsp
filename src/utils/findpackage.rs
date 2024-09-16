@@ -33,6 +33,20 @@ pub use vcpkg::*;
 
 use std::{collections::HashMap, sync::LazyLock};
 
+fn handle_config_package(filename: &str) -> Option<&str> {
+    if let Some(tryfirst) = filename.strip_suffix("-config.cmake") {
+        return Some(tryfirst);
+    }
+    filename.strip_suffix("Config.cmake")
+}
+
+#[test]
+fn handle_config_package_tst() {
+    let test_file = "libaec-config.cmake";
+    let tst_file = handle_config_package(&test_file).unwrap();
+    assert_eq!(tst_file, "libaec");
+}
+
 static SPECIAL_PACKAGE_PATTERN: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"([a-zA-Z_\d\-]+)-(\d+(\.\d+)*)").unwrap());
 

@@ -11,7 +11,10 @@ use std::sync::LazyLock;
 
 use crate::utils::{CMakePackage, PackageType};
 
-use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN};
+use super::{
+    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
+    SPECIAL_PACKAGE_PATTERN,
+};
 
 #[inline]
 pub fn did_vcpkg_project(path: &Path) -> bool {
@@ -131,7 +134,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 } else {
                     let filepath = safe_canonicalize(&path.path()).unwrap();
                     tojump.push(filepath);
-                    let Some(pathname) = pathname.strip_suffix(".cmake") else {
+                    let Some(pathname) = handle_config_package(&pathname) else {
                         continue;
                     };
                     (PackageType::File, pathname.to_owned())

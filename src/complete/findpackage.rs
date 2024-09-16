@@ -18,6 +18,13 @@ static FIND_PACKAGE_SPACE_KEYWORDS: LazyLock<Vec<CompletionItem>> = LazyLock::ne
             documentation: None,
             ..Default::default()
         },
+        CompletionItem {
+            label: "CONFIG".to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            detail: Some("some packages need it".to_string()),
+            documentation: None,
+            ..Default::default()
+        },
     ]
 });
 

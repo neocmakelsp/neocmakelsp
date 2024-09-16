@@ -8,7 +8,10 @@ use std::{
 
 use crate::Url;
 
-use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN};
+use super::{
+    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
+    SPECIAL_PACKAGE_PATTERN,
+};
 
 const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
@@ -128,7 +131,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     (PackageType::Dir, pathname)
                 } else {
                     tojump.push(safe_canonicalize(path.path()).unwrap());
-                    let Some(pathname) = pathname.strip_suffix(".cmake") else {
+                    let Some(pathname) = handle_config_package(&pathname) else {
                         continue;
                     };
                     (PackageType::File, pathname.to_owned())

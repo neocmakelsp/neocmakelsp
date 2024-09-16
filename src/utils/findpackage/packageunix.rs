@@ -10,7 +10,10 @@ use crate::Url;
 
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
-use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN};
+use super::{
+    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
+    SPECIAL_PACKAGE_PATTERN,
+};
 
 // here is the logic of findpackage on linux
 //
@@ -132,7 +135,7 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
                     (PackageType::Dir, pathname)
                 } else {
                     tojump.push(path.path().canonicalize().unwrap());
-                    let Some(pathname) = pathname.strip_suffix(".cmake") else {
+                    let Some(pathname) = handle_config_package(&pathname) else {
                         continue;
                     };
                     (PackageType::File, pathname.to_owned())
