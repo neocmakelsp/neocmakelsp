@@ -192,10 +192,12 @@ async fn godef_inner(
             let tofind = get_the_packagename(&tofind);
             findpackage::cmpfindpackage(tofind)
         }
+        // NOTE: here is reserve to do next time
         PositionType::Unknown
         | PositionType::Comment
         | PositionType::ArgumentOrList
-        | PositionType::FunOrMacroArgs => None,
+        | PositionType::FunOrMacroArgs
+        | PositionType::FunOrMacroIdentifier => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {

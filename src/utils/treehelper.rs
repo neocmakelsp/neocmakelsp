@@ -165,7 +165,8 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PositionType<'a> {
-    VarOrFun,       // the variable defined in cmake file or macro or fun
+    VarOrFun, // the variable defined in cmake file or macro or fun
+    FunOrMacroIdentifier,
     ArgumentOrList, // Not the ${abc} kind, just normake argument
     FindPackage,    // normal_command start with find_package
     FindPackageSpace(&'a str),
@@ -275,7 +276,7 @@ fn get_pos_type_inner<'a>(
                     if input_type == PositionType::FunOrMacroArgs
                         && location_range_contain(location, first_argument)
                     {
-                        return PositionType::VarOrFun;
+                        return PositionType::FunOrMacroIdentifier;
                     }
                 }
                 PositionType::ArgumentOrList
@@ -349,7 +350,9 @@ fn get_pos_type_inner<'a>(
                     return get_pos_type_inner(location, child, source, jumptype)
                 }
                 // NOTE: it should be designed to cannot be reach
-                PositionType::FindPackageSpace(_) => unreachable!(),
+                PositionType::FindPackageSpace(_) | PositionType::FunOrMacroIdentifier => {
+                    unreachable!()
+                }
             }
         } else {
             // if is the same line
@@ -494,6 +497,6 @@ endmacro()
     );
     assert_eq!(
         get_pos_type(Point { row: 16, column: 8 }, input, source,),
-        PositionType::VarOrFun
+        PositionType::FunOrMacroIdentifier
     )
 }
