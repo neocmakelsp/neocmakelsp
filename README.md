@@ -144,6 +144,7 @@ To use neocmakelsp with eglot:
 -   symbol_provider
 -   On hover
 -   Format
+-   document_link
 -   GO TO Definitation
     -   find_package
     -   include
