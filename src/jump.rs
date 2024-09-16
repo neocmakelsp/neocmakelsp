@@ -185,8 +185,13 @@ async fn godef_inner(
             }
         }
         PositionType::FindPackageSpace(space) => {
-            let tofind = format!("{space}{}", get_the_packagename(&tofind));
-            findpackage::cmpfindpackage(&tofind)
+            let maybespacelocation = findpackage::cmpfindpackage(&tofind);
+            if maybespacelocation.is_some() {
+                maybespacelocation
+            } else {
+                let newtofind = format!("{space}{}", get_the_packagename(&tofind));
+                findpackage::cmpfindpackage(&newtofind)
+            }
         }
         PositionType::FindPackage | PositionType::TargetLink | PositionType::TargetInclude => {
             let tofind = get_the_packagename(&tofind);

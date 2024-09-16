@@ -64,7 +64,14 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
             let value = PKG_CONFIG_PACKAGES_WITHKEY.get(package);
             value.map(vcpkg_document_fmt)
         }
-
+        PositionType::FindPackageSpace(spacename) => {
+            let space_package_name = format!("{spacename}{message}");
+            let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&space_package_name);
+            if value.is_none() {
+                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&message);
+            }
+            value.map(cmakepackage_document_fmt)
+        }
         PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink => {
             let package = get_the_packagename(&message);
             let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package);
