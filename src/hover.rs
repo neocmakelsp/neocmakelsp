@@ -12,6 +12,7 @@ use crate::utils::treehelper::MESSAGE_STORAGE;
 use crate::utils::packagepkgconfig::PkgConfig;
 use crate::utils::CMakePackage;
 
+use crate::utils::PackageType;
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Position;
 /// Some tools for treesitter  to lsp_types
@@ -34,13 +35,19 @@ PackagePath: {}
 
 #[inline]
 fn cmakepackage_document_fmt(context: &CMakePackage) -> String {
+    let package_type = if context.packagetype == PackageType::Dir {
+        "PackageDir"
+    } else {
+        "PackagePath"
+    };
     format!(
         "
 PackageName: {}
-PackageDir: {}
+{}: {}
 PackageVersion: {}
 ",
         context.name,
+        package_type,
         context.location.path(),
         context.version.clone().unwrap_or("Undefined".to_string())
     )
