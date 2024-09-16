@@ -63,16 +63,17 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     .unwrap()
                     .to_str()
                     .unwrap();
-                packages
-                    .entry(packagename.to_string())
-                    .or_insert_with(|| CMakePackage {
+                packages.insert(
+                    packagename.to_string(),
+                    CMakePackage {
                         name: packagename.to_string(),
                         packagetype: PackageType::Dir,
                         location,
                         version,
                         tojump,
                         from: CMakePackageFrom::System,
-                    });
+                    },
+                );
             }
         }
     }
@@ -108,20 +109,23 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 } else {
                     let filepath = fs::canonicalize(path.path()).unwrap();
                     tojump.push(filepath);
-                    let pathname = pathname.split('.').collect::<Vec<&str>>()[0].to_string();
-                    (PackageType::File, pathname)
+                    let Some(pathname) = pathname.strip_suffix(".cmake") else {
+                        continue;
+                    };
+                    (PackageType::File, pathname.to_owned())
                 }
             };
-            packages
-                .entry(packagename.clone())
-                .or_insert_with(|| CMakePackage {
+            packages.insert(
+                packagename.clone(),
+                CMakePackage {
                     name: packagename,
                     packagetype,
                     location,
                     version,
                     tojump,
                     from: CMakePackageFrom::System,
-                });
+                },
+            );
         }
     }
     packages

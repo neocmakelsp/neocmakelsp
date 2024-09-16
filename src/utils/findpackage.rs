@@ -211,12 +211,13 @@ pub mod packagepkgconfig {
                         .first()
                         .unwrap()
                         .to_string();
-                    packages
-                        .entry(realname.to_string())
-                        .or_insert_with(|| PkgConfig {
+                    packages.insert(
+                        realname.to_string(),
+                        PkgConfig {
                             libname: realname,
                             path: Url::from_file_path(p).unwrap(),
-                        });
+                        },
+                    );
                 }
             }
             Ok(())

@@ -120,9 +120,7 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
         let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
+            storage.insert(akey.to_string(), message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-variables").output() {
@@ -138,9 +136,7 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
         let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
+            storage.insert(akey.to_string(), message.to_string());
         }
     }
     if let Ok(output) = Command::new("cmake").arg("--help-modules").output() {
@@ -156,15 +152,14 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
         let content: Vec<_> = re.split(&temp).collect();
         let context = &content[1..];
         for (akey, message) in zip(key, context) {
-            storage
-                .entry(akey.to_string())
-                .or_insert_with(|| message.to_string());
+            storage.insert(akey.to_string(), message.to_string());
         }
     }
     #[cfg(unix)]
-    storage
-        .entry("pkg_check_modules".to_string())
-        .or_insert_with(|| "please FindPackage PkgConfig first".to_string());
+    storage.insert(
+        "pkg_check_modules".to_string(),
+        "please FindPackage PkgConfig first".to_string(),
+    );
     storage
 });
 
