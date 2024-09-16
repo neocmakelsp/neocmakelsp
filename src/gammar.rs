@@ -52,7 +52,7 @@ pub fn checkerror<P: AsRef<Path>>(
     };
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None)?;
+    let thetree = parse.parse(source, None)?;
     let mut result = checkerror_inner(
         local_path,
         &source.lines().collect(),

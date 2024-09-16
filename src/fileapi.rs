@@ -9,8 +9,7 @@ use tower_lsp::lsp_types::CompletionItem;
 use std::sync::Mutex;
 use std::{collections::HashMap, path::Path, sync::LazyLock};
 
-static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> =
-    LazyLock::new(|| Mutex::new(None));
+static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<Cache> {
     use std::fs::File;
