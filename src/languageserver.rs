@@ -79,11 +79,11 @@ impl Backend {
         }
 
         let Ok(file_path) = uri.to_file_path() else {
-            tracing::error!("Cannot tranport {uri:?} to file_path");
+            tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
                 .log_message(
                     MessageType::ERROR,
-                    format!("Cannot tranport {uri:?} to file_path"),
+                    format!("Cannot transport {uri:?} to file_path"),
                 )
                 .await;
             return;
