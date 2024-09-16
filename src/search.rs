@@ -38,3 +38,30 @@ pub fn search_result_tojson(tosearch: &str) -> String {
         .collect();
     serde_json::to_string(&output).unwrap()
 }
+
+#[cfg(test)]
+mod search_test {
+    use super::*;
+    use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
+    #[test]
+    fn search_result_test_1() {
+        let search_result = search_result_tojson("bash");
+        let data = CACHE_CMAKE_PACKAGES_WITHKEYS
+            .get("bash-completion-fake")
+            .unwrap();
+        let result_json = serde_json::to_string(&vec![data]).unwrap();
+        assert_eq!(search_result, result_json);
+    }
+    #[test]
+    fn search_result_test_2() {
+        let search_result = search_result_tojson("zzzz");
+        let result_json = r#"[]"#;
+        assert_eq!(search_result, result_json);
+    }
+    #[test]
+    fn search_cli_pass_test() {
+        search_result("bash");
+        search_result("ttt");
+        search_result("eee");
+    }
+}
