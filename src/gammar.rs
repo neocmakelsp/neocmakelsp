@@ -10,6 +10,8 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
 use crate::CMakeNodeKinds;
 
+const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
+
 pub(crate) struct LintConfigInfo {
     pub use_lint: bool,
     pub use_extra_cmake_lint: bool,
@@ -158,7 +160,8 @@ fn checkerror_inner<P: AsRef<Path>>(
                 severity: Some(DiagnosticSeverity::HINT),
             });
         }
-        if name.to_lowercase() == "find_package" {
+        let lowercase_name = name.to_lowercase();
+        if lowercase_name == "find_package" {
             let errorpackages = crate::filewatcher::get_error_packages();
             let Some(arguments) = node.child(2) else {
                 continue;
@@ -185,7 +188,8 @@ fn checkerror_inner<P: AsRef<Path>>(
             }
             continue;
         }
-        if name == "include" && node.child_count() >= 4 {
+        if INCLUDE_CHECK_KEYWORDS.contains(&lowercase_name.as_str()) && node.child_count() >= 4 {
+            let is_sub_directory = lowercase_name == "add_subdirectory";
             let Some(parent_path) = local_path.parent() else {
                 continue;
             };
@@ -215,7 +219,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 });
                 continue;
             }
-            if include_is_module(&first_arg) {
+            if !is_sub_directory && include_is_module(&first_arg) {
                 continue;
             }
             let include_path = parent_path.join(first_arg);
@@ -231,6 +235,9 @@ fn checkerror_inner<P: AsRef<Path>>(
                             });
                         }
                     } else {
+                        if lowercase_name == "add_subdirectory" {
+                            continue;
+                        }
                         output.push(ErrorInformation {
                             start_point: first_arg_node.start_position(),
                             end_point: first_arg_node.end_position(),
@@ -243,13 +250,21 @@ fn checkerror_inner<P: AsRef<Path>>(
                     }
                 }
                 _ => {
+                    let message = if is_sub_directory {
+                        format!(
+                            "Directory \"{}\" does not exist or is inaccessible",
+                            include_path.to_str().unwrap()
+                        )
+                    } else {
+                        format!(
+                            "File \"{}\" does not exist or is inaccessible",
+                            include_path.to_str().unwrap()
+                        )
+                    };
                     output.push(ErrorInformation {
                         start_point: first_arg_node.start_position(),
                         end_point: first_arg_node.end_position(),
-                        message: format!(
-                            "File \"{}\" does not exist or is inaccessible",
-                            include_path.to_str().unwrap()
-                        ),
+                        message,
                         severity: Some(DiagnosticSeverity::WARNING),
                     });
                 }
@@ -262,6 +277,7 @@ fn checkerror_inner<P: AsRef<Path>>(
         Some(ErrorInfo { inner: output })
     }
 }
+
 #[cfg(not(windows))]
 #[test]
 fn tst_gammar_check() {
@@ -301,6 +317,8 @@ fn tst_gammar_check() {
     let gammar_file_src = r#"
 include("${ROOT_DIR}/hello.cmake")
 include("${ROOT_DIR}/hello_unexist.cmake")
+add_subdirectory("${ROOT_DIR}")
+add_subdirectory("unexist_subdir")
 "#;
     let top_cmake = dir.path().join("CMakeList.txt");
     let mut top_cmake_file = File::create(&top_cmake).unwrap();
@@ -311,6 +329,7 @@ include("${ROOT_DIR}/hello_unexist.cmake")
 
     let hello_cmake_error = dir.path().join("hello_unexist.cmake");
 
+    let unexist_subdir = dir.path().join("unexist_subdir");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(gammar_file_src, None).unwrap();
@@ -325,15 +344,26 @@ include("${ROOT_DIR}/hello_unexist.cmake")
 
     assert_eq!(
         *check_result,
-        vec![ErrorInformation {
-            start_point: Point { row: 2, column: 8 },
-            end_point: Point { row: 2, column: 41 },
-            message: format!(
-                "File \"{}\" does not exist or is inaccessible",
-                hello_cmake_error.display()
-            ),
-            severity: Some(DiagnosticSeverity::WARNING)
-        }]
+        vec![
+            ErrorInformation {
+                start_point: Point { row: 2, column: 8 },
+                end_point: Point { row: 2, column: 41 },
+                message: format!(
+                    "File \"{}\" does not exist or is inaccessible",
+                    hello_cmake_error.display()
+                ),
+                severity: Some(DiagnosticSeverity::WARNING)
+            },
+            ErrorInformation {
+                start_point: Point { row: 4, column: 17 },
+                end_point: Point { row: 4, column: 33 },
+                message: format!(
+                    "Directory \"{}\" does not exist or is inaccessible",
+                    unexist_subdir.display()
+                ),
+                severity: Some(DiagnosticSeverity::WARNING)
+            },
+        ]
     );
 }
 
