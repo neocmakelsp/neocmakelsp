@@ -90,7 +90,7 @@ type CacheData = HashMap<PathBuf, Vec<CacheDataUnit>>;
 static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-pub fn scanner_include_def(
+pub fn scanner_include_defs(
     path: &PathBuf,
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
@@ -128,6 +128,65 @@ pub fn scanner_include_def(
         }
     }
     result_data
+}
+
+#[test]
+fn scanner_include_defs_tst() {
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake = dir.path().join("CMakeLists.txt");
+
+    let mut cmake_file = File::create_new(&top_cmake).unwrap();
+    let top_cmake_context = r#"
+include(abcd_test.cmake)
+"#;
+    writeln!(cmake_file, "{}", top_cmake_context).unwrap();
+    let include_cmake_path = dir.path().join("abcd_test.cmake");
+    let mut include_cmake = File::create_new(&include_cmake_path).unwrap();
+    let include_cmake_context = r#"
+set(ABCD "abcd")
+include(efg_test.cmake)
+"#;
+    writeln!(include_cmake, "{}", include_cmake_context).unwrap();
+
+    // NOTE: this is used to test if the include cache append will work
+    let include_cmake_path_2 = dir.path().join("efg_test.cmake");
+    File::create(&include_cmake_path_2).unwrap();
+
+    let mut include_files = vec![];
+    let data = scanner_include_defs(
+        &include_cmake_path,
+        PositionType::VarOrFun,
+        &mut include_files,
+        &mut vec![],
+        false,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(
+        data,
+        vec![CacheDataUnit {
+            key: "ABCD".to_string(),
+            location: Location {
+                uri: Url::from_file_path(&include_cmake_path).unwrap(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 1,
+                        character: 4
+                    },
+                    end: lsp_types::Position {
+                        line: 1,
+                        character: 8
+                    }
+                }
+            },
+            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display())
+        }]
+    );
+    assert_eq!(include_files, vec![include_cmake_path_2]);
 }
 
 pub fn scanner_package_defs(
