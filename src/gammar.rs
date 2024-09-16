@@ -227,7 +227,7 @@ fn checkerror_inner(
                 match include_path.try_exists() {
                     Ok(true) => {
                         if include_path.is_file() {
-                            if scanner_include_error(&include_path) {
+                            if scanner_include_error(include_path) {
                                 output.push(ErrorInformation {
                                     start_point: first_arg_node.start_position(),
                                     end_point: first_arg_node.end_position(),
@@ -269,17 +269,48 @@ fn checkerror_inner(
     }
 }
 
-fn scanner_include_error(path: &PathBuf) -> bool {
-    match fs::read_to_string(path) {
-        Ok(content) => {
-            let mut parse = tree_sitter::Parser::new();
-            parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-            let thetree = parse.parse(content, None);
-            let tree = thetree.unwrap();
-            tree.root_node().has_error()
-        }
-        Err(_) => true,
-    }
+// Used to check if root_node has error
+fn scanner_include_error<P: AsRef<Path>>(path: P) -> bool {
+    let Ok(content) = fs::read_to_string(path) else {
+        return true;
+    };
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let Some(tree) = parse.parse(content, None) else {
+        return true;
+    };
+    tree.root_node().has_error()
+}
+
+#[test]
+fn include_error_tst() {
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    let dir = tempdir().unwrap();
+
+    let bad_cmake = dir.path().join("test.cmake");
+
+    let bad_context = r#"
+include((()
+"#;
+    let mut bad_file = File::create(&bad_cmake).unwrap();
+
+    writeln!(bad_file, "{}", bad_context).unwrap();
+
+    assert!(scanner_include_error(bad_cmake));
+
+    let good_cmake = dir.path().join("test2.cmake");
+
+    let good_context = r#"
+include(abcd.text)
+"#;
+    let mut good_file = File::create(&good_cmake).unwrap();
+
+    writeln!(good_file, "{}", good_context).unwrap();
+
+    assert!(!scanner_include_error(good_cmake));
 }
 
 #[test]
