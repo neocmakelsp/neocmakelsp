@@ -162,6 +162,7 @@ async fn godef_inner(
 
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
+    println!("{jumptype:?}");
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
@@ -192,7 +193,10 @@ async fn godef_inner(
             let tofind = get_the_packagename(&tofind);
             findpackage::cmpfindpackage(tofind)
         }
-        PositionType::Unknown | PositionType::Comment | PositionType::ArgumentOrList => None,
+        PositionType::Unknown
+        | PositionType::Comment
+        | PositionType::ArgumentOrList
+        | PositionType::FunOrMacroArgs => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {

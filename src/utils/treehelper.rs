@@ -173,6 +173,7 @@ pub enum PositionType<'a> {
     FindPkgConfig, // PkgConfig file
     SubDir,
     Include,
+    FunOrMacroArgs,
     Unknown, // Unknown type, use as the input
     TargetInclude,
     TargetLink,
@@ -261,15 +262,26 @@ fn get_pos_type_inner<'a>(
                 }
             }
             CMakeNodeKinds::ARGUMENT_LIST => {
-                if child.child_count() >= 2 && input_type == PositionType::FindPackage {
+                let child_count = child.child_count();
+                if child.child_count() >= 1 {
                     let first_argument = child.child(0).unwrap();
                     let row = first_argument.start_position().row;
                     let col_x = first_argument.start_position().column;
                     let col_y = first_argument.end_position().column;
                     let val = &source[row][col_x..col_y];
-                    return PositionType::FindPackageSpace(val);
+                    if child_count >= 2 && input_type == PositionType::FindPackage {
+                        return PositionType::FindPackageSpace(val);
+                    }
+                    if input_type == PositionType::FunOrMacroArgs
+                        && location_range_contain(location, first_argument)
+                    {
+                        return PositionType::VarOrFun;
+                    }
                 }
                 PositionType::ArgumentOrList
+            }
+            CMakeNodeKinds::FUNCTION_COMMAND | CMakeNodeKinds::MACRO_COMMAND => {
+                PositionType::FunOrMacroArgs
             }
             CMakeNodeKinds::UNQUOTED_ARGUMENT | CMakeNodeKinds::QUOTED_ELEMENT => {
                 PositionType::ArgumentOrList
@@ -330,8 +342,11 @@ fn get_pos_type_inner<'a>(
                         _ => return currenttype,
                     };
                 }
-                PositionType::Unknown | PositionType::Comment | PositionType::ArgumentOrList => {
-                    return get_pos_type_inner(location, child, source, input_type)
+                PositionType::Unknown
+                | PositionType::Comment
+                | PositionType::ArgumentOrList
+                | PositionType::FunOrMacroArgs => {
+                    return get_pos_type_inner(location, child, source, jumptype)
                 }
                 // NOTE: it should be designed to cannot be reach
                 PositionType::FindPackageSpace(_) => unreachable!(),
@@ -405,6 +420,8 @@ include("abcd/efg.cmake")
 test, here is BRACKET_COMMENT
 ]]#
 find_package(Qt5 COMPONENTS Core)
+macro(macro_test)
+endmacro()
     "#;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
@@ -418,6 +435,10 @@ find_package(Qt5 COMPONENTS Core)
     );
     assert_eq!(
         get_pos_type(Point { row: 2, column: 4 }, input, source,),
+        PositionType::VarOrFun
+    );
+    assert_eq!(
+        get_pos_type(Point { row: 3, column: 5 }, input, source,),
         PositionType::VarOrFun
     );
     assert_eq!(
@@ -470,5 +491,9 @@ find_package(Qt5 COMPONENTS Core)
             source,
         ),
         PositionType::FindPackageSpace("Qt5")
+    );
+    assert_eq!(
+        get_pos_type(Point { row: 16, column: 8 }, input, source,),
+        PositionType::VarOrFun
     )
 }
