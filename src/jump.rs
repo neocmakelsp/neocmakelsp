@@ -27,12 +27,26 @@ use crate::utils::treehelper::{get_pos_type, PositionType};
 
 use tree_sitter::Node;
 
-pub type JumpKV = HashMap<String, (Location, String)>;
+/// Storage the information when jump
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JumpCacheUnit {
+    pub location: Location,
+    pub document_info: String,
+}
+
+pub type JumpKV = HashMap<String, JumpCacheUnit>;
 
 pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CacheDataUnit {
+    key: String,
+    location: Location,
+    document_info: String,
+}
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
@@ -50,9 +64,19 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         true,
     )?;
     let mut cache = JUMP_CACHE.lock().await;
-    for (key, position, description) in result_data {
-        *cache.entry(key).or_insert((position, description)) =
-            (position.clone(), description.clone());
+    for CacheDataUnit {
+        key,
+        location,
+        document_info,
+    } in result_data
+    {
+        cache.insert(
+            key,
+            JumpCacheUnit {
+                location,
+                document_info,
+            },
+        );
     }
     None
 }
@@ -63,7 +87,7 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
-    if let Some((location, _)) = jump_cache.get(key) {
+    if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
         return Some(location.clone());
     }
     drop(jump_cache);
@@ -76,14 +100,14 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
         drop(buffer_cache);
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some((location, _)) = jump_cache.get(key) {
+        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
             return Some(location.clone());
         }
     }
 
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some((location, _)) = jump_cache.get(key) {
+        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
             return Some(location.clone());
         }
         drop(jump_cache);
@@ -96,7 +120,7 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
             drop(buffer_cache);
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
-            if let Some((location, _)) = jump_cache.get(key) {
+            if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
                 return Some(location.clone());
             }
         }
@@ -241,9 +265,9 @@ fn getsubdef(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     let mut course = input.walk();
-    let mut defs: Vec<(String, Location, String)> = vec![];
+    let mut defs: Vec<CacheDataUnit> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
         start_y: 0,
         comment: "",
@@ -282,14 +306,14 @@ fn getsubdef(
                 if line_comment_tmp.is_node_comment(h) {
                     document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
-                defs.push((
-                    name.to_string(),
-                    Location {
+                defs.push(CacheDataUnit {
+                    key: name.to_string(),
+                    location: Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
-                ));
+                });
             }
             CMakeNodeKinds::MACRO_DEF => {
                 let Some(macro_whole) = child.child(0) else {
@@ -312,14 +336,14 @@ fn getsubdef(
                 if line_comment_tmp.is_node_comment(h) {
                     document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
-                defs.push((
-                    name.to_string(),
-                    Location {
+                defs.push(CacheDataUnit {
+                    key: name.to_string(),
+                    location: Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
-                ));
+                });
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 if let Some(mut message) = getsubdef(
@@ -372,7 +396,7 @@ fn getsubdef(
                             continue;
                         }
                         if let Ok(true) = subpath.try_exists() {
-                            if let Some(mut comps) = include::scanner_include_def(
+                            if let Some(mut comps) = include::scanner_include_defs(
                                 &subpath,
                                 postype,
                                 include_files,
@@ -474,9 +498,9 @@ fn getsubdef(
                         document_info =
                             format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                     }
-                    defs.push((
-                        name.to_string(),
-                        Location {
+                    defs.push(CacheDataUnit {
+                        key: name.to_string(),
+                        location: Location {
                             uri: Url::from_file_path(local_path).unwrap(),
                             range: Range {
                                 start: Position {
@@ -490,7 +514,7 @@ fn getsubdef(
                             },
                         },
                         document_info,
-                    ));
+                    });
                 }
             }
             CMakeNodeKinds::IDENTIFIER => {
@@ -523,7 +547,7 @@ fn get_cmake_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     let packageinfo = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package_name)?;
     let mut complete_infos = Vec::new();
 
@@ -666,4 +690,72 @@ add_subdirectory(abcd_test)
             }]
         )
     }
+}
+
+#[test]
+fn test_sub_def() {
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+    let dir = tempdir().unwrap();
+    let top_cmake_path = dir.path().join("CMakeLists.txt");
+
+    let mut cmake_file = File::create_new(&top_cmake_path).unwrap();
+    let top_cmake_context = r#"
+include(abcd_test.cmake)
+"#;
+    writeln!(cmake_file, "{}", top_cmake_context).unwrap();
+    let include_cmake_path = dir.path().join("abcd_test.cmake");
+    let mut include_cmake = File::create_new(&include_cmake_path).unwrap();
+    let include_cmake_context = r#"
+set(ABCD "abcd")
+include(efg_test.cmake)
+"#;
+    writeln!(include_cmake, "{}", include_cmake_context).unwrap();
+
+    // NOTE: this is used to test if the include cache append will work
+    let include_cmake_path_2 = dir.path().join("efg_test.cmake");
+    File::create(&include_cmake_path_2).unwrap();
+
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(top_cmake_context, None).unwrap();
+
+    let mut include_files = vec![];
+    let data = getsubdef(
+        thetree.root_node(),
+        &top_cmake_context.lines().collect(),
+        &top_cmake_path,
+        PositionType::VarOrFun,
+        &mut include_files,
+        &mut vec![],
+        true,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(
+        data,
+        vec![CacheDataUnit {
+            key: "ABCD".to_string(),
+            location: Location {
+                uri: Url::from_file_path(&include_cmake_path).unwrap(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: 1,
+                        character: 4
+                    },
+                    end: lsp_types::Position {
+                        line: 1,
+                        character: 8
+                    }
+                }
+            },
+            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display())
+        }]
+    );
+    assert_eq!(
+        include_files,
+        vec![include_cmake_path_2, include_cmake_path]
+    );
 }
