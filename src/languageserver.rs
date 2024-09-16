@@ -13,6 +13,7 @@ use crate::fileapi::DEFAULT_QUERY;
 use crate::filewatcher;
 use crate::formatting::getformat;
 use crate::gammar::checkerror;
+use crate::gammar::ErrorInformation;
 use crate::gammar::LintConfigInfo;
 use crate::hover;
 use crate::jump;
@@ -86,7 +87,13 @@ impl Backend {
         let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node(), lint_info);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
-            for (start, end, message, severity) in diagnoses.inner {
+            for ErrorInformation {
+                start_point: start,
+                end_point: end,
+                message,
+                severity,
+            } in diagnoses.inner
+            {
                 let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
                 let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
                 let range = Range {

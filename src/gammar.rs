@@ -1,4 +1,5 @@
 use std::fs;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tower_lsp::lsp_types::DiagnosticSeverity;
@@ -14,16 +15,26 @@ pub(crate) struct LintConfigInfo {
     pub use_extra_cmake_lint: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorInformation {
+    pub start_point: tree_sitter::Point,
+    pub end_point: tree_sitter::Point,
+    pub message: String,
+    pub severity: Option<DiagnosticSeverity>,
+}
+
 /// checkerror the gammer error
 /// if there is error , it will return the position of the error
 #[derive(Debug, PartialEq, Eq)]
 pub struct ErrorInfo {
-    pub inner: Vec<(
-        tree_sitter::Point,
-        tree_sitter::Point,
-        String,
-        Option<DiagnosticSeverity>,
-    )>,
+    pub inner: Vec<ErrorInformation>,
+}
+
+impl Deref for ErrorInfo {
+    type Target = Vec<ErrorInformation>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 pub fn checkerror(
@@ -82,7 +93,12 @@ fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
 
             let start_point = Point { row, column };
             let end_point = start_point;
-            info.push((start_point, end_point, message, Some(severity)));
+            info.push(ErrorInformation {
+                start_point,
+                end_point,
+                message,
+                severity: Some(severity),
+            });
         }
     }
 
@@ -101,12 +117,12 @@ fn checkerror_inner(
 ) -> Option<ErrorInfo> {
     if input.is_error() {
         return Some(ErrorInfo {
-            inner: vec![(
-                input.start_position(),
-                input.end_position(),
-                "Grammar error".to_string(),
-                None,
-            )],
+            inner: vec![ErrorInformation {
+                start_point: input.start_position(),
+                end_point: input.end_position(),
+                message: "Grammar error".to_string(),
+                severity: None,
+            }],
         });
     }
     let mut course = input.walk();
@@ -127,12 +143,12 @@ fn checkerror_inner(
         let y = ids.end_position().column;
         let name = &newsource[h][x..y];
         if use_lint && !config::CMAKE_LINT.lint_match(name.chars().all(|a| a.is_uppercase())) {
-            output.push((
-                ids.start_position(),
-                ids.end_position(),
-                config::CMAKE_LINT.hint.clone(),
-                Some(DiagnosticSeverity::HINT),
-            ));
+            output.push(ErrorInformation {
+                start_point: ids.start_position(),
+                end_point: ids.end_position(),
+                message: config::CMAKE_LINT.hint.clone(),
+                severity: Some(DiagnosticSeverity::HINT),
+            });
         }
         if name.to_lowercase() == "find_package" {
             let errorpackages = crate::filewatcher::get_error_packages();
@@ -147,12 +163,12 @@ fn checkerror_inner(
                 if h < newsource.len() && y > x && y < newsource[h].len() {
                     let name = &newsource[h][x..y];
                     if errorpackages.contains(&name.to_string()) {
-                        output.push((
-                            child.start_position(),
-                            child.end_position(),
-                            "Cannot find such package".to_string(),
-                            Some(DiagnosticSeverity::ERROR),
-                        ));
+                        output.push(ErrorInformation {
+                            start_point: child.start_position(),
+                            end_point: child.end_position(),
+                            message: "Cannot find such package".to_string(),
+                            severity: Some(DiagnosticSeverity::ERROR),
+                        });
                     }
                 }
             }
@@ -176,12 +192,12 @@ fn checkerror_inner(
                 };
                 let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
                 if first_arg.is_empty() {
-                    output.push((
-                        first_arg_node.start_position(),
-                        first_arg_node.end_position(),
-                        "Argument is empty".to_string(),
-                        Some(DiagnosticSeverity::ERROR),
-                    ));
+                    output.push(ErrorInformation {
+                        start_point: first_arg_node.start_position(),
+                        end_point: first_arg_node.end_position(),
+                        message: "Argument is empty".to_string(),
+                        severity: Some(DiagnosticSeverity::ERROR),
+                    });
                     continue;
                 }
                 if first_arg.contains('$') {
@@ -212,32 +228,35 @@ fn checkerror_inner(
                     Ok(true) => {
                         if include_path.is_file() {
                             if scanner_include_error(&include_path) {
-                                output.push((
-                                    first_arg_node.start_position(),
-                                    first_arg_node.end_position(),
-                                    "Error in include file".to_string(),
-                                    Some(DiagnosticSeverity::ERROR),
-                                ));
+                                output.push(ErrorInformation {
+                                    start_point: first_arg_node.start_position(),
+                                    end_point: first_arg_node.end_position(),
+                                    message: "Error in include file".to_string(),
+                                    severity: Some(DiagnosticSeverity::ERROR),
+                                });
                             }
                         } else {
-                            output.push((
-                                first_arg_node.start_position(),
-                                first_arg_node.end_position(),
-                                format!("\"{}\" is a directory", include_path.to_str().unwrap()),
-                                Some(DiagnosticSeverity::ERROR),
-                            ));
+                            output.push(ErrorInformation {
+                                start_point: first_arg_node.start_position(),
+                                end_point: first_arg_node.end_position(),
+                                message: format!(
+                                    "\"{}\" is a directory",
+                                    include_path.to_str().unwrap()
+                                ),
+                                severity: Some(DiagnosticSeverity::ERROR),
+                            });
                         }
                     }
                     _ => {
-                        output.push((
-                            first_arg_node.start_position(),
-                            first_arg_node.end_position(),
-                            format!(
+                        output.push(ErrorInformation {
+                            start_point: first_arg_node.start_position(),
+                            end_point: first_arg_node.end_position(),
+                            message: format!(
                                 "File \"{}\" does not exist or is inaccessible",
                                 include_path.to_str().unwrap()
                             ),
-                            Some(DiagnosticSeverity::WARNING),
-                        ));
+                            severity: Some(DiagnosticSeverity::WARNING),
+                        });
                     }
                 }
             }
@@ -279,12 +298,12 @@ fn gammer_passed_check_1() {
             true,
         ),
         Some(ErrorInfo {
-            inner: vec![(
-                input.start_position(),
-                input.end_position(),
-                "Grammar error".to_string(),
-                None,
-            )]
+            inner: vec![ErrorInformation {
+                start_point: input.start_position(),
+                end_point: input.end_position(),
+                message: "Grammar error".to_string(),
+                severity: None,
+            }]
         })
     );
 }
