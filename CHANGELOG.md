@@ -1,5 +1,20 @@
 # Neocmakelsp
 
+## 0.8.5
+- Add a lot of unit tests
+- Fix that fileapi cache data cannot be updated.
+- Realize the lsp document_link
+- Make the hovered information the same as completion information
+- Support completing with cmake space.
+- Change the way generate the snippet
+- Now the `insert_final_newline` action will works.
+- Fix the meson cargo wrapper again. I think this time it is usable now.
+- Tidy up a lot of code.
+- Now it can jump to `"${SOME_VARIABLE}/some.cmake"` or `"some.cmake"`. It supports to read the variable.
+- Adjust some document format
+
+Full changes: https://github.com/neocmakelsp/neocmakelsp/compare/v0.8.4...v0.8.5
+
 ## 0.8.4
 - Fix jump to buildin cmake file still not works on temux
 - Try to support find_package on MSYSTEM
