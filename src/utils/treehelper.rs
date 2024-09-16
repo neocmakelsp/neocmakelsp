@@ -269,8 +269,12 @@ fn get_pos_type_inner<'a>(
                     let row = first_argument.start_position().row;
                     let col_x = first_argument.start_position().column;
                     let col_y = first_argument.end_position().column;
-                    let val = &source[row][col_x..col_y];
-                    if child_count >= 2 && input_type == PositionType::FindPackage {
+                    let line_source = &source[row];
+                    let val = &line_source[col_x..col_y];
+                    if child_count >= 2
+                        && input_type == PositionType::FindPackage
+                        && line_source.contains("COMPONENTS")
+                    {
                         return PositionType::FindPackageSpace(val);
                     }
                     if input_type == PositionType::FunOrMacroArgs
@@ -423,6 +427,7 @@ include("abcd/efg.cmake")
 test, here is BRACKET_COMMENT
 ]]#
 find_package(Qt5 COMPONENTS Core)
+find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
     "#;
@@ -496,7 +501,18 @@ endmacro()
         PositionType::FindPackageSpace("Qt5")
     );
     assert_eq!(
-        get_pos_type(Point { row: 16, column: 8 }, input, source,),
+        get_pos_type(
+            Point {
+                row: 16,
+                column: 21
+            },
+            input,
+            source,
+        ),
+        PositionType::FindPackage
+    );
+    assert_eq!(
+        get_pos_type(Point { row: 17, column: 8 }, input, source,),
         PositionType::FunOrMacroIdentifier
     )
 }
