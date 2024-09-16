@@ -8,7 +8,7 @@ use std::{
 
 use crate::Url;
 
-use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX};
+use super::{get_version, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN};
 
 const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
@@ -105,7 +105,7 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
             let pathname = path.file_name().to_str().unwrap().to_string();
 
             let location = Url::from_file_path(path.path()).unwrap();
-            let (packagetype, packagename) = {
+            let (packagetype, mut packagename) = {
                 if path.metadata().is_ok_and(|data| data.is_dir()) {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
                         continue;
@@ -134,6 +134,10 @@ fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> 
                     (PackageType::File, pathname.to_owned())
                 }
             };
+            if let Some(captures) = SPECIAL_PACKAGE_PATTERN.captures(&packagename.clone()) {
+                packagename = captures.get(1).unwrap().as_str().to_owned();
+                version = captures.get(2).map(|version| version.as_str().to_string());
+            }
             packages.insert(
                 packagename.clone(),
                 CMakePackage {

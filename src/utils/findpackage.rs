@@ -32,6 +32,39 @@ pub use cmakepackage::*;
 pub use vcpkg::*;
 
 use std::{collections::HashMap, sync::LazyLock};
+
+static SPECIAL_PACKAGE_PATTERN: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"([a-zA-Z_\d]+)-(\d+(\.\d+)*)").unwrap());
+
+#[test]
+fn special_package_pattern_tst() {
+    let matched_pattern = "boost_atomic-1.86.0";
+    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic");
+    assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
+
+    let matched_pattern = "boost_atomic2-1.86.0";
+    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic2");
+    assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
+
+    let matched_pattern = "mongoc-1.0";
+    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    assert_eq!(captures.get(1).unwrap().as_str(), "mongoc");
+    assert_eq!(captures.get(2).unwrap().as_str(), "1.0");
+
+    let unmatched_pattern = "Qt5Core";
+
+    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
+
+    let unmatched_pattern = "libjpeg-turbo";
+
+    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
+}
+
 // match file xx.cmake and CMakeLists.txt
 static CMAKEREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^.+\.cmake$|CMakeLists.txt$").unwrap());
