@@ -7,7 +7,7 @@
 - Make the hovered information the same as completion information
 - Support completing with cmake space.
 - Change the way generate the snippet
-- Now the `insert_final_newline` action will works.
+- Now the `insert_final_newline` action will work.
 - Fix the meson cargo wrapper again. I think this time it is usable now.
 - Tidy up a lot of code.
 - Now it can jump to `"${SOME_VARIABLE}/some.cmake"` or `"some.cmake"`. It supports to read the variable.
