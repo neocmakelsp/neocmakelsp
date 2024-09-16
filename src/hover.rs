@@ -93,7 +93,7 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     }
 
     let jump_cache = JUMP_CACHE.lock().await;
-    let cached_info = jump_cache.get(&message)?.1.clone();
+    let cached_info = jump_cache.get(&message)?.document_info.clone();
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data() {
         if let Some(value) = cache_data.get(&message) {

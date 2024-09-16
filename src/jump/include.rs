@@ -1,4 +1,4 @@
-use super::{gen_module_pattern, Location};
+use super::{gen_module_pattern, CacheDataUnit, Location};
 use lsp_types::Url;
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
@@ -78,13 +78,14 @@ fn tst_cmp_included_cmake() {
         }]
     );
 }
+
 #[test]
 fn ut_ismodule() {
     assert_eq!(ismodule("GNUInstall"), true);
     assert_eq!(ismodule("test.cmake"), false);
 }
 
-type CacheData = HashMap<PathBuf, Vec<(String, Location, String)>>;
+type CacheData = HashMap<PathBuf, Vec<CacheDataUnit>>;
 
 static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -96,7 +97,7 @@ pub fn scanner_include_def(
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
     is_buildin: bool,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     if is_buildin {
         if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
             if let Some(complete_items) = cache.get(path) {
@@ -104,34 +105,29 @@ pub fn scanner_include_def(
             }
         }
     }
-    match fs::read_to_string(path) {
-        Ok(content) => {
-            let mut parse = tree_sitter::Parser::new();
-            parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-            let thetree = parse.parse(content.clone(), None);
-            let tree = thetree.unwrap();
-            let result_data = getsubdef(
-                tree.root_node(),
-                &content.lines().collect(),
-                path,
-                postype,
-                include_files,
-                complete_packages,
-                true,
-                find_cmake_in_package,
-            );
-            if !is_buildin {
-                return result_data;
-            }
-            if let Some(ref content) = result_data {
-                if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
-                    cache.insert(path.clone(), content.clone());
-                }
-            }
-            result_data
-        }
-        Err(_) => None,
+    let content = fs::read_to_string(path).ok()?;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(&content, None)?;
+    let result_data = getsubdef(
+        thetree.root_node(),
+        &content.lines().collect(),
+        path,
+        postype,
+        include_files,
+        complete_packages,
+        true,
+        find_cmake_in_package,
+    );
+    if !is_buildin {
+        return result_data;
     }
+    if let Some(ref content) = result_data {
+        if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
+            cache.insert(path.clone(), content.clone());
+        }
+    }
+    result_data
 }
 
 pub fn scanner_package_defs(
@@ -139,35 +135,30 @@ pub fn scanner_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
         if let Some(complete_items) = cache.get(path) {
             return Some(complete_items.clone());
         }
     }
-    match fs::read_to_string(path) {
-        Ok(content) => {
-            let mut parse = tree_sitter::Parser::new();
-            parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-            let thetree = parse.parse(content.clone(), None);
-            let tree = thetree.unwrap();
-            let result_data = getsubdef(
-                tree.root_node(),
-                &content.lines().collect(),
-                path,
-                postype,
-                include_files,
-                complete_packages,
-                false,
-                true,
-            );
-            if let Some(ref content) = result_data {
-                if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
-                    cache.insert(path.clone(), content.clone());
-                }
-            }
-            result_data
+    let content = fs::read_to_string(path).ok()?;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(&content, None)?;
+    let result_data = getsubdef(
+        thetree.root_node(),
+        &content.lines().collect(),
+        path,
+        postype,
+        include_files,
+        complete_packages,
+        false,
+        true,
+    );
+    if let Some(ref content) = result_data {
+        if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
+            cache.insert(path.clone(), content.clone());
         }
-        Err(_) => None,
     }
+    result_data
 }

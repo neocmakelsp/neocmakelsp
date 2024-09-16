@@ -27,12 +27,26 @@ use crate::utils::treehelper::{get_pos_type, PositionType};
 
 use tree_sitter::Node;
 
-pub type JumpKV = HashMap<String, (Location, String)>;
+/// Storage the information when jump
+#[derive(Debug, Clone)]
+pub struct JumpCacheUnit {
+    pub location: Location,
+    pub document_info: String,
+}
+
+pub type JumpKV = HashMap<String, JumpCacheUnit>;
 
 pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
+
+#[derive(Debug, Clone)]
+struct CacheDataUnit {
+    key: String,
+    location: Location,
+    document_info: String,
+}
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
@@ -50,9 +64,19 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         true,
     )?;
     let mut cache = JUMP_CACHE.lock().await;
-    for (key, position, description) in result_data {
-        *cache.entry(key).or_insert((position, description)) =
-            (position.clone(), description.clone());
+    for CacheDataUnit {
+        key,
+        location,
+        document_info,
+    } in result_data
+    {
+        cache.insert(
+            key,
+            JumpCacheUnit {
+                location,
+                document_info,
+            },
+        );
     }
     None
 }
@@ -63,7 +87,10 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
-    if let Some((location, _)) = jump_cache.get(key) {
+    if let Some(JumpCacheUnit {
+        location, ..
+    }) = jump_cache.get(key)
+    {
         return Some(location.clone());
     }
     drop(jump_cache);
@@ -76,14 +103,20 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
         drop(buffer_cache);
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some((location, _)) = jump_cache.get(key) {
+        if let Some(JumpCacheUnit {
+            location, ..
+        }) = jump_cache.get(key)
+        {
             return Some(location.clone());
         }
     }
 
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some((location, _)) = jump_cache.get(key) {
+        if let Some(JumpCacheUnit {
+            location, ..
+        }) = jump_cache.get(key)
+        {
             return Some(location.clone());
         }
         drop(jump_cache);
@@ -96,7 +129,10 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
             drop(buffer_cache);
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
-            if let Some((location, _)) = jump_cache.get(key) {
+            if let Some(JumpCacheUnit {
+                location, ..
+            }) = jump_cache.get(key)
+            {
                 return Some(location.clone());
             }
         }
@@ -241,9 +277,9 @@ fn getsubdef(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     let mut course = input.walk();
-    let mut defs: Vec<(String, Location, String)> = vec![];
+    let mut defs: Vec<CacheDataUnit> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
         start_y: 0,
         comment: "",
@@ -282,14 +318,14 @@ fn getsubdef(
                 if line_comment_tmp.is_node_comment(h) {
                     document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
-                defs.push((
-                    name.to_string(),
-                    Location {
+                defs.push(CacheDataUnit {
+                    key: name.to_string(),
+                    location: Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
-                ));
+                });
             }
             CMakeNodeKinds::MACRO_DEF => {
                 let Some(macro_whole) = child.child(0) else {
@@ -312,14 +348,14 @@ fn getsubdef(
                 if line_comment_tmp.is_node_comment(h) {
                     document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                 }
-                defs.push((
-                    name.to_string(),
-                    Location {
+                defs.push(CacheDataUnit {
+                    key: name.to_string(),
+                    location: Location {
                         uri: Url::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
-                ));
+                });
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 if let Some(mut message) = getsubdef(
@@ -474,9 +510,9 @@ fn getsubdef(
                         document_info =
                             format!("{}\n\n{}", document_info, line_comment_tmp.comment());
                     }
-                    defs.push((
-                        name.to_string(),
-                        Location {
+                    defs.push(CacheDataUnit {
+                        key: name.to_string(),
+                        location: Location {
                             uri: Url::from_file_path(local_path).unwrap(),
                             range: Range {
                                 start: Position {
@@ -490,7 +526,7 @@ fn getsubdef(
                             },
                         },
                         document_info,
-                    ));
+                    });
                 }
             }
             CMakeNodeKinds::IDENTIFIER => {
@@ -523,7 +559,7 @@ fn get_cmake_package_defs(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<(String, Location, String)>> {
+) -> Option<Vec<CacheDataUnit>> {
     let packageinfo = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package_name)?;
     let mut complete_infos = Vec::new();
 
