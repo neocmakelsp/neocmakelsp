@@ -34,28 +34,14 @@ PackagePath: {}
 
 #[inline]
 fn cmakepackage_document_fmt(context: &CMakePackage) -> String {
-    if context.tojump.is_empty() {
-        return format!(
-            "
+    format!(
+        "
 PackageName: {}
 PackageDir: {}
 PackageVersion: {}
 ",
-            context.name,
-            context.location.path(),
-            context.version.clone().unwrap_or("Undefined".to_string())
-        );
-    }
-    format!(
-        "
-Packagename: {}
-PackageDir: {}
-PackageConfig: {}
-PackageVersion: {}
-",
         context.name,
         context.location.path(),
-        context.tojump[0].display(),
         context.version.clone().unwrap_or("Undefined".to_string())
     )
 }
