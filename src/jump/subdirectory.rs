@@ -3,8 +3,11 @@ use lsp_types::Url;
 use std::path::Path;
 use tower_lsp::lsp_types;
 
-pub(super) fn cmpsubdirectory(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {
-    let dir = localpath.parent()?;
+pub(super) fn cmpsubdirectory<P: AsRef<Path>>(
+    localpath: P,
+    subpath: &str,
+) -> Option<Vec<Location>> {
+    let dir = localpath.as_ref().parent()?;
     let target = dir.join(subpath).join("CMakeLists.txt");
     if target.exists() {
         return Some(vec![Location {

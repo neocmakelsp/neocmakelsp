@@ -12,7 +12,7 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        gen_module_pattern, get_the_packagename, replace_placeholders,
+        gen_module_pattern, get_the_packagename, include_is_module, replace_placeholders,
         treehelper::{get_point_string, point_to_position, position_to_point},
         LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
@@ -51,8 +51,7 @@ struct CacheDataUnit {
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None);
-    let tree = thetree.unwrap();
+    let tree = parse.parse(context, None)?;
     let result_data = getsubdef(
         tree.root_node(),
         &context.lines().collect(),
@@ -131,10 +130,10 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
 }
 
 /// find the definition
-pub async fn godef(
+pub async fn godef<P: AsRef<Path>>(
     location: Position,
     source: &str,
-    originuri: &PathBuf,
+    originuri: P,
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
@@ -148,10 +147,10 @@ pub async fn godef(
     locations
 }
 
-async fn godef_inner(
+async fn godef_inner<P: AsRef<Path>>(
     location: tree_sitter::Point,
     source: &str,
-    originuri: &PathBuf,
+    originuri: P,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
@@ -217,11 +216,11 @@ async fn godef_inner(
 }
 
 /// sub get the def
-fn simplegodefsub(
+fn simplegodefsub<P: AsRef<Path>>(
     root: Node,
     newsource: &Vec<&str>,
     tofind: &str,
-    originuri: &PathBuf,
+    originuri: P,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
@@ -236,7 +235,8 @@ fn simplegodefsub(
             if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
                 continue;
             }
-            if let Some(mut context) = simplegodefsub(child, newsource, tofind, originuri, is_jump)
+            if let Some(mut context) =
+                simplegodefsub(child, newsource, tofind, originuri.as_ref(), is_jump)
             {
                 definitions.append(&mut context);
             }
@@ -247,7 +247,7 @@ fn simplegodefsub(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(Location {
-                    uri: Url::from_file_path(originuri).unwrap(),
+                    uri: Url::from_file_path(originuri.as_ref()).unwrap(),
                     range: Range {
                         start: point_to_position(child.start_position()),
                         end: point_to_position(child.end_position()),
@@ -266,16 +266,17 @@ fn simplegodefsub(
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
-fn getsubdef(
+fn getsubdef<P: AsRef<Path>>(
     input: tree_sitter::Node,
     source: &Vec<&str>,
-    local_path: &Path,
+    local_path: P,
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
 ) -> Option<Vec<CacheDataUnit>> {
+    let local_path = local_path.as_ref();
     let mut course = input.walk();
     let mut defs: Vec<CacheDataUnit> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
@@ -383,7 +384,7 @@ fn getsubdef(
                         let y = ids.end_position().column;
                         let name = &source[h][x..y];
                         let (is_buildin, subpath) = {
-                            if name.split('.').count() != 1 {
+                            if !include_is_module(name) {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
                                 // NOTE: Module file now is not works on windows

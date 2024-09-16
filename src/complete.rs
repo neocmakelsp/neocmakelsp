@@ -7,8 +7,8 @@ use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, position_to_point, PositionType};
 use crate::utils::{
-    gen_module_pattern, remove_quotation_and_replace_placeholders, LineCommentTmp,
-    CACHE_CMAKE_PACKAGES_WITHKEYS,
+    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
+    LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
 };
 use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
 use std::collections::HashMap;
@@ -189,10 +189,10 @@ pub async fn getcomplete(
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
-fn getsubcomplete(
+fn getsubcomplete<P: AsRef<Path>>(
     input: tree_sitter::Node,
     source: &Vec<&str>,
-    local_path: &Path,
+    local_path: P,
     postype: PositionType,
     location: Option<Position>,
     include_files: &mut Vec<PathBuf>,
@@ -204,6 +204,7 @@ fn getsubcomplete(
         postype,
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
     ));
+    let local_path = local_path.as_ref();
     if let Some(location) = location {
         if input.start_position().row as u32 > location.line {
             return None;
@@ -337,7 +338,7 @@ fn getsubcomplete(
                             continue;
                         };
                         let (is_buildin, subpath) = {
-                            if name.split('.').count() != 1 {
+                            if !include_is_module(&name) {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
                                 let Some(glob_pattern) = gen_module_pattern(&name) else {

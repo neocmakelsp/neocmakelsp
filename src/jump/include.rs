@@ -14,9 +14,9 @@ use std::sync::{Arc, Mutex};
 
 use std::sync::LazyLock;
 
-pub(super) fn cmpinclude(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {
+pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<Vec<Location>> {
     let target = if !include_is_module(subpath) {
-        let root_dir = localpath.parent().unwrap();
+        let root_dir = localpath.as_ref().parent()?;
         root_dir.join(subpath)
     } else {
         let glob_pattern = gen_module_pattern(subpath)?;
