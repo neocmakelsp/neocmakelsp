@@ -297,7 +297,7 @@ fn tst_gammar_check() {
         dir.path().display()
     );
     let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
-    set_cache_data(template_cache).unwrap();
+    set_cache_data(template_cache);
     let gammar_file_src = r#"
 include("${ROOT_DIR}/hello.cmake")
 include("${ROOT_DIR}/hello_unexist.cmake")
