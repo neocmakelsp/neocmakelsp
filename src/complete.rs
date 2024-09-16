@@ -115,17 +115,18 @@ pub async fn getcomplete(
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
-    let mut cached_compeletion = get_cached_completion(local_path).await;
-    if !cached_compeletion.is_empty() {
-        complete.append(&mut cached_compeletion);
-    }
-    if let Some(mut cmake_cache) = fileapi::get_complete_data() {
-        complete.append(&mut cmake_cache);
-    }
+
     let current_point = position_to_point(location);
     let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
+            let mut cached_compeletion = get_cached_completion(local_path).await;
+            if !cached_compeletion.is_empty() {
+                complete.append(&mut cached_compeletion);
+            }
+            if let Some(mut cmake_cache) = fileapi::get_complete_data() {
+                complete.append(&mut cmake_cache);
+            }
             if let Some(mut message) = getsubcomplete(
                 tree.root_node(),
                 &source.lines().collect(),
@@ -158,6 +159,13 @@ pub async fn getcomplete(
             complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
+            let mut cached_compeletion = get_cached_completion(local_path).await;
+            if !cached_compeletion.is_empty() {
+                complete.append(&mut cached_compeletion);
+            }
+            if let Some(mut cmake_cache) = fileapi::get_complete_data() {
+                complete.append(&mut cmake_cache);
+            }
             if let Ok(messages) = &*BUILDIN_MODULE {
                 complete.append(&mut messages.clone());
             }
