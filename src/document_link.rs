@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::utils::include_is_module;
 use crate::Url;
 use tower_lsp::lsp_types::DocumentLink;
 use tower_lsp::lsp_types::Position;
@@ -105,7 +106,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
 }
 
 fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Option<(PathBuf, bool)> {
-    if name.ends_with(".cmake") {
+    if !include_is_module(name) {
         return Some((current_parent.as_ref().join(name), false));
     }
     let global_pattern = gen_module_pattern(name)?;
@@ -128,7 +129,7 @@ fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Optio
 #[test]
 fn tst_document_link_search() {
     use crate::fileapi::cache::Cache;
-    use crate::fileapi::CACHE_DATA;
+    use crate::fileapi::set_cache_data;
     use std::fs;
 
     use std::fs::File;
@@ -160,7 +161,7 @@ fn tst_document_link_search() {
         dir.path().display()
     );
     let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
-    CACHE_DATA.set(template_cache).unwrap();
+    set_cache_data(template_cache);
     let jump_file_src = r#"
 set(ABCD 1234)
 message(INFO "${ABCD}")

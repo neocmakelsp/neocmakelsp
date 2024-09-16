@@ -6,31 +6,46 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_lsp::lsp_types::CompletionItem;
 
-use std::{
-    collections::HashMap,
-    path::Path,
-    sync::{LazyLock, OnceLock},
-};
+use std::sync::Mutex;
+use std::{collections::HashMap, path::Path, sync::LazyLock};
 
-pub static CACHE_DATA: OnceLock<Cache> = OnceLock::new();
+static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> =
+    LazyLock::new(|| Mutex::new(None));
 
-pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<()> {
+pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<Cache> {
     use std::fs::File;
     let file = File::open(cache_file).ok()?;
 
     let cache: Cache = serde_json::from_reader(file).ok()?;
 
-    CACHE_DATA.set(cache).ok()
+    set_cache_data(cache)
+}
+
+pub fn get_cache_data() -> Option<Cache> {
+    let data = CACHE_DATA.lock().ok()?;
+    data.clone()
+}
+pub fn set_cache_data(cache: Cache) -> Option<Cache> {
+    let mut data = CACHE_DATA.lock().ok()?;
+    let old_data = data.take();
+    *data = Some(cache);
+    old_data
+}
+
+#[allow(dead_code)]
+pub fn clear_cache_data() -> Option<Cache> {
+    let mut data = CACHE_DATA.lock().ok()?;
+    data.take()
 }
 
 #[inline]
 pub fn get_complete_data() -> Option<Vec<CompletionItem>> {
-    Some(CACHE_DATA.get()?.gen_completions())
+    Some(get_cache_data()?.gen_completions())
 }
 
 #[inline]
 pub fn get_entries_data() -> Option<HashMap<String, String>> {
-    let entries = &CACHE_DATA.get()?.entries;
+    let entries = get_cache_data()?.entries;
     let mut map = HashMap::new();
 
     for entry in entries {

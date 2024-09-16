@@ -3,6 +3,7 @@ use lsp_types::Url;
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
 
+use crate::utils::include_is_module;
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::PositionType};
 
 use super::getsubdef;
@@ -13,12 +14,8 @@ use std::sync::{Arc, Mutex};
 
 use std::sync::LazyLock;
 
-fn ismodule(tojump: &str) -> bool {
-    !tojump.ends_with(".cmake")
-}
-
 pub(super) fn cmpinclude(localpath: &Path, subpath: &str) -> Option<Vec<Location>> {
-    let target = if !ismodule(subpath) {
+    let target = if !include_is_module(subpath) {
         let root_dir = localpath.parent().unwrap();
         root_dir.join(subpath)
     } else {
@@ -77,12 +74,6 @@ fn tst_cmp_included_cmake() {
             uri: Url::from_file_path(include_cmake).unwrap(),
         }]
     );
-}
-
-#[test]
-fn ut_ismodule() {
-    assert_eq!(ismodule("GNUInstall"), true);
-    assert_eq!(ismodule("test.cmake"), false);
 }
 
 type CacheData = HashMap<PathBuf, Vec<CacheDataUnit>>;

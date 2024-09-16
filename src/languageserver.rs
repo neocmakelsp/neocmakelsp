@@ -26,7 +26,6 @@ use crate::utils::treehelper;
 use crate::utils::VCPKG_LIBS;
 use crate::utils::VCPKG_PREFIX;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::sync::Mutex;
@@ -78,24 +77,30 @@ impl Backend {
         if !self.path_in_project(uri.path()).await {
             return;
         }
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let thetree = parse.parse(&context, None);
-        let Some(tree) = thetree else {
+
+        let Ok(file_path) = uri.to_file_path() else {
+            tracing::error!("Cannot tranport {uri:?} to file_path");
+            self.client.log_message(
+                MessageType::ERROR,
+                format!("Cannot tranport {uri:?} to file_path"),
+            ).await;
             return;
         };
-        let gammererror = checkerror(Path::new(uri.path()), &context, tree.root_node(), lint_info);
+
+        let gammererror = checkerror(&file_path, &context, lint_info);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for ErrorInformation {
-                start_point: start,
-                end_point: end,
+                start_point,
+                end_point,
                 message,
                 severity,
             } in diagnoses.inner
             {
-                let pointx = lsp_types::Position::new(start.row as u32, start.column as u32);
-                let pointy = lsp_types::Position::new(end.row as u32, end.column as u32);
+                let pointx =
+                    lsp_types::Position::new(start_point.row as u32, start_point.column as u32);
+                let pointy =
+                    lsp_types::Position::new(end_point.row as u32, end_point.column as u32);
                 let range = Range {
                     start: pointx,
                     end: pointy,

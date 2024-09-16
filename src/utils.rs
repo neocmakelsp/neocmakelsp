@@ -52,6 +52,16 @@ use tree_sitter::Node;
 
 use crate::fileapi;
 
+pub fn include_is_module(file_name: &str) -> bool {
+    !file_name.ends_with(".cmake")
+}
+
+#[test]
+fn ut_ismodule() {
+    assert_eq!(include_is_module("GNUInstall"), true);
+    assert_eq!(include_is_module("test.cmake"), false);
+}
+
 // NOTE: this function is just used on unix platform,
 // so now windows not use it
 #[allow(unused)]

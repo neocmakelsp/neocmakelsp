@@ -1,6 +1,5 @@
-use std::fs;
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::Point;
@@ -8,6 +7,7 @@ use tree_sitter::Point;
 use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
+use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
 use crate::CMakeNodeKinds;
 
 pub(crate) struct LintConfigInfo {
@@ -37,10 +37,9 @@ impl Deref for ErrorInfo {
     }
 }
 
-pub fn checkerror(
-    local_path: &Path,
+pub fn checkerror<P: AsRef<Path>>(
+    local_path: &P,
     source: &str,
-    input: tree_sitter::Node<'_>,
     LintConfigInfo {
         use_lint,
         use_extra_cmake_lint,
@@ -51,8 +50,15 @@ pub fn checkerror(
     } else {
         None
     };
-
-    let mut result = checkerror_inner(local_path, &source.lines().collect(), input, use_lint);
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(&source, None)?;
+    let mut result = checkerror_inner(
+        local_path,
+        &source.lines().collect(),
+        thetree.root_node(),
+        use_lint,
+    );
     if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
         for item in v.inner {
@@ -66,7 +72,8 @@ pub fn checkerror(
 const RE_MATCH_LINT_RESULT: &str =
     r#"(?P<line>\d+)(,(?P<column>\d+))?: (?P<message>\[(?P<severity>[A-Z])\d+\]\s+.*)"#;
 
-fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
+fn run_cmake_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
+    let path = path.as_ref();
     if !path.exists() || !CMAKE_LINT_CONFIG.enable_external_cmake_lint {
         return None;
     }
@@ -109,8 +116,8 @@ fn run_cmake_lint(path: &Path) -> Option<ErrorInfo> {
     }
 }
 
-fn checkerror_inner(
-    local_path: &Path,
+fn checkerror_inner<P: AsRef<Path>>(
+    local_path: P,
     newsource: &Vec<&str>,
     input: tree_sitter::Node,
     use_lint: bool,
@@ -125,6 +132,7 @@ fn checkerror_inner(
             }],
         });
     }
+    let local_path = local_path.as_ref();
     let mut course = input.walk();
     let mut output = vec![];
     for node in input.children(&mut course) {
@@ -158,106 +166,92 @@ fn checkerror_inner(
             let mut walk = arguments.walk();
             for child in arguments.children(&mut walk) {
                 let h = child.start_position().row;
+                let h2 = child.end_position().row;
+                // TODO: now make sure package in the same level
+                if h != h2 {
+                    continue;
+                }
                 let x = child.start_position().column;
                 let y = child.end_position().column;
-                if h < newsource.len() && y > x && y < newsource[h].len() {
-                    let name = &newsource[h][x..y];
-                    if errorpackages.contains(&name.to_string()) {
-                        output.push(ErrorInformation {
-                            start_point: child.start_position(),
-                            end_point: child.end_position(),
-                            message: "Cannot find such package".to_string(),
-                            severity: Some(DiagnosticSeverity::ERROR),
-                        });
-                    }
+                let name = &newsource[h][x..y];
+                if errorpackages.contains(&name.to_string()) {
+                    output.push(ErrorInformation {
+                        start_point: child.start_position(),
+                        end_point: child.end_position(),
+                        message: "Cannot find such package".to_string(),
+                        severity: Some(DiagnosticSeverity::ERROR),
+                    });
                 }
             }
+            continue;
         }
         if name == "include" && node.child_count() >= 4 {
+            let Some(parent_path) = local_path.parent() else {
+                continue;
+            };
             let Some(ids) = node.child(2) else {
                 continue;
             };
             let Some(first_arg_node) = ids.child(0) else {
                 continue;
             };
-            if ids.start_position().row == ids.end_position().row {
-                let h = ids.start_position().row;
-                let x = first_arg_node.start_position().column;
-                let y = first_arg_node.end_position().column;
-                let first_arg = newsource[h][x..y].trim();
-                let first_arg = if first_arg.contains('"') {
-                    first_arg.split('"').collect::<Vec<&str>>()[1].trim()
-                } else {
-                    first_arg
-                };
-                let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
-                if first_arg.is_empty() {
-                    output.push(ErrorInformation {
-                        start_point: first_arg_node.start_position(),
-                        end_point: first_arg_node.end_position(),
-                        message: "Argument is empty".to_string(),
-                        severity: Some(DiagnosticSeverity::ERROR),
-                    });
-                    continue;
-                }
-                if first_arg.contains('$') {
-                    continue;
-                }
-                {
-                    let path = Path::new(&first_arg);
-                    let is_last_char_sep =
-                        std::path::is_separator(first_arg.chars().last().unwrap());
-                    if !is_last_char_sep && path.extension().is_none() {
-                        // first_arg could be a module
-                        continue;
-                    }
-                }
-                let include_path = if cfg!(windows) {
-                    let path = local_path.parent().unwrap().join(&first_arg);
-                    let path_str = path.to_str().unwrap();
-                    let path_str = if !first_arg.starts_with('/') && path_str.starts_with('/') {
-                        &path.to_str().unwrap()[1..] // remove first slash
-                    } else {
-                        path.to_str().unwrap()
-                    };
-                    PathBuf::from(path_str)
-                } else {
-                    local_path.parent().unwrap().join(&first_arg)
-                };
-                match include_path.try_exists() {
-                    Ok(true) => {
-                        if include_path.is_file() {
-                            if scanner_include_error(include_path) {
-                                output.push(ErrorInformation {
-                                    start_point: first_arg_node.start_position(),
-                                    end_point: first_arg_node.end_position(),
-                                    message: "Error in include file".to_string(),
-                                    severity: Some(DiagnosticSeverity::ERROR),
-                                });
-                            }
-                        } else {
+            if ids.start_position().row != ids.end_position().row {
+                continue;
+            }
+            let h = ids.start_position().row;
+            let x = first_arg_node.start_position().column;
+            let y = first_arg_node.end_position().column;
+            let first_arg = newsource[h][x..y].trim();
+            let Some(first_arg) = remove_quotation_and_replace_placeholders(first_arg) else {
+                continue;
+            };
+            let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
+            if first_arg.is_empty() {
+                output.push(ErrorInformation {
+                    start_point: first_arg_node.start_position(),
+                    end_point: first_arg_node.end_position(),
+                    message: "Argument is empty".to_string(),
+                    severity: Some(DiagnosticSeverity::ERROR),
+                });
+                continue;
+            }
+            if include_is_module(&first_arg) {
+                continue;
+            }
+            let include_path = parent_path.join(first_arg);
+            match include_path.try_exists() {
+                Ok(true) => {
+                    if include_path.is_file() {
+                        if scanner_include_error(include_path) {
                             output.push(ErrorInformation {
                                 start_point: first_arg_node.start_position(),
                                 end_point: first_arg_node.end_position(),
-                                message: format!(
-                                    "\"{}\" is a directory",
-                                    include_path.to_str().unwrap()
-                                ),
+                                message: "Error in include file".to_string(),
                                 severity: Some(DiagnosticSeverity::ERROR),
                             });
                         }
-                    }
-                    _ => {
+                    } else {
                         output.push(ErrorInformation {
                             start_point: first_arg_node.start_position(),
                             end_point: first_arg_node.end_position(),
                             message: format!(
-                                "File \"{}\" does not exist or is inaccessible",
+                                "\"{}\" is a directory",
                                 include_path.to_str().unwrap()
                             ),
-                            severity: Some(DiagnosticSeverity::WARNING),
+                            severity: Some(DiagnosticSeverity::ERROR),
                         });
                     }
+                }
+                _ => {
+                    output.push(ErrorInformation {
+                        start_point: first_arg_node.start_position(),
+                        end_point: first_arg_node.end_position(),
+                        message: format!(
+                            "File \"{}\" does not exist or is inaccessible",
+                            include_path.to_str().unwrap()
+                        ),
+                        severity: Some(DiagnosticSeverity::WARNING),
+                    });
                 }
             }
         }
@@ -268,10 +262,84 @@ fn checkerror_inner(
         Some(ErrorInfo { inner: output })
     }
 }
+#[cfg(not(windows))]
+#[test]
+fn tst_gammar_check() {
+    use crate::fileapi::cache::Cache;
+    use crate::fileapi::set_cache_data;
+
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    let dir = tempdir().unwrap();
+
+    let json_value = format!(
+        "{{
+    \"kind\" : \"cache\",
+    \"version\" :
+    {{
+        \"major\" : 2,
+        \"minor\" : 0
+    }},
+    \"entries\" :
+    [
+        {{
+            \"name\" : \"ROOT_DIR\",
+            \"properties\" :
+            [
+            ],
+            \"type\" : \"FILEPATH\",
+            \"value\" : \"{}\"
+        }}
+    ]
+    }}",
+        dir.path().display()
+    );
+    let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
+    set_cache_data(template_cache).unwrap();
+    let gammar_file_src = r#"
+include("${ROOT_DIR}/hello.cmake")
+include("${ROOT_DIR}/hello_unexist.cmake")
+"#;
+    let top_cmake = dir.path().join("CMakeList.txt");
+    let mut top_cmake_file = File::create(&top_cmake).unwrap();
+    writeln!(top_cmake_file, "{}", gammar_file_src).unwrap();
+
+    let hello_cmake = dir.path().join("hello.cmake");
+    File::create(hello_cmake).unwrap();
+
+    let hello_cmake_error = dir.path().join("hello_unexist.cmake");
+
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(gammar_file_src, None).unwrap();
+
+    let check_result = checkerror_inner(
+        top_cmake,
+        &gammar_file_src.lines().collect(),
+        thetree.root_node(),
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(
+        *check_result,
+        vec![ErrorInformation {
+            start_point: Point { row: 2, column: 8 },
+            end_point: Point { row: 2, column: 41 },
+            message: format!(
+                "File \"{}\" does not exist or is inaccessible",
+                hello_cmake_error.display()
+            ),
+            severity: Some(DiagnosticSeverity::WARNING)
+        }]
+    );
+}
 
 // Used to check if root_node has error
 fn scanner_include_error<P: AsRef<Path>>(path: P) -> bool {
-    let Ok(content) = fs::read_to_string(path) else {
+    let Ok(content) = std::fs::read_to_string(path) else {
         return true;
     };
     let mut parse = tree_sitter::Parser::new();
