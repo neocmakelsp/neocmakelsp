@@ -162,7 +162,6 @@ async fn godef_inner(
 
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
-    println!("{jumptype:?}");
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
