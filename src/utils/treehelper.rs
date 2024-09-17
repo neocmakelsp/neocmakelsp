@@ -274,6 +274,7 @@ fn get_pos_type_inner<'a>(
                     let node_source = get_node_content(source, &child);
                     let val = &source[row][col_x..col_y];
                     if child_count >= 2
+                        && !location_range_contain(location, first_argument)
                         && input_type == PositionType::FindPackage
                         && node_source.iter().any(|context| *context == "COMPONENTS")
                     {
@@ -501,6 +502,17 @@ endmacro()
             source,
         ),
         PositionType::FindPackageSpace("Qt5")
+    );
+    assert_eq!(
+        get_pos_type(
+            Point {
+                row: 15,
+                column: 15
+            },
+            input,
+            source,
+        ),
+        PositionType::FindPackage
     );
     assert_eq!(
         get_pos_type(
