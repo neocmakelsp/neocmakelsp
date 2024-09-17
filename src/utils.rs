@@ -62,11 +62,9 @@ fn ut_ismodule() {
     assert_eq!(include_is_module("test.cmake"), false);
 }
 
-// NOTE: this function is just used on unix platform,
-// so now windows not use it
-#[allow(unused)]
-pub fn get_node_content(source: &[&str], node: &Node) -> String {
-    let mut content: String;
+// get the content and split all argument to vector
+pub fn get_node_content<'a>(source: &[&'a str], node: &Node) -> Vec<&'a str> {
+    let mut content: Vec<&str> = vec![];
     let x = node.start_position().column;
     let y = node.end_position().column;
 
@@ -74,23 +72,41 @@ pub fn get_node_content(source: &[&str], node: &Node) -> String {
     let row_end = node.end_position().row;
 
     if row_start == row_end {
-        content = source[row_start][x..y].to_string();
+        let tmpcontent = &source[row_start][x..y];
+        content.append(&mut tmpcontent.split(' ').collect());
     } else {
         let mut row = row_start;
-        content = source[row][x..].to_string();
+        content.append(&mut source[row][x..].split(' ').collect());
         row += 1;
 
         while row < row_end {
-            content = format!("{} {}", content, source[row]);
+            content.append(&mut source[row].split(' ').collect());
             row += 1;
         }
 
         if row != row_start {
             assert_eq!(row, row_end);
-            content = format!("{} {}", content, &source[row][..y])
+            content.append(&mut source[row][..y].split(' ').collect())
         }
     }
     content
+}
+
+#[test]
+fn get_node_content_tst() {
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+    let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let input = tree.root_node();
+    let argumentlist = input.child(0).unwrap().child(2).unwrap();
+    let lines: Vec<&str> = source.lines().collect();
+    let content = get_node_content(&lines, &argumentlist);
+    assert_eq!(
+        content,
+        vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
+    );
 }
 
 pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {

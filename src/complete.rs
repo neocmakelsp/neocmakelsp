@@ -542,8 +542,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     if name == "pkg_check_modules" && child.child_count() >= 3 {
                         use crate::utils::get_node_content;
                         let ids = child.child(2).unwrap();
-                        let names = get_node_content(source, &ids);
-                        let package_names: Vec<&str> = names.split(' ').collect();
+                        let package_names = get_node_content(source, &ids);
                         let package_name = package_names[0];
 
                         let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);

@@ -10,6 +10,8 @@ use tree_sitter::{Node, Point};
 
 use crate::CMakeNodeKinds;
 
+use super::get_node_content;
+
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 
 const SPECIALCOMMANDS: [&str; 3] = [
@@ -269,11 +271,11 @@ fn get_pos_type_inner<'a>(
                     let row = first_argument.start_position().row;
                     let col_x = first_argument.start_position().column;
                     let col_y = first_argument.end_position().column;
-                    let line_source = &source[row];
-                    let val = &line_source[col_x..col_y];
+                    let node_source = get_node_content(source, &child);
+                    let val = &source[row][col_x..col_y];
                     if child_count >= 2
                         && input_type == PositionType::FindPackage
-                        && line_source.contains("COMPONENTS")
+                        && node_source.iter().any(|context| *context == "COMPONENTS")
                     {
                         return PositionType::FindPackageSpace(val);
                     }
