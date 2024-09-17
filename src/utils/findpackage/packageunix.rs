@@ -80,27 +80,32 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
                     }
                 }
             }
-            if ispackage {
-                let location = Url::from_file_path(&path).unwrap();
-                let packagename = path
-                    .parent()
-                    .unwrap()
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap();
-                packages.insert(
-                    packagename.to_string(),
-                    CMakePackage {
-                        name: packagename.to_string(),
-                        packagetype: PackageType::Dir,
-                        location,
-                        version,
-                        tojump,
-                        from: CMakePackageFrom::System,
-                    },
-                );
+            if !ispackage {
+                continue;
             }
+            let Some(parent_path) = path.parent() else {
+                continue;
+            };
+            let Some(packagename) = parent_path
+                .file_name()
+                .and_then(|file_name| file_name.to_str())
+            else {
+                continue;
+            };
+
+            let location = Url::from_file_path(&path).unwrap();
+
+            packages.insert(
+                packagename.to_string(),
+                CMakePackage {
+                    name: packagename.to_string(),
+                    packagetype: PackageType::Dir,
+                    location,
+                    version,
+                    tojump,
+                    from: CMakePackageFrom::System,
+                },
+            );
         }
     }
     for lib in get_available_libs(prefixs) {
@@ -120,11 +125,12 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
                     };
                     for path in paths.flatten() {
                         let filepath = path.path().canonicalize().unwrap();
-                        if path.metadata().unwrap().is_file() {
-                            let filename = path.file_name().to_str().unwrap().to_string();
-                            if CMAKEREGEX.is_match(&filename) {
+                        if path.metadata().is_ok_and(|metadata| metadata.is_file()) {
+                            let path_name = path.file_name();
+                            let filename = path_name.to_str().unwrap();
+                            if CMAKEREGEX.is_match(filename) {
                                 tojump.push(filepath.clone());
-                                if CMAKECONFIGVERSION.is_match(&filename) {
+                                if CMAKECONFIGVERSION.is_match(filename) {
                                     if let Ok(context) = fs::read_to_string(&filepath) {
                                         version = get_version(&context);
                                     }

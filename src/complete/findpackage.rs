@@ -49,7 +49,7 @@ static PKGCONFIG_KEYWORDS: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
 });
 
 pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
-    CACHE_CMAKE_PACKAGES
+    let mut data: Vec<CompletionItem> = CACHE_CMAKE_PACKAGES
         .iter()
         .map(|package| CompletionItem {
             label: package.name.clone(),
@@ -67,7 +67,9 @@ pub static CMAKE_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
             })),
             ..Default::default()
         })
-        .collect()
+        .collect();
+    data.append(&mut FIND_PACKAGE_SPACE_KEYWORDS.clone());
+    data
 });
 
 pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {

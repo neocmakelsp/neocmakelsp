@@ -254,24 +254,20 @@ pub mod packagepkgconfig {
         let mut generatepackage = || -> anyhow::Result<()> {
             for path in QUERYSRULES.lock().unwrap().iter() {
                 for entry in glob::glob(path)?.flatten() {
-                    let p = entry.as_path().to_str().unwrap();
-                    let name = p
-                        .split('/')
-                        .collect::<Vec<&str>>()
-                        .last()
-                        .unwrap()
-                        .to_string();
-                    let realname = name
-                        .split('.')
-                        .collect::<Vec<&str>>()
-                        .first()
-                        .unwrap()
-                        .to_string();
+                    let Some(file_name) =
+                        entry.file_name().and_then(|file_name| file_name.to_str())
+                    else {
+                        continue;
+                    };
+                    let Some(realname) = file_name.strip_suffix(".pc") else {
+                        continue;
+                    };
+
                     packages.insert(
                         realname.to_string(),
                         PkgConfig {
-                            libname: realname,
-                            path: Url::from_file_path(p).unwrap(),
+                            libname: realname.to_string(),
+                            path: Url::from_file_path(entry).unwrap(),
                         },
                     );
                 }

@@ -163,6 +163,9 @@ fn checkerror_inner<P: AsRef<Path>>(
         let lowercase_name = name.to_lowercase();
         if lowercase_name == "find_package" {
             let errorpackages = crate::filewatcher::get_error_packages();
+            if errorpackages.is_empty() {
+                continue;
+            }
             let Some(arguments) = node.child(2) else {
                 continue;
             };
