@@ -86,16 +86,39 @@ pub fn get_node_content<'a>(source: &[&'a str], node: &Node) -> Vec<&'a str> {
 
         if row != row_start {
             assert_eq!(row, row_end);
-            content.append(&mut source[row][..y].split(' ').collect())
+            // NOTE: like ")" this kind should check again
+            if y != 0 {
+                content.append(&mut source[row][..y].split(' ').collect())
+            }
         }
     }
     content
 }
 
 #[test]
-fn get_node_content_tst() {
+fn get_node_content_tst_1() {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let tree = parse.parse(&source, None).unwrap();
+    let input = tree.root_node();
+    let argumentlist = input.child(0).unwrap().child(2).unwrap();
+    let lines: Vec<&str> = source.lines().collect();
+    let content = get_node_content(&lines, &argumentlist);
+    assert_eq!(
+        content,
+        vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
+    );
+}
+
+#[test]
+fn get_node_content_tst_2() {
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+    let source = r#"findpackage(Qt5
+COMPONENTS CONFIG
+Core Gui Widget
+)"#;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
