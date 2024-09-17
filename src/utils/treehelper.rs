@@ -39,7 +39,7 @@ pub fn position_to_point(input: Position) -> Point {
 }
 
 /// get the position of the string
-pub fn get_point_string(location: Point, root: Node, source: &Vec<&str>) -> Option<String> {
+pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) -> Option<&'a str> {
     let mut course = root.walk();
     for child in root.children(&mut course) {
         if !location_range_contain(location, child) {
@@ -52,7 +52,7 @@ pub fn get_point_string(location: Point, root: Node, source: &Vec<&str>) -> Opti
             let mabepos = get_point_string(location, child, source);
             if mabepos
                 .as_ref()
-                .is_some_and(|message| !BLACK_POS_STRING.contains(&message.as_str()))
+                .is_some_and(|message| !BLACK_POS_STRING.contains(message))
             {
                 return mabepos;
             };
@@ -68,7 +68,7 @@ pub fn get_point_string(location: Point, root: Node, source: &Vec<&str>) -> Opti
 
             let message = &source[h][x..y];
 
-            return Some(message.to_string());
+            return Some(message);
         }
     }
     None

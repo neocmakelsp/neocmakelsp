@@ -60,7 +60,7 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     let inner_result = match get_pos_type(current_point, root, source) {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
-            let package = get_the_packagename(&message);
+            let package = get_the_packagename(message);
             let value = PKG_CONFIG_PACKAGES_WITHKEY.get(package);
             value.map(vcpkg_document_fmt)
         }
@@ -68,12 +68,12 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
             let space_package_name = format!("{spacename}{message}");
             let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&space_package_name);
             if value.is_none() {
-                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&message);
+                value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(message);
             }
             value.map(cmakepackage_document_fmt)
         }
         PositionType::FindPackage | PositionType::TargetInclude | PositionType::TargetLink => {
-            let package = get_the_packagename(&message);
+            let package = get_the_packagename(message);
             let mut value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package);
             if value.is_none() {
                 value = CACHE_CMAKE_PACKAGES_WITHKEYS.get(&package.to_lowercase());
@@ -81,7 +81,7 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
             value.map(cmakepackage_document_fmt)
         }
         _ => {
-            let mut value = MESSAGE_STORAGE.get(&message);
+            let mut value = MESSAGE_STORAGE.get(message);
             if value.is_none() {
                 value = MESSAGE_STORAGE.get(&message.to_lowercase());
             }
@@ -93,10 +93,10 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     }
 
     let jump_cache = JUMP_CACHE.lock().await;
-    let cached_info = jump_cache.get(&message)?.document_info.clone();
+    let cached_info = jump_cache.get(message)?.document_info.clone();
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data() {
-        if let Some(value) = cache_data.get(&message) {
+        if let Some(value) = cache_data.get(message) {
             return Some(format!("current cached value : {value}\n\n{cached_info}"));
         }
     }

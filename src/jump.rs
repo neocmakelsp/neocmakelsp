@@ -164,7 +164,7 @@ async fn godef_inner<P: AsRef<Path>>(
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
-            if let Some(jump_cache) = get_cached_defs(&originuri, tofind.as_str()).await {
+            if let Some(jump_cache) = get_cached_defs(&originuri, tofind).await {
                 if is_jump {
                     return Some(vec![jump_cache]);
                 }
@@ -173,7 +173,7 @@ async fn godef_inner<P: AsRef<Path>>(
 
             let newsource: Vec<&str> = source.lines().collect();
             if let Some(mut defdata) =
-                simplegodefsub(tree.root_node(), &newsource, &tofind, originuri, is_jump)
+                simplegodefsub(tree.root_node(), &newsource, tofind, originuri, is_jump)
             {
                 locations.append(&mut defdata);
             }
@@ -184,11 +184,11 @@ async fn godef_inner<P: AsRef<Path>>(
             }
         }
         PositionType::FindPackageSpace(space) => {
-            let newtofind = format!("{space}{}", get_the_packagename(&tofind));
+            let newtofind = format!("{space}{}", get_the_packagename(tofind));
             findpackage::cmpfindpackage(&newtofind)
         }
         PositionType::FindPackage | PositionType::TargetLink | PositionType::TargetInclude => {
-            let tofind = get_the_packagename(&tofind);
+            let tofind = get_the_packagename(tofind);
             findpackage::cmpfindpackage(tofind)
         }
         // NOTE: here is reserve to do next time
@@ -200,11 +200,11 @@ async fn godef_inner<P: AsRef<Path>>(
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {
-            let fixed_url = replace_placeholders(&tofind)?;
+            let fixed_url = replace_placeholders(tofind)?;
             include::cmpinclude(originuri, &fixed_url)
         }
         PositionType::SubDir => {
-            let fixed_url = replace_placeholders(&tofind)?;
+            let fixed_url = replace_placeholders(tofind)?;
             subdirectory::cmpsubdirectory(originuri, &fixed_url)
         }
     }
