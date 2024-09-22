@@ -29,6 +29,26 @@ pub fn point_to_position(input: Point) -> Position {
     }
 }
 
+pub trait ToPositon {
+    fn to_position(&self) -> Position;
+}
+
+pub trait ToPoint {
+    fn to_point(&self) -> Point;
+}
+
+impl ToPositon for Point {
+    fn to_position(&self) -> Position {
+        point_to_position(*self)
+    }
+}
+
+impl ToPoint for Position {
+    fn to_point(&self) -> Point {
+        position_to_point(*self)
+    }
+}
+
 /// lsp_types to treesitter
 #[inline]
 pub fn position_to_point(input: Position) -> Point {
@@ -36,6 +56,32 @@ pub fn position_to_point(input: Position) -> Point {
         row: input.line as usize,
         column: input.character as usize,
     }
+}
+
+#[test]
+fn test_change() {
+    let point = Point {
+        row: 10,
+        column: 10,
+    };
+    assert_eq!(
+        Position {
+            line: 10,
+            character: 10
+        },
+        point.to_position()
+    );
+    let position = Position {
+        line: 10,
+        character: 10,
+    };
+    assert_eq!(
+        Point {
+            row: 10,
+            column: 10
+        },
+        position.to_point()
+    );
 }
 
 /// get the position of the string
@@ -76,8 +122,7 @@ pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) 
 
 /// from the position to get range
 pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
-    let neolocation = position_to_point(location);
-    //let newsource: Vec<&str> = source.lines().collect();
+    let neolocation = location.to_point();
     let mut course = root.walk();
     for child in root.children(&mut course) {
         if !location_range_contain(neolocation, child) {
@@ -98,8 +143,8 @@ pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
             && neolocation.column >= child.start_position().column
         {
             return Some(Range {
-                start: point_to_position(child.start_position()),
-                end: point_to_position(child.end_position()),
+                start: child.start_position().to_position(),
+                end: child.end_position().to_position(),
             });
         }
     }

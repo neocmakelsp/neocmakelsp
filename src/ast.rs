@@ -1,6 +1,6 @@
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
-use crate::utils::treehelper::point_to_position;
+use crate::utils::treehelper::ToPositon;
 use crate::CMakeNodeKinds;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
 use tower_lsp::lsp_types;
@@ -177,8 +177,8 @@ fn getsubast(
                 });
             }
             CMakeNodeKinds::NORMAL_COMMAND => {
-                let start = point_to_position(child.start_position());
-                let end = point_to_position(child.end_position());
+                let start = child.start_position().to_position();
+                let end = child.end_position().to_position();
                 let h = child.start_position().row;
                 let Some(ids) = child.child(0) else {
                     continue;

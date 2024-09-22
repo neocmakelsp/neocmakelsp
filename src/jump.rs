@@ -13,7 +13,7 @@ use crate::{
     scansubs::TREE_MAP,
     utils::{
         gen_module_pattern, get_the_packagename, include_is_module, replace_placeholders,
-        treehelper::{get_point_string, point_to_position, position_to_point},
+        treehelper::{get_point_string, ToPoint, ToPositon},
         LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
     CMakeNodeKinds,
@@ -137,7 +137,7 @@ pub async fn godef<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
-    let current_point = position_to_point(location);
+    let current_point = location.to_point();
     let locations = godef_inner(current_point, source, originuri, is_jump).await;
     if locations.is_none() {
         client
@@ -244,8 +244,8 @@ fn simplegodefsub<P: AsRef<Path>>(
                 definitions.push(Location {
                     uri: Url::from_file_path(originuri.as_ref()).unwrap(),
                     range: Range {
-                        start: point_to_position(child.start_position()),
-                        end: point_to_position(child.end_position()),
+                        start: child.start_position().to_position(),
+                        end: child.end_position().to_position(),
                     },
                 })
             };
@@ -279,8 +279,8 @@ fn getsubdef<P: AsRef<Path>>(
         comment: "",
     };
     for child in input.children(&mut course) {
-        let start = point_to_position(child.start_position());
-        let end = point_to_position(child.end_position());
+        let start = child.start_position().to_position();
+        let end = child.end_position().to_position();
         match child.kind() {
             CMakeNodeKinds::LINE_COMMENT => {
                 let start_y = child.start_position().row;

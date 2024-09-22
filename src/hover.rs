@@ -4,8 +4,8 @@ use crate::utils::get_the_packagename;
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 use crate::utils::treehelper::get_point_string;
 use crate::utils::treehelper::get_pos_type;
-use crate::utils::treehelper::position_to_point;
 use crate::utils::treehelper::PositionType;
+use crate::utils::treehelper::ToPoint;
 use crate::utils::treehelper::MESSAGE_STORAGE;
 
 #[cfg(unix)]
@@ -55,7 +55,7 @@ PackageVersion: {}
 
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
-    let current_point = position_to_point(location);
+    let current_point = location.to_point();
     let message = get_point_string(current_point, root, &source.lines().collect())?;
     let inner_result = match get_pos_type(current_point, root, source) {
         #[cfg(unix)]

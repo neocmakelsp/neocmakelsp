@@ -5,7 +5,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{get_pos_type, position_to_point, PositionType};
+use crate::utils::treehelper::{get_pos_type, PositionType, ToPoint};
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
     LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
@@ -116,7 +116,7 @@ pub async fn getcomplete(
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
 
-    let current_point = position_to_point(location);
+    let current_point = location.to_point();
     let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
