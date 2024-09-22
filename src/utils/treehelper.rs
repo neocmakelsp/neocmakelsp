@@ -29,7 +29,7 @@ pub fn point_to_position(input: Point) -> Position {
     }
 }
 
-pub trait ToPositon {
+pub trait ToPosition {
     fn to_position(&self) -> Position;
 }
 
@@ -37,7 +37,7 @@ pub trait ToPoint {
     fn to_point(&self) -> Point;
 }
 
-impl ToPositon for Point {
+impl ToPosition for Point {
     fn to_position(&self) -> Position {
         point_to_position(*self)
     }

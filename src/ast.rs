@@ -1,6 +1,6 @@
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
-use crate::utils::treehelper::ToPositon;
+use crate::utils::treehelper::ToPosition;
 use crate::CMakeNodeKinds;
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
 use tower_lsp::lsp_types;

@@ -13,7 +13,7 @@ use crate::{
     scansubs::TREE_MAP,
     utils::{
         gen_module_pattern, get_the_packagename, include_is_module, replace_placeholders,
-        treehelper::{get_point_string, ToPoint, ToPositon},
+        treehelper::{get_point_string, ToPoint, ToPosition},
         LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
     CMakeNodeKinds,
