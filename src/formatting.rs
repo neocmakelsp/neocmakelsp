@@ -89,7 +89,7 @@ pub async fn getformat(
         new_text.push('\n');
     }
 
-    if insert_final_newline {
+    if insert_final_newline && new_text.chars().last().is_some_and(|c| c != '\n') {
         new_text.push('\n');
     }
 
@@ -259,7 +259,7 @@ pub fn get_format_cli(
         new_text.push('\n');
     }
 
-    if insert_final_newline {
+    if insert_final_newline && new_text.chars().last().is_some_and(|c| c != '\n') {
         new_text.push('\n');
     }
     Some(new_text)
@@ -284,7 +284,7 @@ fn tst_format_function() {
     let formatstr = get_format_cli(source, 1, false, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
-    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
+    assert_eq!(formatstr_with_lastline.as_str(), sourceafter);
 }
 
 #[cfg(unix)]
@@ -295,7 +295,7 @@ fn tst_format_base() {
     let formatstr = get_format_cli(source, 1, false, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
-    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
+    assert_eq!(formatstr_with_lastline.as_str(), sourceafter);
 }
 
 #[cfg(unix)]
@@ -306,5 +306,5 @@ fn tst_format_lastline() {
     let formatstr = get_format_cli(source, 4, true, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 4, true, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
-    assert_eq!(formatstr_with_lastline.as_str(), format!("{sourceafter}\n"));
+    assert_eq!(formatstr_with_lastline.as_str(), sourceafter);
 }

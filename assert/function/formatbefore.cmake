@@ -24,4 +24,3 @@ endfunction()
 	set_package_properties(Inotify PROPERTIES #ss
 									PURPOSE "Filesystem alteration notifications using inotify")
 endif()
-
