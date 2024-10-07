@@ -639,6 +639,7 @@ dependencies = [
 name = "neocmakelsp"
 version = "0.8.6"
 dependencies = [
+ "anstyle",
  "anyhow",
  "clap",
  "clap_complete",

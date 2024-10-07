@@ -10,7 +10,7 @@ keywords = ["lsp"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.19", features = ["derive"] }
+clap = { version = "4.5.19", features = ["derive", "color"] }
 tower-lsp = "0.20.0"
 tokio = { version = "1.40.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -28,6 +28,7 @@ ignore = "0.4.23"
 toml = "0.8.19"
 clap_complete = "4.5.32"
 treesitter_kind_collector = "0.2.0"
+anstyle = "1.0.8"
 
 [target.'cfg(windows)'.dependencies]
 path-absolutize = "3.1.1"
