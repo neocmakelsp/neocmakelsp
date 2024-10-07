@@ -5,7 +5,7 @@ use clap_complete::Shell;
 
 const LSP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub fn get_styles() -> clap::builder::Styles {
+pub const fn get_styles() -> clap::builder::Styles {
     clap::builder::Styles::styled()
         .usage(
             anstyle::Style::new()
