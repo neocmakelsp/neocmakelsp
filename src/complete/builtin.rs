@@ -1,4 +1,4 @@
-/// buildin Commands and vars
+/// builtin Commands and vars
 use anyhow::Result;
 use std::process::Command;
 use std::sync::LazyLock;
@@ -90,7 +90,7 @@ fn tst_convert_to_lsp_snippet() {
     assert_eq!(snippet_result, snippet_target);
 }
 
-fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
+fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_info)
@@ -161,7 +161,7 @@ fn gen_buildin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-fn gen_buildin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
+fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
@@ -183,7 +183,7 @@ fn gen_buildin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-fn gen_buildin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
+fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
@@ -205,40 +205,40 @@ fn gen_buildin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-/// CMake build in commands
-pub static BUILDIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+/// CMake builtin commands
+pub static BUILTIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let output = Command::new("cmake")
         .arg("--help-commands")
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);
-    gen_buildin_commands(&temp)
+    gen_builtin_commands(&temp)
 });
 
-/// cmake buildin vars
-pub static BUILDIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+/// cmake builtin vars
+pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let output = Command::new("cmake")
         .arg("--help-variables")
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);
-    gen_buildin_variables(&temp)
+    gen_builtin_variables(&temp)
 });
 
-/// Cmake buildin modules
-pub static BUILDIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+/// Cmake builtin modules
+pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
     let output = Command::new("cmake").arg("--help-modules").output()?.stdout;
     let temp = String::from_utf8_lossy(&output);
-    gen_buildin_modules(&temp)
+    gen_builtin_modules(&temp)
 });
 
 #[cfg(test)]
 mod tests {
     use std::iter::zip;
 
-    use crate::complete::buildin::{gen_buildin_modules, gen_buildin_variables};
+    use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
 
-    use super::gen_buildin_commands;
+    use super::gen_builtin_commands;
     #[test]
     fn tst_regex() {
         let re = regex::Regex::new(r"-+").unwrap();
@@ -253,31 +253,31 @@ mod tests {
     }
 
     #[test]
-    fn tst_cmake_command_buildin() {
+    fn tst_cmake_command_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assert/cmake_help_commands.txt");
 
-        let output = gen_buildin_commands(&output);
+        let output = gen_builtin_commands(&output);
 
         assert!(output.is_ok());
     }
 
     #[test]
-    fn tst_cmake_variables_buildin() {
+    fn tst_cmake_variables_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assert/cmake_help_variables.txt");
 
-        let output = gen_buildin_variables(&output);
+        let output = gen_builtin_variables(&output);
 
         assert!(output.is_ok());
     }
 
     #[test]
-    fn tst_cmake_modules_buildin() {
+    fn tst_cmake_modules_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assert/cmake_help_commands.txt");
 
-        let output = gen_buildin_modules(&output);
+        let output = gen_builtin_modules(&output);
 
         assert!(output.is_ok());
     }

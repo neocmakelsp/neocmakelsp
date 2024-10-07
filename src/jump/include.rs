@@ -87,9 +87,9 @@ pub fn scanner_include_defs(
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
-    is_buildin: bool,
+    is_builtin: bool,
 ) -> Option<Vec<CacheDataUnit>> {
-    if is_buildin {
+    if is_builtin {
         if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
             if let Some(complete_items) = cache.get(path) {
                 return Some(complete_items.clone());
@@ -110,7 +110,7 @@ pub fn scanner_include_defs(
         true,
         find_cmake_in_package,
     );
-    if !is_buildin {
+    if !is_builtin {
         return result_data;
     }
     if let Some(ref content) = result_data {
