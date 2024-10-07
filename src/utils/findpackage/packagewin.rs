@@ -9,11 +9,11 @@ use std::{
 use crate::Url;
 
 use super::{
-    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
-    SPECIAL_PACKAGE_PATTERN,
+    get_available_libs, get_cmake_message, get_version, handle_config_package, CMAKECONFIG,
+    CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN,
 };
 
-const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
+pub(super) const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
@@ -21,23 +21,11 @@ pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_message);
 
-fn get_prefix() -> Option<String> {
-    if let Ok(mystem_prefix) = std::env::var("MSYSTEM_PREFIX") {
-        return Some(mystem_prefix);
+pub(super) fn get_env_prefix() -> Option<String> {
+    if let Ok(prefix) = std::env::var("MSYSTEM_PREFIX") {
+        return Some(prefix);
     }
     std::env::var("CMAKE_PREFIX_PATH").ok()
-}
-
-fn get_available_libs(prefix: &str) -> Vec<PathBuf> {
-    let mut ava: Vec<PathBuf> = Vec::new();
-    let root_prefix = Path::new(&prefix);
-    for lib in LIBS {
-        let p = root_prefix.join(lib).join("cmake");
-        if p.exists() {
-            ava.push(p);
-        }
-    }
-    ava
 }
 
 fn safe_canonicalize<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
@@ -45,67 +33,62 @@ fn safe_canonicalize<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
     Ok(path.as_ref().absolutize()?.into_owned())
 }
 
-#[inline]
-fn get_cmake_message() -> HashMap<String, CMakePackage> {
-    let Some(prefix) = get_prefix() else {
-        return HashMap::new();
-    };
-    get_cmake_message_with_prefix(&prefix)
-}
-
-fn get_cmake_message_with_prefix(prefix: &str) -> HashMap<String, CMakePackage> {
+pub(super) fn get_cmake_message_with_prefixes(
+    prefixes: &Vec<String>,
+) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    if let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) {
-        for path in paths.flatten() {
-            let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
-                continue;
-            };
-            let mut tojump: Vec<PathBuf> = vec![];
-            let mut version: Option<String> = None;
-            let mut ispackage = false;
-            for f in files.flatten() {
-                tojump.push(safe_canonicalize(&f).unwrap());
-                if CMAKECONFIG.is_match(f.to_str().unwrap()) {
-                    ispackage = true;
-                }
-                if CMAKECONFIGVERSION.is_match(f.to_str().unwrap()) {
-                    if let Ok(context) = fs::read_to_string(&f) {
-                        version = get_version(&context);
+    for prefix in prefixes {
+        if let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) {
+            for path in paths.flatten() {
+                let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
+                    continue;
+                };
+                let mut tojump: Vec<PathBuf> = vec![];
+                let mut version: Option<String> = None;
+                let mut ispackage = false;
+                for f in files.flatten() {
+                    tojump.push(safe_canonicalize(&f).unwrap());
+                    if CMAKECONFIG.is_match(f.to_str().unwrap()) {
+                        ispackage = true;
+                    }
+                    if CMAKECONFIGVERSION.is_match(f.to_str().unwrap()) {
+                        if let Ok(context) = fs::read_to_string(&f) {
+                            version = get_version(&context);
+                        }
                     }
                 }
+
+                if !ispackage {
+                    continue;
+                }
+
+                let Some(parent_path) = path.parent() else {
+                    continue;
+                };
+                let Some(packagename) = parent_path
+                    .file_name()
+                    .and_then(|file_name| file_name.to_str())
+                else {
+                    continue;
+                };
+
+                let location = Url::from_file_path(&path).unwrap();
+
+                packages.insert(
+                    packagename.to_string(),
+                    CMakePackage {
+                        name: packagename.to_string(),
+                        packagetype: PackageType::Dir,
+                        location,
+                        version,
+                        tojump,
+                        from: CMakePackageFrom::System,
+                    },
+                );
             }
-
-            if !ispackage {
-                continue;
-            }
-
-            let Some(parent_path) = path.parent() else {
-                continue;
-            };
-            let Some(packagename) = parent_path
-                .file_name()
-                .and_then(|file_name| file_name.to_str())
-            else {
-                continue;
-            };
-
-            let location = Url::from_file_path(&path).unwrap();
-
-            packages.insert(
-                packagename.to_string(),
-                CMakePackage {
-                    name: packagename.to_string(),
-                    packagetype: PackageType::Dir,
-                    location,
-                    version,
-                    tojump,
-                    from: CMakePackageFrom::System,
-                },
-            );
         }
     }
-
-    for lib in get_available_libs(prefix) {
+    for lib in get_available_libs(prefixes) {
         let Ok(paths) = std::fs::read_dir(lib) else {
             continue;
         };
@@ -227,5 +210,5 @@ fn test_package_search() {
             },
         ),
     ]);
-    assert_eq!(get_cmake_message_with_prefix(&prefix), target);
+    assert_eq!(get_cmake_message_with_prefixes(&vec![prefix]), target);
 }
