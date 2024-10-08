@@ -59,7 +59,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 let Some(filename) = remove_quotation_and_replace_placeholders(filename) else {
                     continue;
                 };
-                let (final_uri, buildin) = if is_subdirectory {
+                let (final_uri, builtin) = if is_subdirectory {
                     (
                         current_parent
                             .as_ref()
@@ -68,18 +68,18 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                         false,
                     )
                 } else {
-                    let Some((cmake_path, buildin)) =
+                    let Some((cmake_path, builtin)) =
                         convert_include_cmake(&filename, current_parent)
                     else {
                         continue;
                     };
-                    (cmake_path, buildin)
+                    (cmake_path, builtin)
                 };
                 if !final_uri.exists() {
                     continue;
                 }
-                let tooltip = if buildin {
-                    Some(format!("buildin module, link: {}", final_uri.display()))
+                let tooltip = if builtin {
+                    Some(format!("builtin module, link: {}", final_uri.display()))
                 } else {
                     Some(format!("link: {}", final_uri.display()))
                 };

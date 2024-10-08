@@ -378,7 +378,7 @@ fn getsubdef<P: AsRef<Path>>(
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &source[h][x..y];
-                        let (is_buildin, subpath) = {
+                        let (is_builtin, subpath) = {
                             if !include_is_module(name) {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
@@ -408,7 +408,7 @@ fn getsubdef<P: AsRef<Path>>(
                                 include_files,
                                 complete_packages,
                                 find_cmake_in_package,
-                                is_buildin,
+                                is_builtin,
                             ) {
                                 defs.append(&mut comps);
                             }

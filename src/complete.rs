@@ -1,4 +1,4 @@
-mod buildin;
+mod builtin;
 mod findpackage;
 mod includescanner;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -10,7 +10,7 @@ use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
     LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
 };
-use buildin::{BUILDIN_COMMAND, BUILDIN_MODULE, BUILDIN_VARIABLE};
+use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -141,10 +141,10 @@ pub async fn getcomplete(
                 complete.append(&mut message);
             }
 
-            if let Ok(messages) = &*BUILDIN_COMMAND {
+            if let Ok(messages) = &*BUILTIN_COMMAND {
                 complete.append(&mut messages.clone());
             }
-            if let Ok(messages) = &*BUILDIN_VARIABLE {
+            if let Ok(messages) = &*BUILTIN_VARIABLE {
                 complete.append(&mut messages.clone());
             }
         }
@@ -166,7 +166,7 @@ pub async fn getcomplete(
             if let Some(mut cmake_cache) = fileapi::get_complete_data() {
                 complete.append(&mut cmake_cache);
             }
-            if let Ok(messages) = &*BUILDIN_MODULE {
+            if let Ok(messages) = &*BUILTIN_MODULE {
                 complete.append(&mut messages.clone());
             }
         }
@@ -337,7 +337,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                         else {
                             continue;
                         };
-                        let (is_buildin, subpath) = {
+                        let (is_builtin, subpath) = {
                             if !include_is_module(&name) {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
@@ -365,7 +365,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 include_files,
                                 complete_packages,
                                 find_cmake_in_package,
-                                is_buildin,
+                                is_builtin,
                             ) {
                                 complete.append(&mut comps);
                             }
