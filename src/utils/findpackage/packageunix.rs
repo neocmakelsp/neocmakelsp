@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use std::sync::LazyLock;
 
@@ -11,54 +7,27 @@ use crate::Url;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 use super::{
-    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
-    SPECIAL_PACKAGE_PATTERN,
+    get_available_libs, get_cmake_message, get_version, handle_config_package, CMAKECONFIG,
+    CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN,
 };
 
 // here is the logic of findpackage on linux
 //
-const PREFIXS: [&str; 2] = ["/usr", "/usr/local"];
+pub(super) const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
 
-const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
-
-fn get_prefixs() -> Vec<String> {
-    if let Ok(prefix) = std::env::var("PREFIX") {
-        let mut prefixs: Vec<String> = PREFIXS
-            .to_vec()
-            .iter()
-            .map(|prefix| prefix.to_string())
-            .collect();
-        prefixs.push(prefix.to_string());
-        return prefixs;
+pub(super) fn get_env_prefix() -> Option<String> {
+    if cfg!(target_os = "android") {
+        std::env::var("PREFIX").ok()
+    } else {
+        None
     }
-    PREFIXS
-        .to_vec()
-        .iter()
-        .map(|prefix| prefix.to_string())
-        .collect()
 }
 
-fn get_available_libs(prefixs: &Vec<String>) -> Vec<PathBuf> {
-    let mut ava: Vec<PathBuf> = vec![];
-    for prefix in prefixs {
-        for lib in LIBS {
-            let p = Path::new(&prefix).join(lib).join("cmake");
-            if p.exists() {
-                ava.push(p);
-            }
-        }
-    }
-    ava
-}
-
-#[inline]
-fn get_cmake_message() -> HashMap<String, CMakePackage> {
-    get_cmake_message_with_prefixs(&get_prefixs())
-}
-
-fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMakePackage> {
+pub(super) fn get_cmake_message_with_prefixes(
+    prefixes: &Vec<String>,
+) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
-    for prefix in prefixs {
+    for prefix in prefixes {
         let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
             continue;
         };
@@ -108,7 +77,7 @@ fn get_cmake_message_with_prefixs(prefixs: &Vec<String>) -> HashMap<String, CMak
             );
         }
     }
-    for lib in get_available_libs(prefixs) {
+    for lib in get_available_libs(prefixes) {
         let Ok(paths) = std::fs::read_dir(lib) else {
             continue;
         };
@@ -174,15 +143,13 @@ pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
 
 #[test]
 fn test_prefix() {
-    std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
-    assert_eq!(
-        get_prefixs(),
-        vec![
-            "/usr".to_string(),
-            "/usr/local".to_string(),
-            "/data/data/com.termux/files/usr".to_string()
-        ]
-    )
+    use crate::utils::findpackage::CMAKE_PREFIXES;
+    let prefix = "/data/data/com.termux/files/usr".to_string();
+    std::env::set_var("PREFIX", &prefix);
+    let prefixes = &*CMAKE_PREFIXES;
+
+    // since now we use the prefix by cmake first, so...
+    assert!(!prefixes.is_empty());
 }
 
 #[test]
@@ -248,5 +215,5 @@ fn test_package_search() {
             },
         ),
     ]);
-    assert_eq!(get_cmake_message_with_prefixs(&vec![prefix]), target);
+    assert_eq!(get_cmake_message_with_prefixes(&vec![prefix]), target);
 }

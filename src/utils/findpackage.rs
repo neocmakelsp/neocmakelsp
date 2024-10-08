@@ -31,7 +31,12 @@ use super::{remove_quotation, CMakePackage, CMakePackageFrom, PackageType};
 pub use cmakepackage::*;
 pub use vcpkg::*;
 
-use std::{collections::HashMap, sync::LazyLock};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::LazyLock,
+};
 
 fn handle_config_package(filename: &str) -> Option<&str> {
     if let Some(tryfirst) = filename.strip_suffix("-config.cmake") {
@@ -49,6 +54,83 @@ fn handle_config_package_tst() {
 
 static SPECIAL_PACKAGE_PATTERN: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"([a-zA-Z_\d\-]+)-(\d+(\.\d+)*)").unwrap());
+
+static CMAKE_PREFIXES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    if cfg!(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "openbsd"
+    )) {
+        query_cmake_prefixes_or(vec!["/usr/local".into(), "/usr".into()])
+    } else if cfg!(target_os = "macos") {
+        query_cmake_prefixes_or(vec![
+            "/usr/local".into(),
+            "/usr".into(),
+            "/opt/homebrew".into(),
+        ])
+    } else if cfg!(target_os = "windows") {
+        query_cmake_prefixes_or(vec![
+            "C:\\Program Files".into(),
+            "C:\\Program Files (x86)".into(),
+            "C:\\Program Files\\CMake".into(),
+        ])
+    } else {
+        vec![]
+    }
+});
+
+fn query_cmake_prefixes_or(default: Vec<String>) -> Vec<String> {
+    match query_cmake_prefixes() {
+        Some(prefixes) => prefixes,
+        None => {
+            let mut prefix_paths = default;
+            // Add platform specific prefixes from the environment
+            if let Some(prefix) = get_env_prefix() {
+                prefix_paths.push(prefix);
+            }
+            prefix_paths
+        }
+    }
+}
+
+fn query_cmake_prefixes() -> Option<Vec<String>> {
+    let command = Command::new("cmake")
+        .arg("--system-information")
+        .output()
+        .ok()?;
+    let output = String::from_utf8_lossy(&command.stdout);
+    let line = output
+        .lines()
+        .find(|line| line.starts_with("CMAKE_SYSTEM_PREFIX_PATH"))?;
+    let (_, prefix_paths) = line.split_once(" ")?;
+    let prefix_paths = remove_quotation(prefix_paths);
+    // FIXME: This likely contains duplicate entries of '/usr/local' on most systems
+    // This could be solved by using Itertools::unique()
+    let prefix_paths: Vec<String> = prefix_paths.split(";").map(String::from).collect();
+
+    if !prefix_paths.is_empty() {
+        Some(prefix_paths)
+    } else {
+        None
+    }
+}
+
+fn get_available_libs(prefixes: &[String]) -> Vec<PathBuf> {
+    prefixes
+        .iter()
+        .flat_map(|prefix| {
+            LIBS.into_iter()
+                .map(|lib| Path::new(prefix).join(lib).join("cmake"))
+                .filter(|path| path.exists())
+        })
+        .collect()
+}
+
+#[inline]
+fn get_cmake_message() -> HashMap<String, CMakePackage> {
+    get_cmake_message_with_prefixes(&CMAKE_PREFIXES)
+}
 
 #[test]
 fn special_package_pattern_tst() {
