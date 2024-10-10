@@ -8,7 +8,7 @@ use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{get_pos_type, PositionType, ToPoint};
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
-    LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
+    DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
 };
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use std::collections::HashMap;
@@ -110,14 +110,15 @@ pub async fn getcomplete(
     local_path: &str,
     find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
+    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None);
+    let thetree = parse.parse(&source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
-    let postype = get_pos_type(current_point, tree.root_node(), source);
+    let postype = get_pos_type(current_point, tree.root_node(), &source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             let mut cached_compeletion = get_cached_completion(local_path).await;
@@ -214,8 +215,8 @@ fn getsubcomplete<P: AsRef<Path>>(
     let mut course = input.walk();
     let mut complete: Vec<CompletionItem> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
-        start_y: 0,
-        comment: "",
+        end_y: 0,
+        comments: vec![],
     };
     for child in input.children(&mut course) {
         if let Some(location) = location {
@@ -226,12 +227,18 @@ fn getsubcomplete<P: AsRef<Path>>(
         }
         match child.kind() {
             CMakeNodeKinds::LINE_COMMENT => {
-                let start_y = child.start_position().row;
                 let start_x = child.start_position().column;
                 let end_x = child.end_position().column;
-                line_comment_tmp = LineCommentTmp {
-                    start_y,
-                    comment: &source[start_y][start_x..end_x],
+                let end_y = child.end_position().row;
+                let comment = &source[end_y][start_x..end_x];
+                if end_y - line_comment_tmp.end_y == 1 {
+                    line_comment_tmp.end_y = end_y;
+                    line_comment_tmp.comments.push(comment);
+                } else {
+                    line_comment_tmp = LineCommentTmp {
+                        end_y,
+                        comments: vec![comment],
+                    }
                 }
             }
             CMakeNodeKinds::BRACKET_COMMENT => {
@@ -863,15 +870,15 @@ Example using both :command:`configure_package_config_file` and
 #[test]
 fn comment_mark_test() {
     let temp = LineCommentTmp {
-        start_y: 1,
-        comment: "",
+        end_y: 1,
+        comments: vec![],
     };
 
     assert!(!temp.is_node_comment(2));
 
     let temp = LineCommentTmp {
-        start_y: 1,
-        comment: "# ABCD",
+        end_y: 1,
+        comments: vec!["# ABCD"],
     };
     assert!(temp.is_node_comment(2));
     assert!(!temp.is_node_comment(1));

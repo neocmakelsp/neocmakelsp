@@ -222,20 +222,46 @@ pub fn gen_module_pattern(subpath: &str) -> Option<String> {
 
 #[derive(Debug)]
 pub struct LineCommentTmp<'a> {
-    pub start_y: usize,
-    pub comment: &'a str,
+    pub end_y: usize,
+    pub comments: Vec<&'a str>,
 }
 
 impl<'a> LineCommentTmp<'a> {
     pub fn is_node_comment(&self, start_y: usize) -> bool {
-        if start_y <= self.start_y {
+        if start_y <= self.end_y {
             return false;
         }
-        start_y - self.start_y == 1 && !self.comment.is_empty()
+        start_y - self.end_y == 1 && !self.comments.is_empty()
     }
-    pub fn comment(&self) -> &str {
-        self.comment[1..].trim_start()
+    pub fn comment(&self) -> String {
+        let tmp: Vec<&str> = self
+            .comments
+            .iter()
+            .map(|comment| comment.strip_prefix("#").unwrap_or(comment).trim_start())
+            .collect();
+        tmp.join("\n")
     }
+}
+
+pub trait DocumentNormalize {
+    fn normalize(&self) -> String;
+}
+
+impl<T> DocumentNormalize for T
+where
+    T: AsRef<str>,
+{
+    fn normalize(&self) -> String {
+        self.as_ref().replace("\r\n", "\n").to_string()
+    }
+}
+
+#[test]
+fn strip_newline_works() {
+    assert_eq!("Test0\r\n\r\n".normalize(), "Test0\n\n");
+    assert_eq!("Test1\r\n".normalize(), "Test1\n");
+    assert_eq!("Test2\nTest2".normalize(), "Test2\nTest2");
+    assert_eq!("Test3".normalize(), "Test3");
 }
 
 #[test]

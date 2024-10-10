@@ -1,16 +1,11 @@
 use lsp_types::{MessageType, Position, TextEdit};
 use tower_lsp::lsp_types;
 
+use crate::utils::DocumentNormalize;
+
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::is_comment, CMakeNodeKinds};
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
-
-fn strip_trailing_newline(input: &str) -> &str {
-    input
-        .strip_suffix("\r\n")
-        .or(input.strip_suffix('\n'))
-        .unwrap_or(input)
-}
 
 fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
     let comment_chars: Vec<usize> = line
@@ -36,18 +31,6 @@ fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
     line.to_string()
 }
 
-// remove all \r to normal one
-fn strip_trailing_newline_document(input: &str) -> String {
-    let lines: Vec<&str> = input.lines().map(strip_trailing_newline).collect();
-    let mut output = String::new();
-
-    for line in lines {
-        output.push_str(line);
-        output.push('\n');
-    }
-    output
-}
-
 fn get_space(spacelen: u32, use_space: bool) -> String {
     let unit = if use_space { ' ' } else { '\t' };
     let mut space = String::new();
@@ -65,7 +48,7 @@ pub async fn getformat(
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<Vec<TextEdit>> {
-    let source = strip_trailing_newline_document(source);
+    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source.as_str(), None).unwrap();
@@ -238,7 +221,7 @@ pub fn get_format_cli(
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<String> {
-    let source = strip_trailing_newline_document(source);
+    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
@@ -263,17 +246,6 @@ pub fn get_format_cli(
         new_text.push('\n');
     }
     Some(new_text)
-}
-
-#[test]
-fn strip_newline_works() {
-    assert_eq!(
-        strip_trailing_newline_document("Test0\r\n\r\n"),
-        "Test0\n\n"
-    );
-    assert_eq!(strip_trailing_newline("Test1\r\n"), "Test1");
-    assert_eq!(strip_trailing_newline("Test2\n"), "Test2");
-    assert_eq!(strip_trailing_newline("Test3"), "Test3");
 }
 
 #[cfg(unix)]
