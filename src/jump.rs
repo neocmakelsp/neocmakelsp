@@ -14,7 +14,7 @@ use crate::{
     utils::{
         gen_module_pattern, get_the_packagename, include_is_module, replace_placeholders,
         treehelper::{get_point_string, ToPoint, ToPosition},
-        LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
+        DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
     },
     CMakeNodeKinds,
 };
@@ -153,13 +153,14 @@ async fn godef_inner<P: AsRef<Path>>(
     originuri: P,
     is_jump: bool,
 ) -> Option<Vec<Location>> {
+    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None)?;
+    let tree = parse.parse(&source, None)?;
 
     let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
 
-    let jumptype = get_pos_type(location, tree.root_node(), source);
+    let jumptype = get_pos_type(location, tree.root_node(), &source);
 
     match jumptype {
         PositionType::VarOrFun => {
@@ -275,20 +276,26 @@ fn getsubdef<P: AsRef<Path>>(
     let mut course = input.walk();
     let mut defs: Vec<CacheDataUnit> = vec![];
     let mut line_comment_tmp = LineCommentTmp {
-        start_y: 0,
-        comment: "",
+        end_y: 0,
+        comments: vec![],
     };
     for child in input.children(&mut course) {
         let start = child.start_position().to_position();
         let end = child.end_position().to_position();
         match child.kind() {
             CMakeNodeKinds::LINE_COMMENT => {
-                let start_y = child.start_position().row;
                 let start_x = child.start_position().column;
                 let end_x = child.end_position().column;
-                line_comment_tmp = LineCommentTmp {
-                    start_y,
-                    comment: &source[start_y][start_x..end_x],
+                let end_y = child.end_position().row;
+                let comment = &source[end_y][start_x..end_x];
+                if end_y - line_comment_tmp.end_y == 1 {
+                    line_comment_tmp.end_y = end_y;
+                    line_comment_tmp.comments.push(comment);
+                } else {
+                    line_comment_tmp = LineCommentTmp {
+                        end_y,
+                        comments: vec![comment],
+                    }
                 }
             }
             CMakeNodeKinds::FUNCTION_DEF => {
