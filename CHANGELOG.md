@@ -1,5 +1,8 @@
 # Neocmakelsp
 
+## 0.8.8
+- futures-util v0.3.30 is yanked, so publish new release
+
 ## 0.8.7
 - Fix complete when meet comment panic on windows
 - Better way to find the platform prefix thanks to @idealseal
