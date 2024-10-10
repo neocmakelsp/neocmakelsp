@@ -52,9 +52,10 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
+    let context = context.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None);
+    let thetree = parse.parse(&context, None);
     let tree = thetree.unwrap();
     let Some(result_data) = getsubcomplete(
         tree.root_node(),
