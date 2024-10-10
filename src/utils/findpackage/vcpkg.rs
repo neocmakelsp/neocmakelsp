@@ -78,6 +78,16 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     }
                 }
             }
+
+            if let Some(config_file_location) = tojump
+                .iter()
+                .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
+            {
+                if config_file_location != 0 {
+                    tojump.swap(0, config_file_location);
+                }
+            }
+
             if !ispackage {
                 continue;
             }
@@ -145,6 +155,13 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     (PackageType::File, pathname.to_owned())
                 }
             };
+            let config_file_location = tojump
+                .iter()
+                .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
+                .unwrap();
+            if config_file_location != 0 {
+                tojump.swap(0, config_file_location);
+            }
             if let Some(captures) = SPECIAL_PACKAGE_PATTERN.captures(&packagename.clone()) {
                 packagename = captures.get(1).unwrap().as_str().to_owned();
                 version = captures.get(2).map(|version| version.as_str().to_string());
