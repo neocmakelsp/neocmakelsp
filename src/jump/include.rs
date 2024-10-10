@@ -3,7 +3,7 @@ use lsp_types::Url;
 use std::path::{Path, PathBuf};
 use tower_lsp::lsp_types;
 
-use crate::utils::include_is_module;
+use crate::utils::{include_is_module, DocumentNormalize};
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::PositionType};
 
 use super::getsubdef;
@@ -96,7 +96,7 @@ pub fn scanner_include_defs(
             }
         }
     }
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path).ok()?.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&content, None)?;
@@ -191,7 +191,7 @@ pub fn scanner_package_defs(
             return Some(complete_items.clone());
         }
     }
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path).ok()?.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&content, None)?;

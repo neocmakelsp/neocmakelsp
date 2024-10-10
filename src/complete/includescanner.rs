@@ -1,4 +1,7 @@
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::PositionType};
+use crate::{
+    consts::TREESITTER_CMAKE_LANGUAGE,
+    utils::{treehelper::PositionType, DocumentNormalize},
+};
 
 use super::getsubcomplete;
 use std::collections::HashMap;
@@ -30,7 +33,7 @@ pub fn scanner_include_complete(
             }
         }
     }
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path).ok()?.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(content.clone(), None)?;
@@ -67,7 +70,7 @@ pub fn scanner_package_complete(
             return Some(complete_items.clone());
         }
     }
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path).ok()?.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None)?;

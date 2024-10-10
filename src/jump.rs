@@ -49,9 +49,10 @@ struct CacheDataUnit {
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
+    let context = context.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(context, None)?;
+    let tree = parse.parse(&context, None)?;
     let result_data = getsubdef(
         tree.root_node(),
         &context.lines().collect(),
