@@ -244,11 +244,11 @@ impl<'a> LineCommentTmp<'a> {
 }
 
 #[test]
-fn test_comment()  {
-    let linecomment = LineCommentTmp {end_y: 0, comments: vec![
-        "# Abcd",
-        "#   EFGH"
-    ]};
+fn test_comment() {
+    let linecomment = LineCommentTmp {
+        end_y: 0,
+        comments: vec!["# Abcd", "#   EFGH"],
+    };
     assert_eq!(linecomment.comment(), "Abcd\nEFGH");
 }
 
