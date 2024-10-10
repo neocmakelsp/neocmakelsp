@@ -237,10 +237,19 @@ impl<'a> LineCommentTmp<'a> {
         let tmp: Vec<&str> = self
             .comments
             .iter()
-            .map(|comment| comment.strip_prefix("#").unwrap_or(comment).trim_start())
+            .map(|comment| comment.strip_prefix("#").unwrap_or(comment).trim())
             .collect();
         tmp.join("\n")
     }
+}
+
+#[test]
+fn test_comment()  {
+    let linecomment = LineCommentTmp {end_y: 0, comments: vec![
+        "# Abcd",
+        "#   EFGH"
+    ]};
+    assert_eq!(linecomment.comment(), "Abcd\nEFGH");
 }
 
 pub trait DocumentNormalize {

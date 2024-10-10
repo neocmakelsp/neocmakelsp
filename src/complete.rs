@@ -969,3 +969,83 @@ endfunction()
         ]
     );
 }
+
+#[test]
+fn test_complete_win() {
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()".normalize();
+
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let thetree = parse.parse(&file_info, None).unwrap();
+    let dir = tempdir().unwrap();
+    let root_cmake = dir.path().join("CMakeList.txt");
+    let mut file = File::create(&root_cmake).unwrap();
+    writeln!(file, "{}", &file_info).unwrap();
+    let data = getsubcomplete(
+        thetree.root_node(),
+        &file_info.lines().collect(),
+        &root_cmake,
+        PositionType::VarOrFun,
+        None,
+        &mut vec![],
+        &mut vec![],
+        false,
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        data,
+        vec![
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::VALUE),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}",
+                    root_cmake.display()
+                ))),
+                deprecated: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None
+            },
+            CompletionItem {
+                label: "bb".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::FUNCTION),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}\n\ntest hello",
+                    root_cmake.display()
+                ))),
+                deprecated: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None
+            }
+        ]
+    );
+}
