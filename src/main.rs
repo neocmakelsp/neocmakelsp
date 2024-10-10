@@ -102,13 +102,16 @@ fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditCon
 
 #[tokio::main]
 async fn main() {
-    // NOTE: because lsp use stdout, so tracing should be in stderr.
-    // And stdout is used in many other ways.
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .init();
+    let log = tracing_subscriber::fmt();
 
     let args = NeocmakeCli::parse();
+    if matches!(args, NeocmakeCli::Stdio) {
+        // NOTE: `stdout` should be retained when sending rpc messages.
+        // Also, most editors can't handle the ANSI escape codes properly in their log capture.
+        log.with_writer(std::io::stderr).with_ansi(false).init();
+    } else {
+        log.init();
+    }
     match args {
         NeocmakeCli::Stdio => {
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
