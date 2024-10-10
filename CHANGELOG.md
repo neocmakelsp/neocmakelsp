@@ -1,5 +1,13 @@
 # Neocmakelsp
 
+## 0.8.7
+- Fix complete when meet comment panic on windows
+- Better way to find the platform prefix thanks to @idealseal
+- improve logging for stdio transport @idealseal
+- rename buildin to builtin, typo fix
+- bring the cli color of clap
+- add LTO support by @zamazan4ik
+
 ## 0.8.5
 - Add a lot of unit tests
 - Fix that fileapi cache data cannot be updated.
