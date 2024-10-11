@@ -104,13 +104,14 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
 }
 
 /// get the complete messages
-pub async fn getcomplete(
+pub async fn getcomplete<P: AsRef<Path>>(
     source: &str,
     location: Position,
     client: &tower_lsp::Client,
-    local_path: &str,
+    local_path: P,
     find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
+    let local_path = local_path.as_ref();
     let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

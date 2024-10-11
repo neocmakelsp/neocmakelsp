@@ -167,16 +167,18 @@ impl LanguageServer for Backend {
                     watch_file.dynamic_registration,
                     watch_file.relative_pattern_support,
                 ) {
-                    if let Some(ref uri) = initial.root_uri {
-                        let path = std::path::Path::new(uri.path())
-                            .join("build")
-                            .join("CMakeCache.txt");
+                    if let Some(ref top_path) = initial
+                        .root_uri
+                        .as_ref()
+                        .and_then(|uri| uri.to_file_path().ok())
+                    {
+                        let path = top_path.join("build").join("CMakeCache.txt");
                         if path.exists() {
                             filewatcher::refresh_error_packages(path);
                         }
 
                         tracing::info!("find cache-v2 json, start reading the data");
-                        let cache_path = std::path::Path::new(uri.path())
+                        let cache_path = top_path
                             .join("build")
                             .join(".cmake")
                             .join("api")
@@ -208,22 +210,25 @@ impl LanguageServer for Backend {
             }
         }
 
-        if let Some(ref uri) = initial.root_uri {
-            use std::path::Path;
-            scansubs::scan_all(uri.path()).await;
+        if let Some(ref vcpkg_root) = initial
+            .root_uri
+            .as_ref()
+            .and_then(|uri| uri.to_file_path().ok())
+        {
+            scansubs::scan_all(&vcpkg_root).await;
             let mut root_path = self.root_path.lock().await;
-            root_path.replace(uri.path().into());
+            root_path.replace(vcpkg_root.to_path_buf());
 
-            let build_dir = Path::new(uri.path()).join("build");
+            let build_dir = vcpkg_root.join("build");
 
             if build_dir.is_dir() {
                 if let Some(query) = &*DEFAULT_QUERY {
                     query.write_to_build_dir(build_dir.as_path()).ok();
                 }
             }
-            if did_vcpkg_project(Path::new(uri.path())) {
+            if did_vcpkg_project(vcpkg_root) {
                 tracing::info!("This project is vcpkg project, start init vcpkg data");
-                let project_root = Path::new(uri.path());
+                let project_root = vcpkg_root;
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
 
                 #[cfg(unix)]
@@ -392,11 +397,19 @@ impl LanguageServer for Backend {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         let mut has_cached_changed = false;
         for change in params.changes {
-            let Some(file_name) = change.uri.path().split('/').last() else {
+            let Ok(file_path) = change.uri.to_file_path() else {
                 continue;
             };
+            let Some(file_name) = file_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name.to_string())
+            else {
+                continue;
+            };
+
             if file_name.ends_with("json") && file_name.starts_with("cache-v2") {
-                fileapi::update_cache_data(change.uri.path());
+                fileapi::update_cache_data(&file_path);
             }
             if file_name.ends_with("txt") {
                 has_cached_changed = true;
@@ -413,8 +426,7 @@ impl LanguageServer for Backend {
                 if let FileChangeType::DELETED = change.typ {
                     filewatcher::clear_error_packages();
                 } else {
-                    let path = change.uri.path();
-                    filewatcher::refresh_error_packages(path);
+                    filewatcher::refresh_error_packages(file_path);
                 }
             }
         }
@@ -434,8 +446,17 @@ impl LanguageServer for Backend {
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
         drop(storemap);
-        complete::update_cache(uri.path(), &context).await;
-        jump::update_cache(uri.path(), &context).await;
+
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return;
+            }
+        };
+
+        complete::update_cache(&file_path, &context).await;
+        jump::update_cache(&file_path, &context).await;
         self.publish_diagnostics(
             uri,
             context,
@@ -485,10 +506,17 @@ impl LanguageServer for Backend {
             return;
         };
         drop(storemap);
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return;
+            }
+        };
         if has_root {
-            scansubs::scan_dir(uri.path()).await;
-            complete::update_cache(uri.path(), &context).await;
-            jump::update_cache(uri.path(), &context).await;
+            scansubs::scan_dir(&file_path).await;
+            complete::update_cache(&file_path, &context).await;
+            jump::update_cache(&file_path, &context).await;
         }
         self.publish_diagnostics(
             uri,
@@ -575,12 +603,19 @@ impl LanguageServer for Backend {
         let storemap = BUFFERS_CACHE.lock().await;
         let urlconent = storemap.get(&uri).cloned();
         drop(storemap);
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return Err(LspError::internal_error());
+            }
+        };
         match urlconent {
             Some(context) => Ok(complete::getcomplete(
                 &context,
                 location,
                 &self.client,
-                uri.path(),
+                &file_path,
                 self.init_info.lock().await.scan_cmake_in_package,
             )
             .await),
