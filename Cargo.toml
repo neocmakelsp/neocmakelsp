@@ -38,4 +38,4 @@ tower = { version = "0.5.1", features = ["util"] }
 tempfile = "3.13.0"
 
 [profile.release]
-lto = true
+lto = "thin"
