@@ -9,6 +9,7 @@
 - **Simple Configuration**: Easy to set up and use, minimizing configuration time so you can focus on development.
 - **CLI Tool Integration**: Not only an LSP, but also includes command-line tools for code formatting, making it convenient for different environments.
 
+If you have any questions or want to help in other ways, feel free to join [out matrix room](https://matrix.to/#/!wqKdajPSKyqqLoFnlA:mozilla.org?via=mozilla.org&via=matrix.org).
 
 # Table of Contents
 
