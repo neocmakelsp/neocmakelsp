@@ -1,9 +1,12 @@
 mod findpackage;
 pub mod treehelper;
-use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::LazyLock;
+
+use serde::{Deserialize, Serialize};
 
 use crate::Url;
-use serde::{Deserialize, Serialize};
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());

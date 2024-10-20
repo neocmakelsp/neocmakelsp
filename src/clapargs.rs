@@ -91,8 +91,9 @@ pub enum NeocmakeCli {
 
 #[test]
 fn test_claps() {
-    use super::NeocmakeCli;
     use clap::{CommandFactory, FromArgMatches};
+
+    use super::NeocmakeCli;
     let mut args =
         NeocmakeCli::command().get_matches_from(vec!["neocmakelsp", "format", "-o", "a", "b"]);
 

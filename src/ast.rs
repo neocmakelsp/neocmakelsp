@@ -1,10 +1,10 @@
+use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
+use tower_lsp::{lsp_types, Client};
+
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
 use crate::utils::treehelper::ToPosition;
 use crate::CMakeNodeKinds;
-use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
-use tower_lsp::lsp_types;
-use tower_lsp::Client;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
     "set",

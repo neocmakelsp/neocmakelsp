@@ -19,24 +19,20 @@ mod packagewin;
 use packagewin as cmakepackage;
 #[cfg(target_os = "macos")]
 mod packagemac;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::LazyLock;
+
+pub use cmakepackage::*;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
 use tower_lsp::lsp_types::Url;
-
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::CMakeNodeKinds;
-
-use super::{remove_quotation, CMakePackage, CMakePackageFrom, PackageType};
-
-pub use cmakepackage::*;
 pub use vcpkg::*;
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    process::Command,
-    sync::LazyLock,
-};
+use super::{remove_quotation, CMakePackage, CMakePackageFrom, PackageType};
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::CMakeNodeKinds;
 
 fn handle_config_package(filename: &str) -> Option<&str> {
     if let Some(tryfirst) = filename.strip_suffix("-config.cmake") {

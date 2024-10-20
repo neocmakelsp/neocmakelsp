@@ -1,8 +1,9 @@
 //use lsp_types::CompletionItem;
-use super::Location;
-use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Url;
 use tower_lsp::lsp_types;
+
+use super::Location;
+use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 
 pub(super) fn cmpfindpackage(input: &str) -> Option<Vec<Location>> {
     CACHE_CMAKE_PACKAGES_WITHKEYS.get(input).map(|context| {

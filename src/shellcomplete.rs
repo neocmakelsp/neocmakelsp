@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use crate::clapargs::NeocmakeCli;
-
 use clap::{Command, CommandFactory};
 use clap_complete::{generate, Generator, Shell};
+
+use crate::clapargs::NeocmakeCli;
 
 fn print_completions<G: Generator>(gen: G, cmd: &mut Command, write: &mut dyn Write) {
     generate(gen, cmd, cmd.get_name().to_string(), write)
@@ -19,10 +19,12 @@ pub fn generate_shell_completions(shell: Shell) {
 #[cfg(unix)]
 #[cfg(test)]
 mod target_test {
-    use super::{print_completions, NeocmakeCli};
+    use std::io::Cursor;
+
     use clap::CommandFactory;
     use clap_complete::Shell;
-    use std::io::Cursor;
+
+    use super::{print_completions, NeocmakeCli};
     #[test]
     fn tst_fish_is_same() {
         let mut cmd = NeocmakeCli::command();

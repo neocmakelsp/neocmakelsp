@@ -1,10 +1,9 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock};
 
 use tokio::sync::Mutex;
+use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 
 /// provide go to definition
 use crate::{
@@ -18,14 +17,12 @@ use crate::{
     },
     CMakeNodeKinds,
 };
-use std::sync::LazyLock;
-use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 mod findpackage;
 mod include;
 mod subdirectory;
-use crate::utils::treehelper::{get_pos_type, PositionType};
-
 use tree_sitter::Node;
+
+use crate::utils::treehelper::{get_pos_type, PositionType};
 
 /// Storage the information when jump
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -585,9 +582,9 @@ mod jump_test {
     #[tokio::test]
     async fn tst_jump_subdir() {
         use std::fs;
-
         use std::fs::File;
         use std::io::Write;
+
         use tempfile::tempdir;
 
         let jump_file_src = r#"add_subdirectory(abcd_test)"#;
@@ -631,9 +628,9 @@ mod jump_test {
     #[tokio::test]
     async fn tst_jump_variable() {
         use std::fs;
-
         use std::fs::File;
         use std::io::Write;
+
         use tempfile::tempdir;
 
         let jump_file_src = r#"
@@ -710,6 +707,7 @@ add_subdirectory(abcd_test)
 fn test_sub_def() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake_path = dir.path().join("CMakeLists.txt");

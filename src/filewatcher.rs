@@ -1,6 +1,5 @@
 use std::path::Path;
-use std::sync::LazyLock;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 // match like ss_DIR:PATH=ss_DIR-NOTFOUND
 static NOT_FOUND_LIBRARY: LazyLock<regex::Regex> = LazyLock::new(|| {
@@ -50,6 +49,7 @@ pub fn get_error_packages() -> Vec<String> {
 fn tst_cache_packages() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let error_cmake = dir.path().join("CMakeCache.txt");

@@ -1,12 +1,12 @@
 use std::ops::Deref;
 use std::path::Path;
 use std::process::Command;
+
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::Point;
 
 use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
 use crate::CMakeNodeKinds;
 
@@ -284,12 +284,13 @@ fn checkerror_inner<P: AsRef<Path>>(
 #[cfg(not(windows))]
 #[test]
 fn tst_gammar_check() {
-    use crate::fileapi::cache::Cache;
-    use crate::fileapi::set_cache_data;
-
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
+
+    use crate::fileapi::cache::Cache;
+    use crate::fileapi::set_cache_data;
 
     let dir = tempdir().unwrap();
 
@@ -387,6 +388,7 @@ fn scanner_include_error<P: AsRef<Path>>(path: P) -> bool {
 fn include_error_tst() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
 
     let dir = tempdir().unwrap();

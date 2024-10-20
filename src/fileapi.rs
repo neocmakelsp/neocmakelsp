@@ -1,13 +1,13 @@
 pub mod cache;
 
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::{LazyLock, Mutex};
+
 use cache::Cache;
 use serde::{Deserialize, Serialize};
-
 use serde_json::Value;
 use tower_lsp::lsp_types::CompletionItem;
-
-use std::sync::Mutex;
-use std::{collections::HashMap, path::Path, sync::LazyLock};
 
 static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> = LazyLock::new(|| Mutex::new(None));
 
@@ -114,8 +114,7 @@ impl QueryJson {
 
 #[cfg(test)]
 mod api_test {
-    use super::Cache;
-    use super::QueryJson;
+    use super::{Cache, QueryJson};
 
     #[test]
     fn test_serde() {

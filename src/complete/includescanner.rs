@@ -1,17 +1,14 @@
-use crate::{
-    consts::TREESITTER_CMAKE_LANGUAGE,
-    utils::{treehelper::PositionType, DocumentNormalize},
-};
-
-use super::getsubcomplete;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, LazyLock, Mutex};
+
 use tower_lsp::lsp_types::CompletionItem;
 
-use std::sync::{Arc, Mutex};
-
-use std::sync::LazyLock;
+use super::getsubcomplete;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::PositionType;
+use crate::utils::DocumentNormalize;
 
 type CacheData = HashMap<PathBuf, Vec<CompletionItem>>;
 
@@ -100,6 +97,7 @@ mod include_scan_test {
     fn test_complete_scan_1() {
         use std::fs::File;
         use std::io::Write;
+
         use tempfile::tempdir;
         use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
 
@@ -191,6 +189,7 @@ endfunction()
     fn test_complete_scan_2() {
         use std::fs::File;
         use std::io::Write;
+
         use tempfile::tempdir;
         use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
 

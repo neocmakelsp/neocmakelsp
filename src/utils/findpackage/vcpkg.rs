@@ -1,20 +1,14 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
-
-use crate::{utils::CMakePackageFrom, Url};
-
-use std::sync::LazyLock;
-
-use crate::utils::{CMakePackage, PackageType};
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use super::{
     get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
     SPECIAL_PACKAGE_PATTERN,
 };
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+use crate::Url;
 
 #[inline]
 pub fn did_vcpkg_project(path: &Path) -> bool {
@@ -219,6 +213,7 @@ fn test_vcpkgpackage_search() {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
 
     use crate::utils::CMakePackageFrom;

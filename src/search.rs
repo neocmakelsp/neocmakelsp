@@ -1,5 +1,7 @@
+use cli_table::format::Justify;
+use cli_table::{Cell, CellStruct, Style, Table};
+
 use crate::utils::{CMakePackage, CACHE_CMAKE_PACKAGES};
-use cli_table::{format::Justify, Cell, CellStruct, Style, Table};
 pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
     let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
     CACHE_CMAKE_PACKAGES

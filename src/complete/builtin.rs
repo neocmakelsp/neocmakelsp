@@ -1,8 +1,10 @@
-/// builtin Commands and vars
-use anyhow::Result;
+use std::collections::HashMap;
+use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
-use std::{collections::HashMap, iter::zip};
+
+/// builtin Commands and vars
+use anyhow::Result;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
 use crate::languageserver::client_support_snippet;
@@ -236,9 +238,8 @@ pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new
 mod tests {
     use std::iter::zip;
 
-    use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
-
     use super::gen_builtin_commands;
+    use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
     #[test]
     fn tst_regex() {
         let re = regex::Regex::new(r"-+").unwrap();
