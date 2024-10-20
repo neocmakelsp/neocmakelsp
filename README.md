@@ -3,11 +3,11 @@
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
 [![codecov](https://codecov.io/gh/neocmakelsp/neocmakelsp/graph/badge.svg?token=JKWSFR51TF)](https://codecov.io/gh/neocmakelsp/neocmakelsp)
 
- **Intelligent Code Completion**: Provides precise code completion suggestions by deeply analyzing CMake files, enhancing development efficiency.
-- **Real-time Error Detection**: Integrates Linting functionality to check for potential issues in your code, helping maintain code quality.
-- **Support for Neovim Emacs VSCode Helix**: Compatible with these popular editors, catering to diverse developer needs.
+ **Intelligent Code Completion**: Provides precise code completions by analyzing CMake files, enhancing development efficiency.
+- **Real-time Error Detection**: Integrates linting functionality to check for potential issues in your code, help maintaining code quality.
+- **Support for Neovim, Emacs, VSCode, Helix**: Compatible with these popular editors, catering to diverse developer needs.
 - **Simple Configuration**: Easy to set up and use, minimizing configuration time so you can focus on development.
-- **CLI Tool Integration**: Not only an LSP, but also includes command-line tools for code formatting, making it convenient for different environments.
+- **CLI Integration**: Not only an LSP, but also includes command-line tools for code formatting, making it convenient for different environments.
 
 If you have any questions or want to help in other ways, feel free to join [out matrix room](https://matrix.to/#/!wqKdajPSKyqqLoFnlA:mozilla.org?via=mozilla.org&via=matrix.org).
 
@@ -17,9 +17,9 @@ If you have any questions or want to help in other ways, feel free to join [out 
 2. [Features](#features)
 3. [Installation](#installation)
 4. [Editor Support](#editor-support)
-   - [Neovim Configuration](#neovim-configuration)
-   - [helix Configuration](#helix-configuration)
-   - [Emacs Configuration](#emacs-configuration)
+   - [Neovim Configuration](#neovim)
+   - [Helix Configuration](#helix)
+   - [Emacs Configuration](#emacs)
 5. [Features](#features)
 6. [User Feedback](#user-feedback)
    - [macOS Users](#user-feedback)
@@ -28,7 +28,7 @@ If you have any questions or want to help in other ways, feel free to join [out 
 
 
 
-## Install
+## Installation
 
 ```bash
 cargo install neocmakelsp
@@ -36,13 +36,13 @@ cargo install neocmakelsp
 
 ## Editor Support
 
-### neovim configuration
+### Neovim
 
-The config of neocmakelsp is in `nvim-lsp-config`, so just follow `nvim-lsp-config` to setup it
+The configuration of `neocmakelsp` is in [`nvim-lspconfig`](https://github.com/neovim/nvim-lspconfig), so just follow `nvim-lsp-config` to setup it
 
-neocmakelsp has two start ways: `stdio` and `Tcp`. `Tcp` is for debug. If you want to help me and debug is , you should start it with `Tcp` way.
+`neocmakelsp` can talk to clients in two ways: `stdio` and `tcp`. `tcp` is primarily for debugging. If you want to add a feature or find a bug, you should connect via `tcp`.
 
-#### Stdio
+#### `stdio`
 
 ```lua
 local configs = require("lspconfig.configs")
@@ -72,7 +72,7 @@ if not configs.neocmake then
 end
 ```
 
-#### Tcp
+#### `tcp`
 
 ```lua
 if not configs.neocmake then
@@ -97,20 +97,9 @@ end
 
 ```
 
-### helix configuration
-#### Tcp
+### Helix
 
-```toml
-[[language]]
-name = "neocmake"
-auto-format = true
-language-servers = [{ name = "neocmakelsp" }]
-
-[language-server.neocmakelsp]
-command = "nc"
-args = ["localhost", "9257"]
-```
-#### Stdio
+#### `stdio`
 
 ```toml
 [[language]]
@@ -123,9 +112,23 @@ command = "neocmakelsp"
 args = ["--stdio"]
 ```
 
-### emacs configuration
 
-To use neocmakelsp with eglot:
+#### `tcp`
+
+```toml
+[[language]]
+name = "neocmake"
+auto-format = true
+language-servers = [{ name = "neocmakelsp" }]
+
+[language-server.neocmakelsp]
+command = "nc"
+args = ["localhost", "9257"]
+```
+
+### Emacs
+
+To use `neocmakelsp` with eglot:
 
 ``` emacs-lisp
 (use-package cmake-ts-mode
@@ -136,7 +139,6 @@ To use neocmakelsp with eglot:
       (add-to-list 'eglot-server-programs `((cmake-ts-mode) . ("neocmakelsp" "--stdio")))
       (eglot-ensure))))
 ```
-
 
 ## Features
 
@@ -161,11 +163,11 @@ Put a file named `.neocmakelint.toml` under the root of the project.
 ```toml
 command_upcase = "ignore" # "lowercase", "upcase"
 ```
-Then it will check whether the command is all upcase.
+This will check the case of all commands.
 
-### External cmake-lint
+### `cmake-lint` integration
 
-When [cmake-lint](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` will utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
+When [`cmake-lint`](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` will utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
 
 ```toml
 enable_external_cmake_lint = true # true to use external cmake-lint, or false to disable it
@@ -173,7 +175,7 @@ enable_external_cmake_lint = true # true to use external cmake-lint, or false to
 
 If `enable_external_cmake_lint` is turned on but `cmake-lint` is not installed, external linting will not report any error message.
 
-### If you want to use watchfile in neovim, set
+### If you want to use watchfile in Neovim, set
 
 ```lua
 capabilities = {
@@ -188,7 +190,7 @@ capabilities = {
 }
 ```
 
-It will check CMakeCache.txt, and get whether the package is exist
+It will check `CMakeCache.txt`, and get whether the package is exist
 
 Snippet Support
 
@@ -204,7 +206,7 @@ capabilities = {
 }
 ```
 
-### lsp init_options
+### LSP init_options
 
 ```lua
 init_options = {
@@ -255,7 +257,7 @@ init_options = {
 
 ### Format cli
 
-_Note: When formatting files, make sure that your .editorconfig file is in your working directory_
+_Note: When formatting files, make sure that your `.editorconfig` file is in your working directory_
 
 ```
 format the file
@@ -270,7 +272,7 @@ Options:
   -h, --help      Print help
 ```
 
-It will read .editorconfig file to format files, just set like
+It will read `.editorconfig` file to format files, just set like
 
 ```ini
 [CMakeLists.txt]
@@ -312,5 +314,5 @@ It just remove the space in the end, replace `\t` at the begin of each line to `
 
 ## User Feedback
 
-* I do not know if all features will work on mac and windows, so if someone use mac or windows, please help me and send pr for this project.
-* I want a comaintainer, who is familiar with mac, windows, and lsp.
+* I do not know if all features will work on macOS and Windows, so if someone use macOS or Windows, please open an issue if you find any bugs.
+* I want a co-maintainer, who ideally is familiar with macOS, Windows and LSP.
