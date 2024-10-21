@@ -35,60 +35,63 @@ pub(super) fn get_cmake_message_with_prefixes(
 ) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
     for prefix in prefixes {
-        if let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) {
-            for path in paths.flatten() {
-                let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
-                    continue;
-                };
-                let mut tojump: Vec<PathBuf> = vec![];
-                let mut version: Option<String> = None;
-                let mut ispackage = false;
-                for f in files.flatten() {
-                    tojump.push(safe_canonicalize(&f).unwrap());
-                    if CMAKECONFIG.is_match(f.to_str().unwrap()) {
-                        ispackage = true;
-                    }
-                    if CMAKECONFIGVERSION.is_match(f.to_str().unwrap()) {
-                        if let Ok(context) = fs::read_to_string(&f) {
-                            version = get_version(&context);
-                        }
+        let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
+            continue;
+        };
+        for path in paths.flatten() {
+            let Ok(files) = glob::glob(&format!("{}/*.cmake", path.to_string_lossy())) else {
+                continue;
+            };
+            let mut tojump: Vec<PathBuf> = vec![];
+            let mut version: Option<String> = None;
+            let mut ispackage = false;
+            for f in files.flatten() {
+                tojump.push(safe_canonicalize(&f).unwrap());
+                if CMAKECONFIG.is_match(f.to_str().unwrap()) {
+                    ispackage = true;
+                }
+                if CMAKECONFIGVERSION.is_match(f.to_str().unwrap()) {
+                    if let Ok(context) = fs::read_to_string(&f) {
+                        version = get_version(&context);
                     }
                 }
+            }
 
-                if !ispackage {
-                    continue;
-                }
+            if !ispackage {
+                continue;
+            }
 
-                let Some(parent_path) = path.parent() else {
-                    continue;
-                };
-                let Some(packagename) = parent_path
-                    .file_name()
-                    .and_then(|file_name| file_name.to_str())
-                else {
-                    continue;
-                };
-                let config_file_location = tojump
-                    .iter()
-                    .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
-                    .unwrap();
+            let Some(parent_path) = path.parent() else {
+                continue;
+            };
+            let Some(packagename) = parent_path
+                .file_name()
+                .and_then(|file_name| file_name.to_str())
+            else {
+                continue;
+            };
+
+            if let Some(config_file_location) = tojump
+                .iter()
+                .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
+            {
                 if config_file_location != 0 {
                     tojump.swap(0, config_file_location);
                 }
-                let location = Url::from_file_path(&path).unwrap();
-
-                packages.insert(
-                    packagename.to_string(),
-                    CMakePackage {
-                        name: packagename.to_string(),
-                        packagetype: PackageType::Dir,
-                        location,
-                        version,
-                        tojump,
-                        from: CMakePackageFrom::System,
-                    },
-                );
             }
+            let location = Url::from_file_path(&path).unwrap();
+
+            packages.insert(
+                packagename.to_string(),
+                CMakePackage {
+                    name: packagename.to_string(),
+                    packagetype: PackageType::Dir,
+                    location,
+                    version,
+                    tojump,
+                    from: CMakePackageFrom::System,
+                },
+            );
         }
     }
     for lib in get_available_libs(prefixes) {

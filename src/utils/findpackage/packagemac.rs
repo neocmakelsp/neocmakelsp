@@ -44,13 +44,8 @@ pub(super) fn get_cmake_message_with_prefixes(
                     }
                 }
             }
-            let config_file_location = tojump
-                .iter()
-                .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
-                .unwrap();
-            if config_file_location != 0 {
-                tojump.swap(0, config_file_location);
-            }
+
+            // NOTE: Make sure it is package first
             if !ispackage {
                 continue;
             }
@@ -64,6 +59,14 @@ pub(super) fn get_cmake_message_with_prefixes(
             else {
                 continue;
             };
+
+            let config_file_location = tojump
+                .iter()
+                .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
+                .unwrap();
+            if config_file_location != 0 {
+                tojump.swap(0, config_file_location);
+            }
 
             let location = Url::from_file_path(&path).unwrap();
 
