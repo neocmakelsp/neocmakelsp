@@ -1,16 +1,15 @@
-use lsp_types::Position;
-use lsp_types::Range;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
+
+use lsp_types::{Position, Range};
 /// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};
 
-use crate::CMakeNodeKinds;
-
 use super::get_node_content;
+use crate::CMakeNodeKinds;
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 

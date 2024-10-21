@@ -1,7 +1,7 @@
 use std::io::Read;
+use std::sync::LazyLock;
 
 use serde::Deserialize;
-use std::sync::LazyLock;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct CMakeLintConfig {

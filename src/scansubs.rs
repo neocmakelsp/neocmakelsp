@@ -1,19 +1,14 @@
-use std::{
-    collections::HashMap,
-    fmt,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
+use std::fmt;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock};
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
-use crate::{
-    consts::TREESITTER_CMAKE_LANGUAGE,
-    utils::{remove_quotation, remove_quotation_and_replace_placeholders},
-    CMakeNodeKinds,
-};
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::{remove_quotation, remove_quotation_and_replace_placeholders};
+use crate::CMakeNodeKinds;
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -199,6 +194,7 @@ async fn test_scan_sub() {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake = dir.path().join("CMakeLists.txt");
@@ -219,6 +215,7 @@ fn test_tree_dir() {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake = dir.path().join("CMakeLists.txt");

@@ -1,12 +1,11 @@
-use tower_lsp::{
-    lsp_types::{SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult},
-    Client,
-};
-
 use std::sync::LazyLock;
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use tower_lsp::lsp_types::{
+    SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult,
+};
+use tower_lsp::Client;
 
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::CMakeNodeKinds;
 static NUMBERREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());

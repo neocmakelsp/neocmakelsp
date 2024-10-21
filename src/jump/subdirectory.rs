@@ -1,7 +1,9 @@
-use super::Location;
-use lsp_types::Url;
 use std::path::Path;
+
+use lsp_types::Url;
 use tower_lsp::lsp_types;
+
+use super::Location;
 
 pub(super) fn cmpsubdirectory<P: AsRef<Path>>(
     localpath: P,
@@ -30,8 +32,8 @@ pub(super) fn cmpsubdirectory<P: AsRef<Path>>(
 #[test]
 fn tst_cmp_subdirectory() {
     use std::fs;
-
     use std::fs::File;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake = dir.path().join("CMakeLists.txt");

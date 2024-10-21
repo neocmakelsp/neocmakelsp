@@ -1,14 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use crate::utils::include_is_module;
-use crate::Url;
-use tower_lsp::lsp_types::DocumentLink;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
+use tower_lsp::lsp_types::{DocumentLink, Position, Range};
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::{gen_module_pattern, remove_quotation_and_replace_placeholders};
-use crate::CMakeNodeKinds;
+use crate::utils::{
+    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
+};
+use crate::{CMakeNodeKinds, Url};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
@@ -128,13 +126,14 @@ fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Optio
 #[cfg(not(windows))]
 #[test]
 fn tst_document_link_search() {
-    use crate::fileapi::cache::Cache;
-    use crate::fileapi::set_cache_data;
     use std::fs;
-
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
+
+    use crate::fileapi::cache::Cache;
+    use crate::fileapi::set_cache_data;
 
     let dir = tempdir().unwrap();
 

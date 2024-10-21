@@ -1,6 +1,8 @@
-use crate::utils::CACHE_CMAKE_PACKAGES;
 use std::sync::LazyLock;
+
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
+
+use crate::utils::CACHE_CMAKE_PACKAGES;
 
 static FIND_PACKAGE_SPACE_KEYWORDS: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
     vec![
@@ -99,9 +101,10 @@ pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
 
 #[test]
 fn test_prefix() {
+    use std::path::Path;
+
     use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
     use crate::Url;
-    use std::path::Path;
     let data = completion_items_with_prefix("bash");
 
     let data_package = CMakePackage {

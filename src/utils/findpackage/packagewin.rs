@@ -1,17 +1,14 @@
-use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
-
-use crate::Url;
 
 use super::{
     get_available_libs, get_cmake_message, get_version, handle_config_package, CMAKECONFIG,
     CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN,
 };
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+use crate::Url;
 
 pub(super) const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
 
@@ -170,6 +167,7 @@ fn test_package_search() {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
 

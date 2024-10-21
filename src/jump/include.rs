@@ -1,18 +1,15 @@
-use super::{gen_module_pattern, CacheDataUnit, Location};
-use lsp_types::Url;
-use std::path::{Path, PathBuf};
-use tower_lsp::lsp_types;
-
-use crate::utils::{include_is_module, DocumentNormalize};
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::PositionType};
-
-use super::getsubdef;
 use std::collections::HashMap;
 use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 
-use std::sync::{Arc, Mutex};
+use lsp_types::Url;
+use tower_lsp::lsp_types;
 
-use std::sync::LazyLock;
+use super::{gen_module_pattern, getsubdef, CacheDataUnit, Location};
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::PositionType;
+use crate::utils::{include_is_module, DocumentNormalize};
 
 pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<Vec<Location>> {
     let target = if !include_is_module(subpath) {
@@ -49,6 +46,7 @@ pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<
 #[test]
 fn tst_cmp_included_cmake() {
     use std::fs::File;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake = dir.path().join("CMakeLists.txt");
@@ -125,6 +123,7 @@ pub fn scanner_include_defs(
 fn scanner_include_defs_tst() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
     let top_cmake = dir.path().join("CMakeLists.txt");

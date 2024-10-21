@@ -1,19 +1,19 @@
-use crate::{languageserver::Config, semantic_token::LEGEND_TYPE};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tower::{util::ServiceExt, Service};
-use tower_lsp::{
-    jsonrpc::Request,
-    lsp_types::{
-        InitializeParams, InitializeResult, SemanticTokensFullOptions, SemanticTokensLegend,
-        SemanticTokensOptions, SemanticTokensServerCapabilities, Url, WorkDoneProgressOptions,
-    },
-    LspService,
-};
 
-use crate::BackendInitInfo;
+use tokio::sync::Mutex;
+use tower::util::ServiceExt;
+use tower::Service;
+use tower_lsp::jsonrpc::Request;
+use tower_lsp::lsp_types::{
+    InitializeParams, InitializeResult, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, SemanticTokensServerCapabilities, Url, WorkDoneProgressOptions,
+};
+use tower_lsp::LspService;
 
 use super::Backend;
+use crate::languageserver::Config;
+use crate::semantic_token::LEGEND_TYPE;
+use crate::BackendInitInfo;
 
 fn initialize_request(id: i64, init_param: InitializeParams) -> Request {
     Request::build("initialize")

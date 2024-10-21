@@ -1,15 +1,14 @@
-use std::{collections::HashMap, fs, path::PathBuf};
-
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::LazyLock;
-
-use crate::Url;
-
-use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 use super::{
     get_available_libs, get_cmake_message, get_version, handle_config_package, CMAKECONFIG,
     CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN,
 };
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+use crate::Url;
 
 // here is the logic of findpackage on linux
 //
@@ -173,6 +172,7 @@ fn test_package_search() {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
     let dir = tempdir().unwrap();
 

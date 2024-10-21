@@ -1,19 +1,11 @@
 mod builtin;
 mod findpackage;
 mod includescanner;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::fileapi;
-use crate::languageserver::BUFFERS_CACHE;
-use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{get_pos_type, PositionType, ToPoint};
-use crate::utils::{
-    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
-    DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
-};
-use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+
+use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use tokio::fs;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
@@ -21,9 +13,15 @@ use tower_lsp::lsp_types::{
     Position,
 };
 
-use crate::CMakeNodeKinds;
-
-use std::sync::LazyLock;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::languageserver::BUFFERS_CACHE;
+use crate::scansubs::TREE_MAP;
+use crate::utils::treehelper::{get_pos_type, PositionType, ToPoint};
+use crate::utils::{
+    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
+    DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
+};
+use crate::{fileapi, CMakeNodeKinds};
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
@@ -892,6 +890,7 @@ fn comment_mark_test() {
 fn test_complete() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
 
     let file_info = r#"
@@ -976,6 +975,7 @@ endfunction()
 fn test_complete_win() {
     use std::fs::File;
     use std::io::Write;
+
     use tempfile::tempdir;
 
     let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()".normalize();

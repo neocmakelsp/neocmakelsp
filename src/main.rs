@@ -1,17 +1,17 @@
-use ini::Ini;
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tower_lsp::{Client, LspService, Server};
+
 //use tree_sitter::Point;
 use clap::Parser;
+use ini::Ini;
+use tokio::sync::Mutex;
+use tower_lsp::{Client, LspService, Server};
 mod treesitter_nodetypes;
 
-use treesitter_nodetypes as CMakeNodeKinds;
-
 use tokio::net::TcpListener;
+use treesitter_nodetypes as CMakeNodeKinds;
 mod ast;
 mod clapargs;
 mod complete;
@@ -30,9 +30,8 @@ mod search;
 mod semantic_token;
 mod shellcomplete;
 mod utils;
-use tower_lsp::lsp_types::Url;
-
 use clapargs::NeocmakeCli;
+use tower_lsp::lsp_types::Url;
 
 #[derive(Debug)]
 struct BackendInitInfo {
@@ -183,8 +182,9 @@ async fn main() {
             format_paths,
             hasoverride,
         } => {
-            use ignore::Walk;
             use std::path::Path;
+
+            use ignore::Walk;
             let EditConfigSetting {
                 use_space,
                 indent_size,
@@ -260,9 +260,11 @@ async fn main() {
 
 #[cfg(test)]
 mod editorconfig_test {
-    use super::{editconfig_setting_read, EditConfigSetting};
     use std::io::prelude::*;
+
     use tempfile::NamedTempFile;
+
+    use super::{editconfig_setting_read, EditConfigSetting};
     #[test]
     fn tst_editconfig_tab() {
         let mut temp_file = NamedTempFile::new().unwrap();

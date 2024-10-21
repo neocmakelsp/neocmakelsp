@@ -1,42 +1,27 @@
 mod config;
 #[cfg(test)]
 mod test;
-use self::config::Config;
-
-use super::Backend;
-use crate::ast;
-use crate::complete;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::document_link;
-use crate::fileapi;
-use crate::fileapi::DEFAULT_QUERY;
-use crate::filewatcher;
-use crate::formatting::getformat;
-use crate::gammar::checkerror;
-use crate::gammar::ErrorInformation;
-use crate::gammar::LintConfigInfo;
-use crate::hover;
-use crate::jump;
-use crate::scansubs;
-use crate::semantic_token;
-use crate::semantic_token::LEGEND_TYPE;
-use crate::utils;
-use crate::utils::did_vcpkg_project;
-use crate::utils::treehelper;
-use crate::utils::VCPKG_LIBS;
-use crate::utils::VCPKG_PREFIX;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, LazyLock, RwLock};
+
 use tokio::sync::Mutex;
-use tower_lsp::jsonrpc::Error as LspError;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types;
+use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
-use tower_lsp::LanguageServer;
+use tower_lsp::{lsp_types, LanguageServer};
 use tree_sitter::Parser;
 
-use std::sync::LazyLock;
+use self::config::Config;
+use super::Backend;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::fileapi::DEFAULT_QUERY;
+use crate::formatting::getformat;
+use crate::gammar::{checkerror, ErrorInformation, LintConfigInfo};
+use crate::semantic_token::LEGEND_TYPE;
+use crate::utils::{did_vcpkg_project, treehelper, VCPKG_LIBS, VCPKG_PREFIX};
+use crate::{
+    ast, complete, document_link, fileapi, filewatcher, hover, jump, scansubs, semantic_token,
+    utils,
+};
 
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));

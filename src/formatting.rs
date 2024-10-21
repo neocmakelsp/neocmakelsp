@@ -1,9 +1,10 @@
 use lsp_types::{MessageType, Position, TextEdit};
 use tower_lsp::lsp_types;
 
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::is_comment;
 use crate::utils::DocumentNormalize;
-
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::is_comment, CMakeNodeKinds};
+use crate::CMakeNodeKinds;
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
 

@@ -1,25 +1,18 @@
-use crate::fileapi;
-use crate::utils::get_the_packagename;
-#[cfg(unix)]
-use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
-use crate::utils::treehelper::get_point_string;
-use crate::utils::treehelper::get_pos_type;
-use crate::utils::treehelper::PositionType;
-use crate::utils::treehelper::ToPoint;
-use crate::utils::treehelper::MESSAGE_STORAGE;
-
-#[cfg(unix)]
-use crate::utils::packagepkgconfig::PkgConfig;
-use crate::utils::CMakePackage;
-
-use crate::utils::PackageType;
-use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 use lsp_types::Position;
 /// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
 use tree_sitter::Node;
 
+use crate::fileapi;
 use crate::jump::JUMP_CACHE;
+#[cfg(unix)]
+use crate::utils::packagepkgconfig::PkgConfig;
+#[cfg(unix)]
+use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
+use crate::utils::treehelper::{
+    get_point_string, get_pos_type, PositionType, ToPoint, MESSAGE_STORAGE,
+};
+use crate::utils::{get_the_packagename, CMakePackage, PackageType, CACHE_CMAKE_PACKAGES_WITHKEYS};
 
 #[inline]
 #[cfg(unix)]
@@ -106,8 +99,7 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
 #[tokio::test]
 async fn tst_hover() {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    use crate::utils::FindPackageFunsFake;
-    use crate::utils::FindPackageFunsTrait;
+    use crate::utils::{FindPackageFunsFake, FindPackageFunsTrait};
 
     let fake_data = FindPackageFunsFake.get_cmake_packages_withkeys();
     let fake_package = fake_data.get("bash-completion-fake").unwrap();
