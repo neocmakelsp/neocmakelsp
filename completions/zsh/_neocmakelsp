@@ -36,7 +36,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (tcp)
 _arguments "${_arguments_options[@]}" : \
-'--port=[]:port: ' \
+'--port=[]:port:_default' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
@@ -46,7 +46,7 @@ _arguments "${_arguments_options[@]}" : \
 '-j[]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':package:' \
+':package:_default' \
 && ret=0
 ;;
 (format)
@@ -55,7 +55,7 @@ _arguments "${_arguments_options[@]}" : \
 '--override[]' \
 '-h[Print help]' \
 '--help[Print help]' \
-'*::format_paths:' \
+'*::format_paths:_default' \
 && ret=0
 ;;
 (tree)

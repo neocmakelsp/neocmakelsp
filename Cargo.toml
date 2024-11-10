@@ -12,30 +12,30 @@ keywords = ["lsp"]
 [dependencies]
 clap = { version = "4.5.20", features = ["derive", "color"] }
 tower-lsp = "0.20.0"
-tokio = { version = "1.40.0", features = ["full"] }
+tokio = { version = "1.41.1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing-subscriber = "0.3.18"
-tree-sitter = "0.24.3"
+tree-sitter = "0.24.4"
 tree-sitter-cmake = "0.5.0"
 regex = "1"
-anyhow = "1.0.89"
+anyhow = "1.0.93"
 cli-table = "0.4.9"
 tracing = "0.1.40"
 glob = "0.3.1"
 rust-ini = "0.21.1"
 ignore = "0.4.23"
 toml = "0.8.19"
-clap_complete = "4.5.33"
+clap_complete = "4.5.37"
 treesitter_kind_collector = "0.2.0"
-anstyle = "1.0.8"
+anstyle = "1.0.10"
 
 [target.'cfg(windows)'.dependencies]
 path-absolutize = "3.1.1"
 
 [dev-dependencies]
 tower = { version = "0.5.1", features = ["util"] }
-tempfile = "3.13.0"
+tempfile = "3.14.0"
 
 [profile.release]
 lto = "thin"
