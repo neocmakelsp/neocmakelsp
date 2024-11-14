@@ -15,8 +15,8 @@ _neocmakelsp() {
             neocmakelsp,format)
                 cmd="neocmakelsp__format"
                 ;;
-            neocmakelsp,gen-completions)
-                cmd="neocmakelsp__gen__completions"
+            neocmakelsp,gen-completion)
+                cmd="neocmakelsp__gen__completion"
                 ;;
             neocmakelsp,help)
                 cmd="neocmakelsp__help"
@@ -36,8 +36,8 @@ _neocmakelsp() {
             neocmakelsp__help,format)
                 cmd="neocmakelsp__help__format"
                 ;;
-            neocmakelsp__help,gen-completions)
-                cmd="neocmakelsp__help__gen__completions"
+            neocmakelsp__help,gen-completion)
+                cmd="neocmakelsp__help__gen__completion"
                 ;;
             neocmakelsp__help,help)
                 cmd="neocmakelsp__help__help"
@@ -61,7 +61,7 @@ _neocmakelsp() {
 
     case "${cmd}" in
         neocmakelsp)
-            opts="-h -V --help --version stdio tcp search format tree gen-completions help"
+            opts="-h -V --help --version stdio tcp search format tree gen-completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -88,7 +88,7 @@ _neocmakelsp() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        neocmakelsp__gen__completions)
+        neocmakelsp__gen__completion)
             opts="-h --help bash elvish fish powershell zsh"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -103,7 +103,7 @@ _neocmakelsp() {
             return 0
             ;;
         neocmakelsp__help)
-            opts="stdio tcp search format tree gen-completions help"
+            opts="stdio tcp search format tree gen-completion help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -130,7 +130,7 @@ _neocmakelsp() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        neocmakelsp__help__gen__completions)
+        neocmakelsp__help__gen__completion)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )

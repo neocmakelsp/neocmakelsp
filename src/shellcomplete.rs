@@ -9,7 +9,7 @@ fn print_completions<G: Generator>(gen: G, cmd: &mut Command, write: &mut dyn Wr
     generate(gen, cmd, cmd.get_name().to_string(), write)
 }
 
-pub fn generate_shell_completions(shell: Shell) {
+pub fn generate_shell_completion(shell: Shell) {
     let mut cmd = NeocmakeCli::command();
     eprintln!("Generating completion file for {shell:?}...");
     print_completions(shell, &mut cmd, &mut std::io::stdout());

@@ -254,7 +254,7 @@ async fn main() {
                 }
             }
         }
-        NeocmakeCli::GenCompletions { shell } => shellcomplete::generate_shell_completions(shell),
+        NeocmakeCli::GenCompletion { shell } => shellcomplete::generate_shell_completion(shell),
     }
 }
 
