@@ -229,7 +229,7 @@ pub struct LineCommentTmp<'a> {
     pub comments: Vec<&'a str>,
 }
 
-impl<'a> LineCommentTmp<'a> {
+impl LineCommentTmp<'_> {
     pub fn is_node_comment(&self, start_y: usize) -> bool {
         if start_y <= self.end_y {
             return false;
