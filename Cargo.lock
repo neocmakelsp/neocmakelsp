@@ -777,7 +777,7 @@ dependencies = [
 
 [[package]]
 name = "neocmakelsp"
-version = "0.8.12"
+version = "0.8.13"
 dependencies = [
  "anstyle",
  "anyhow",

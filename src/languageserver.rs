@@ -152,7 +152,7 @@ impl LanguageServer for Backend {
                     watch_file.dynamic_registration,
                     watch_file.relative_pattern_support,
                 ) {
-                    // NOTE: I think it only contains one workspae
+                    // NOTE: I think it only contains one workspace
                     if let Some(ref top_path) = initial
                         .workspace_folders
                         .as_ref()
