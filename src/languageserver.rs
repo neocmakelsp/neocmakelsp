@@ -152,10 +152,12 @@ impl LanguageServer for Backend {
                     watch_file.dynamic_registration,
                     watch_file.relative_pattern_support,
                 ) {
+                    // NOTE: I think it only contains one workspae
                     if let Some(ref top_path) = initial
-                        .root_uri
+                        .workspace_folders
                         .as_ref()
-                        .and_then(|uri| uri.to_file_path().ok())
+                        .and_then(|folders| folders.first())
+                        .and_then(|folder| folder.uri.to_file_path().ok())
                     {
                         let path = top_path.join("build").join("CMakeCache.txt");
                         if path.exists() {
@@ -196,9 +198,10 @@ impl LanguageServer for Backend {
         }
 
         if let Some(ref vcpkg_root) = initial
-            .root_uri
+            .workspace_folders
             .as_ref()
-            .and_then(|uri| uri.to_file_path().ok())
+            .and_then(|folders| folders.first())
+            .and_then(|folder| folder.uri.to_file_path().ok())
         {
             scansubs::scan_all(&vcpkg_root).await;
             let mut root_path = self.root_path.lock().await;
