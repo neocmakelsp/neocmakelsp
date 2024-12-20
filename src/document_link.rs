@@ -51,6 +51,11 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 let ids = child.child(2).unwrap();
                 let is_subdirectory = name == "add_subdirectory";
                 let h = ids.start_position().row;
+                let h2 = ids.end_position().row;
+                // NOTE: I just mark link just when it is the same line
+                if h != h2 {
+                    continue;
+                }
                 let x = ids.start_position().column;
                 let y = ids.end_position().column;
                 let filename = &source[h][x..y];
