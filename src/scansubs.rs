@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{remove_quotation, remove_quotation_and_replace_placeholders};
-use crate::CMakeNodeKinds;
+use crate::{complete, jump, CMakeNodeKinds};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -19,21 +19,21 @@ pub type TreeKey = HashMap<PathBuf, PathBuf>;
 pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-pub async fn scan_all<P: AsRef<Path>>(project_root: P) {
+pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");
     let mut to_scan: Vec<PathBuf> = vec![root_cmake];
     while !to_scan.is_empty() {
         let mut next_to_scan = Vec::new();
         for scan_cmake in to_scan.iter() {
-            let mut out = scan_dir(scan_cmake).await;
+            let mut out = scan_dir(scan_cmake, is_first).await;
             next_to_scan.append(&mut out);
         }
         to_scan = next_to_scan;
     }
 }
 
-pub async fn scan_dir<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
-    let bufs = scan_dir_inner(path.as_ref());
+pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
+    let bufs = scan_dir_inner(path.as_ref(), is_first).await;
     let mut tree = TREE_MAP.lock().await;
     for subpath in bufs.iter() {
         tree.insert(subpath.to_path_buf(), path.as_ref().into());
@@ -41,11 +41,15 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
     bufs
 }
 
-pub fn scan_dir_inner<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
+pub async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     let Ok(source) = std::fs::read_to_string(path.as_ref()) else {
         return Vec::new();
     };
 
+    if is_first {
+        complete::update_cache(path.as_ref(), &source).await;
+        jump::update_cache(path.as_ref(), &source).await;
+    }
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
@@ -204,7 +208,7 @@ async fn test_scan_sub() {
     fs::create_dir_all(&subdir).unwrap();
     let subdir_file = subdir.join("CMakeLists.txt");
     File::create_new(&subdir_file).unwrap();
-    let bufs = scan_dir(&top_cmake).await;
+    let bufs = scan_dir(&top_cmake, false).await;
     assert_eq!(bufs, vec![subdir_file.clone()]);
     let cache_data = TREE_MAP.lock().await;
     assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));

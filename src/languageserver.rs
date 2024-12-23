@@ -197,26 +197,26 @@ impl LanguageServer for Backend {
             }
         }
 
-        if let Some(ref vcpkg_root) = initial
+        if let Some(ref project_root) = initial
             .workspace_folders
             .as_ref()
             .and_then(|folders| folders.first())
             .and_then(|folder| folder.uri.to_file_path().ok())
         {
-            scansubs::scan_all(&vcpkg_root).await;
+            scansubs::scan_all(&project_root, true).await;
             let mut root_path = self.root_path.lock().await;
-            root_path.replace(vcpkg_root.to_path_buf());
+            root_path.replace(project_root.to_path_buf());
 
-            let build_dir = vcpkg_root.join("build");
+            let build_dir = project_root.join("build");
 
             if build_dir.is_dir() {
                 if let Some(query) = &*DEFAULT_QUERY {
                     query.write_to_build_dir(build_dir.as_path()).ok();
                 }
             }
-            if did_vcpkg_project(vcpkg_root) {
+            if did_vcpkg_project(project_root) {
                 tracing::info!("This project is vcpkg project, start init vcpkg data");
-                let project_root = vcpkg_root;
+                let project_root = project_root;
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
 
                 #[cfg(unix)]
@@ -405,7 +405,7 @@ impl LanguageServer for Backend {
                     let Some(ref path) = *self.root_path.lock().await else {
                         continue;
                     };
-                    scansubs::scan_all(path).await;
+                    scansubs::scan_all(path, false).await;
                     continue;
                 }
                 self.client
@@ -502,7 +502,7 @@ impl LanguageServer for Backend {
             }
         };
         if has_root {
-            scansubs::scan_dir(&file_path).await;
+            scansubs::scan_dir(&file_path, false).await;
             complete::update_cache(&file_path, &context).await;
             jump::update_cache(&file_path, &context).await;
         }
