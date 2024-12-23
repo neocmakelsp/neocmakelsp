@@ -324,14 +324,18 @@ impl LanguageServer for Backend {
         let root_path_lock = self.root_path.lock().await;
         let root_path = root_path_lock.clone();
         drop(root_path_lock);
+        let work_done_token = ProgressToken::Number(1);
+        let progress = self
+            .client
+            .progress(work_done_token, "start init the workspace")
+            .with_message("init start")
+            .with_percentage(0)
+            .begin()
+            .await;
+
         if let Some(ref project_root) = root_path {
-            let work_done_token = ProgressToken::Number(1);
-            let progress = self
-                .client
-                .progress(work_done_token, "start scanning the workspace")
-                .with_message(format!("start scanning {}", project_root.display()))
-                .with_percentage(10)
-                .begin()
+            progress
+                .report_with_message(&format!("start scanning {}", project_root.display()), 10)
                 .await;
             scansubs::scan_all(&project_root, true).await;
             let build_dir = project_root.join("build");
@@ -345,7 +349,6 @@ impl LanguageServer for Backend {
                     .report_with_message("find vcpkg dir, start scanning", 20)
                     .await;
                 tracing::info!("This project is vcpkg project, start init vcpkg data");
-                let project_root = project_root;
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
 
                 #[cfg(unix)]
@@ -377,25 +380,25 @@ impl LanguageServer for Backend {
                     }
                 }
             }
-            progress
-                .report_with_message("Start generating builtin commands", 50)
-                .await;
-            complete::init_builtin_command();
-            progress
-                .report_with_message("Start generating builtin module", 55)
-                .await;
-            complete::init_builtin_module();
-            progress
-                .report_with_message("Start generating builtin variable", 60)
-                .await;
-            complete::init_builtin_variable();
-            progress
-                .report_with_message("Start init system modules", 70)
-                .await;
-            complete::init_system_modules();
-            progress.report_with_message("Scan finished", 100).await;
-            progress.finish().await;
         }
+        progress
+            .report_with_message("Start generating builtin commands", 50)
+            .await;
+        complete::init_builtin_command();
+        progress
+            .report_with_message("Start generating builtin module", 55)
+            .await;
+        complete::init_builtin_module();
+        progress
+            .report_with_message("Start generating builtin variable", 60)
+            .await;
+        complete::init_builtin_variable();
+        progress
+            .report_with_message("Start init system modules", 70)
+            .await;
+        complete::init_system_modules();
+        progress.report_with_message("Scan finished", 100).await;
+        progress.finish().await;
     }
 
     async fn shutdown(&self) -> Result<()> {
