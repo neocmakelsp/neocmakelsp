@@ -203,51 +203,8 @@ impl LanguageServer for Backend {
             .and_then(|folders| folders.first())
             .and_then(|folder| folder.uri.to_file_path().ok())
         {
-            scansubs::scan_all(&project_root, true).await;
             let mut root_path = self.root_path.lock().await;
             root_path.replace(project_root.to_path_buf());
-
-            let build_dir = project_root.join("build");
-
-            if build_dir.is_dir() {
-                if let Some(query) = &*DEFAULT_QUERY {
-                    query.write_to_build_dir(build_dir.as_path()).ok();
-                }
-            }
-            if did_vcpkg_project(project_root) {
-                tracing::info!("This project is vcpkg project, start init vcpkg data");
-                let project_root = project_root;
-                let vcpkg_installed_path = project_root.join("vcpkg_installed");
-
-                #[cfg(unix)]
-                {
-                    use crate::utils::packagepkgconfig::QUERYSRULES;
-                    // When it is found to be a vcpkg project, the pc will be searched first from the vcpkg download directory.
-                    QUERYSRULES.lock().unwrap().insert(
-                        0,
-                        Box::leak(
-                            format!("{}/*.pc", vcpkg_installed_path.to_str().unwrap())
-                                .into_boxed_str(),
-                        ),
-                    );
-                }
-
-                // add vcpkg prefix
-                VCPKG_PREFIX.lock().unwrap().push(Box::leak(
-                    vcpkg_installed_path
-                        .to_str()
-                        .unwrap()
-                        .to_string()
-                        .into_boxed_str(),
-                ));
-
-                if let Ok(paths) = utils::make_vcpkg_package_search_path(&vcpkg_installed_path) {
-                    let mut vcpkg_libs = VCPKG_LIBS.lock().unwrap();
-                    for t in paths {
-                        vcpkg_libs.push(Box::leak(t.into_boxed_str()))
-                    }
-                }
-            }
         }
 
         set_client_text_document(initial.capabilities.text_document);
@@ -364,6 +321,63 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
+        let root_path_lock = self.root_path.lock().await;
+        let root_path = root_path_lock.clone();
+        drop(root_path_lock);
+        if let Some(ref project_root) = root_path {
+            let work_done_token = ProgressToken::Number(1);
+            let progress = self
+                .client
+                .progress(work_done_token, "start sacnning the workspace")
+                .with_message(format!("start scanning {}", project_root.display()))
+                .with_percentage(10)
+                .begin()
+                .await;
+            scansubs::scan_all(&project_root, true).await;
+            let build_dir = project_root.join("build");
+            if build_dir.is_dir() {
+                if let Some(query) = &*DEFAULT_QUERY {
+                    query.write_to_build_dir(build_dir.as_path()).ok();
+                }
+            }
+            if did_vcpkg_project(project_root) {
+                progress.report_with_message("find vcpkg dir, start scanning", 20).await;
+                tracing::info!("This project is vcpkg project, start init vcpkg data");
+                let project_root = project_root;
+                let vcpkg_installed_path = project_root.join("vcpkg_installed");
+
+                #[cfg(unix)]
+                {
+                    use crate::utils::packagepkgconfig::QUERYSRULES;
+                    // When it is found to be a vcpkg project, the pc will be searched first from the vcpkg download directory.
+                    QUERYSRULES.lock().unwrap().insert(
+                        0,
+                        Box::leak(
+                            format!("{}/*.pc", vcpkg_installed_path.to_str().unwrap())
+                                .into_boxed_str(),
+                        ),
+                    );
+                }
+
+                // add vcpkg prefix
+                VCPKG_PREFIX.lock().unwrap().push(Box::leak(
+                    vcpkg_installed_path
+                        .to_str()
+                        .unwrap()
+                        .to_string()
+                        .into_boxed_str(),
+                ));
+
+                if let Ok(paths) = utils::make_vcpkg_package_search_path(&vcpkg_installed_path) {
+                    let mut vcpkg_libs = VCPKG_LIBS.lock().unwrap();
+                    for t in paths {
+                        vcpkg_libs.push(Box::leak(t.into_boxed_str()))
+                    }
+                }
+            }
+            progress.report_with_message("Scan finished", 100).await;
+            progress.finish().await;
+        }
     }
 
     async fn shutdown(&self) -> Result<()> {
