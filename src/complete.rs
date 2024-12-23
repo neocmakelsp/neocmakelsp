@@ -33,6 +33,27 @@ pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
 
+pub fn init_builtin_command() {
+    let _ = &*BUILTIN_COMMAND;
+}
+pub fn init_builtin_module() {
+    let _ = &*BUILTIN_MODULE;
+}
+
+pub fn init_builtin_variable() {
+    let _ = &*BUILTIN_VARIABLE;
+}
+
+pub fn init_system_modules() {
+    let _ = &*crate::utils::CMAKE_PACKAGES_WITHKEY;
+    let _ = &*crate::utils::CMAKE_PACKAGES;
+    #[cfg(unix)]
+    {
+        let _ = &*crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES;
+        let _ = &*crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
+    }
+}
+
 pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
     doc.lines()
         .filter(|line| line.starts_with(".. command:: "))

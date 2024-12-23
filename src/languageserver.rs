@@ -328,7 +328,7 @@ impl LanguageServer for Backend {
             let work_done_token = ProgressToken::Number(1);
             let progress = self
                 .client
-                .progress(work_done_token, "start sacnning the workspace")
+                .progress(work_done_token, "start scanning the workspace")
                 .with_message(format!("start scanning {}", project_root.display()))
                 .with_percentage(10)
                 .begin()
@@ -341,7 +341,9 @@ impl LanguageServer for Backend {
                 }
             }
             if did_vcpkg_project(project_root) {
-                progress.report_with_message("find vcpkg dir, start scanning", 20).await;
+                progress
+                    .report_with_message("find vcpkg dir, start scanning", 20)
+                    .await;
                 tracing::info!("This project is vcpkg project, start init vcpkg data");
                 let project_root = project_root;
                 let vcpkg_installed_path = project_root.join("vcpkg_installed");
@@ -375,6 +377,22 @@ impl LanguageServer for Backend {
                     }
                 }
             }
+            progress
+                .report_with_message("Start generating builtin commands", 50)
+                .await;
+            complete::init_builtin_command();
+            progress
+                .report_with_message("Start generating builtin module", 55)
+                .await;
+            complete::init_builtin_module();
+            progress
+                .report_with_message("Start generating builtin variable", 60)
+                .await;
+            complete::init_builtin_variable();
+            progress
+                .report_with_message("Start init system modules", 70)
+                .await;
+            complete::init_system_modules();
             progress.report_with_message("Scan finished", 100).await;
             progress.finish().await;
         }
