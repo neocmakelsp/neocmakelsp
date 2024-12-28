@@ -7,6 +7,7 @@ use tower_lsp::jsonrpc::Request;
 use tower_lsp::lsp_types::{
     InitializeParams, InitializeResult, SemanticTokensFullOptions, SemanticTokensLegend,
     SemanticTokensOptions, SemanticTokensServerCapabilities, Url, WorkDoneProgressOptions,
+    WorkspaceFolder,
 };
 use tower_lsp::LspService;
 
@@ -35,7 +36,10 @@ async fn test_init() {
 
     #[cfg(unix)]
     let init_param = InitializeParams {
-        root_uri: Some(Url::from_file_path("/tmp").unwrap()),
+        workspace_folders: Some(vec![WorkspaceFolder {
+            name: "main".to_string(),
+            uri: Url::from_file_path("/tmp").unwrap(),
+        }]),
         initialization_options: Some(
             serde_json::to_value(Config {
                 semantic_token: Some(true),
@@ -47,7 +51,10 @@ async fn test_init() {
     };
     #[cfg(not(unix))]
     let init_param = InitializeParams {
-        root_uri: Some(Url::from_file_path(r"C:\\Windows\\System").unwrap()),
+        workspace_folders: Some(vec![WorkspaceFolder {
+            name: "main".to_string(),
+            uri: Url::from_file_path(r"C:\\Windows\\System").unwrap(),
+        }]),
         initialization_options: Some(
             serde_json::to_value(Config {
                 semantic_token: Some(true),
