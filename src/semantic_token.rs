@@ -167,7 +167,7 @@ fn sub_tokens(
             }
             CMakeNodeKinds::ARGUMENT_LIST => {
                 let mut argument_course = child.walk();
-                let mut is_first_val = !is_if; // NOTE: if is if, not check it
+                let mut is_first_val = true; // NOTE: if is if, not check it
                 for argument in child.children(&mut argument_course) {
                     let h = argument.start_position().row;
                     let x = argument.start_position().column;
@@ -175,7 +175,7 @@ fn sub_tokens(
                     if h as u32 != *preline {
                         *prestart = 0;
                     }
-                    if argument.kind() == "line_comment" {
+                    if argument.kind() == CMakeNodeKinds::LINE_COMMENT {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
@@ -190,7 +190,7 @@ fn sub_tokens(
                     }
                     if argument
                         .child(0)
-                        .is_some_and(|child| child.kind() == "quoted_argument")
+                        .is_some_and(|child| child.kind() == CMakeNodeKinds::QUOTED_ARGUMENT)
                     {
                         let quoted_argument = argument.child(0).unwrap();
                         if quoted_argument.child_count() == 1 {
@@ -213,10 +213,10 @@ fn sub_tokens(
                                 let h = element.start_position().row;
                                 let x = element.start_position().column;
                                 let y = element.end_position().column;
-                                if element.kind() == "quoted_element" {
+                                if element.kind() == CMakeNodeKinds::QUOTED_ELEMENT {
                                     let mut quoted_element_walk = element.walk();
                                     for variable in element.children(&mut quoted_element_walk) {
-                                        if variable.kind() != "variable_ref" {
+                                        if variable.kind() != CMakeNodeKinds::VARIABLE_REF {
                                             continue;
                                         }
                                         let h = variable.start_position().row;
@@ -252,7 +252,7 @@ fn sub_tokens(
                     }
                     if argument
                         .child(0)
-                        .is_some_and(|child| child.kind() == "bracket_argument")
+                        .is_some_and(|child| child.kind() == CMakeNodeKinds::BRACKET_ARGUMENT)
                     {
                         let bracket_argument = argument.child(0).unwrap();
                         let h = bracket_argument.start_position().row;
@@ -353,7 +353,7 @@ fn sub_tokens(
                         is_first_val = false;
                         continue;
                     }
-                    if name.chars().all(|a| !a.is_lowercase()) && !is_if {
+                    if name.chars().all(|a| !a.is_lowercase()) {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
@@ -366,7 +366,7 @@ fn sub_tokens(
                         is_first_val = false;
                         continue;
                     }
-                    if is_first_val {
+                    if is_first_val && !is_if {
                         res.push(SemanticToken {
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
@@ -380,7 +380,11 @@ fn sub_tokens(
                     is_first_val = false;
                 }
             }
-            "function" | "macro" | "if" | "foreach" | "elseif" => {
+            CMakeNodeKinds::FUNCTION
+            | CMakeNodeKinds::MACRO
+            | CMakeNodeKinds::IF
+            | CMakeNodeKinds::FOREACH
+            | CMakeNodeKinds::ELSEIF => {
                 let h = child.start_position().row;
                 let x = child.start_position().column;
                 let y = child.end_position().column;
