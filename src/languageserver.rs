@@ -560,7 +560,6 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
         let storemap = BUFFERS_CACHE.lock().await;
-        self.client.log_message(MessageType::INFO, "Hovered!").await;
         let Some(context) = storemap.get(&uri).cloned() else {
             return Ok(None);
         };
@@ -725,9 +724,7 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri.clone();
-        self.client
-            .log_message(MessageType::LOG, "semantic_token_full")
-            .await;
+
         let storemap = BUFFERS_CACHE.lock().await;
         match storemap.get(&uri) {
             Some(context) => Ok(semantic_token::semantic_token(&self.client, context).await),
