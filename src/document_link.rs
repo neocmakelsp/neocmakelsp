@@ -10,6 +10,8 @@ use crate::{CMakeNodeKinds, Url};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
+const NEED_TO_CHECK_EXTENSION: &[&str] = &[".h", ".hpp", ".c", ".cpp", ".cmake"];
+
 pub fn document_link_search<P: AsRef<Path>>(
     source: &str,
     current_file: P,
@@ -33,8 +35,8 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
     links: &mut Vec<DocumentLink>,
     current_parent: &P,
 ) {
-    let mut course = node.walk();
-    for child in node.children(&mut course) {
+    let mut walk = node.walk();
+    for child in node.children(&mut walk) {
         match child.kind() {
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
                 document_link_search_inner(source, child, links, current_parent)
@@ -45,20 +47,69 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 let x = cmd_id.start_position().column;
                 let y = cmd_id.end_position().column;
                 let name = source[h][x..y].to_lowercase();
-                if !LINK_NODE_KIND.contains(&name.as_str()) || child.child_count() < 4 {
+
+                if child.child_count() < 4 {
                     continue;
                 }
-                let ids = child.child(2).unwrap();
+
+                // ARGUMENTS
+                let arguments = child.child(2).unwrap();
+                if !LINK_NODE_KIND.contains(&name.as_str()) {
+                    let mut arguments_walk = arguments.walk();
+                    for arg in arguments.children(&mut arguments_walk) {
+                        let start_h = arg.start_position().row;
+                        let end_h = arg.end_position().row;
+                        let x = arg.start_position().column;
+                        let y = arg.end_position().column;
+                        if start_h != end_h {
+                            continue;
+                        }
+                        let arg = source[start_h][x..y].to_lowercase();
+                        if !NEED_TO_CHECK_EXTENSION
+                            .iter()
+                            .any(|extension| arg.ends_with(extension))
+                        {
+                            continue;
+                        }
+                        let Some(filename) =
+                            remove_quotation_and_replace_placeholders(arg.as_str())
+                        else {
+                            continue;
+                        };
+                        let file_path = current_parent.as_ref().join(filename);
+                        if !file_path.exists() {
+                            continue;
+                        }
+                        let range = Range {
+                            start: Position {
+                                line: start_h as u32,
+                                character: x as u32,
+                            },
+                            end: Position {
+                                line: start_h as u32,
+                                character: y as u32,
+                            },
+                        };
+                        links.push(DocumentLink {
+                            range,
+                            target: Some(Url::from_file_path(file_path).unwrap()),
+                            tooltip: None,
+                            data: None,
+                        })
+                    }
+                    continue;
+                }
+
                 let is_subdirectory = name == "add_subdirectory";
-                let h = ids.start_position().row;
-                let h2 = ids.end_position().row;
+                let start_h = arguments.start_position().row;
+                let end_h = arguments.end_position().row;
                 // NOTE: I just mark link just when it is the same line
-                if h != h2 {
+                if start_h != end_h {
                     continue;
                 }
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let filename = &source[h][x..y];
+                let x = arguments.start_position().column;
+                let y = arguments.end_position().column;
+                let filename = &source[start_h][x..y];
                 let Some(filename) = remove_quotation_and_replace_placeholders(filename) else {
                     continue;
                 };
@@ -88,11 +139,11 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 };
                 let range = Range {
                     start: Position {
-                        line: h as u32,
+                        line: start_h as u32,
                         character: x as u32,
                     },
                     end: Position {
-                        line: h as u32,
+                        line: start_h as u32,
                         character: y as u32,
                     },
                 };
