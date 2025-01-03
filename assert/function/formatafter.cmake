@@ -1,4 +1,4 @@
-# ss
+# ss#hello
 
 function(A)
 
@@ -16,7 +16,7 @@ function(A)
 
 endfunction()
 
-if(ENABLE_INOTIFY) #ss #ss
+if(ENABLE_INOTIFY) #ss#ss
 
 	# Find libinotify
 
