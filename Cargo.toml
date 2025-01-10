@@ -10,23 +10,23 @@ keywords = ["lsp"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.23", features = ["derive", "color"] }
+clap = { version = "4.5.26", features = ["derive", "color"] }
 tower-lsp = { version = "0.21.0", package = "tower-lsp-f" }
-tokio = { version = "1.42.0", features = ["full"] }
+tokio = { version = "1.43.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing-subscriber = "0.3.19"
-tree-sitter = "0.24.5"
+tree-sitter = "0.24.6"
 tree-sitter-cmake = "0.5.0"
 regex = "1"
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 cli-table = "0.4.9"
 tracing = "0.1.41"
-glob = "0.3.1"
+glob = "0.3.2"
 rust-ini = "0.21.1"
 ignore = "0.4.23"
 toml = "0.8.19"
-clap_complete = "4.5.38"
+clap_complete = "4.5.42"
 treesitter_kind_collector = "0.2.0"
 anstyle = "1.0.10"
 
@@ -35,7 +35,7 @@ path-absolutize = "3.1.1"
 
 [dev-dependencies]
 tower = { version = "0.5.2", features = ["util"] }
-tempfile = "3.14.0"
+tempfile = "3.15.0"
 
 [profile.release]
 lto = "thin"
