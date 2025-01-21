@@ -2,6 +2,7 @@ mod config;
 #[cfg(test)]
 mod test;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use tokio::sync::Mutex;
@@ -50,8 +51,12 @@ pub fn client_support_snippet() -> bool {
 }
 
 impl Backend {
+    fn root_path(&self) -> Option<&PathBuf> {
+        self.root_path.get_or_init(|| None).as_ref()
+    }
+
     async fn path_in_project(&self, path: &str) -> bool {
-        if self.root_path.lock().await.is_none() {
+        if self.root_path().is_none() {
             return true;
         }
 
@@ -203,8 +208,9 @@ impl LanguageServer for Backend {
             .and_then(|folders| folders.first())
             .and_then(|folder| folder.uri.to_file_path().ok())
         {
-            let mut root_path = self.root_path.lock().await;
-            root_path.replace(project_root.to_path_buf());
+            self.root_path
+                .set(Some(project_root.to_path_buf()))
+                .expect("here should be the only place to set the root_path");
         }
 
         set_client_text_document(initial.capabilities.text_document);
@@ -321,9 +327,8 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
-        let root_path_lock = self.root_path.lock().await;
+        let root_path_lock = self.root_path();
         let root_path = root_path_lock.clone();
-        drop(root_path_lock);
         let work_done_token = ProgressToken::Number(1);
         let progress = self
             .client
@@ -437,7 +442,7 @@ impl LanguageServer for Backend {
             if file_name.ends_with("txt") {
                 has_cached_changed = true;
                 if file_name == "CMakeLists.txt" {
-                    let Some(ref path) = *self.root_path.lock().await else {
+                    let Some(path) = self.root_path() else {
                         continue;
                     };
                     scansubs::scan_all(path, false).await;
@@ -521,7 +526,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let storemap = BUFFERS_CACHE.lock().await;
 
-        let has_root = self.root_path.lock().await.is_some();
+        let has_root = self.root_path().is_some();
         let Some(context) = storemap.get(&uri).cloned() else {
             self.client
                 .log_message(MessageType::INFO, "file saved!")

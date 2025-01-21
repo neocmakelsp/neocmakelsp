@@ -31,6 +31,7 @@ mod semantic_token;
 mod shellcomplete;
 mod utils;
 use clapargs::NeocmakeCli;
+use std::sync::OnceLock;
 use tower_lsp::lsp_types::Url;
 
 #[derive(Debug)]
@@ -46,7 +47,7 @@ struct Backend {
     client: Client,
     /// Storage the message of buffers
     init_info: Arc<Mutex<BackendInitInfo>>,
-    root_path: Arc<Mutex<Option<PathBuf>>>,
+    root_path: OnceLock<Option<PathBuf>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -120,7 +121,7 @@ async fn main() {
                     scan_cmake_in_package: true,
                     enable_lint: true,
                 })),
-                root_path: Arc::new(Mutex::new(None)),
+                root_path: OnceLock::new(),
             });
             Server::new(stdin, stdout, socket).serve(service).await;
         }
@@ -155,7 +156,7 @@ async fn main() {
                     scan_cmake_in_package: true,
                     enable_lint: true,
                 })),
-                root_path: Arc::new(Mutex::new(None)),
+                root_path: OnceLock::new(),
             });
             Server::new(read, write, socket).serve(service).await;
         }
