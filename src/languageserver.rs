@@ -56,7 +56,7 @@ impl Backend {
     }
 
     fn init_info(&self) -> &BackendInitInfo {
-        &self.init_info.get_or_init(|| BackendInitInfo::default())
+        self.init_info.get_or_init(BackendInitInfo::default)
     }
 
     async fn path_in_project(&self, path: &str) -> bool {
@@ -335,7 +335,7 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "initialized!")
             .await;
         let root_path_lock = self.root_path();
-        let root_path = root_path_lock.clone();
+        let root_path = root_path_lock;
         let work_done_token = ProgressToken::Number(1);
         let progress = self
             .client
