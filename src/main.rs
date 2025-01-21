@@ -1,12 +1,9 @@
 use std::io::prelude::*;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-//use tree_sitter::Point;
 use clap::Parser;
 use ini::Ini;
-use tokio::sync::Mutex;
 use tower_lsp::{Client, LspService, Server};
 mod treesitter_nodetypes;
 
@@ -40,14 +37,33 @@ struct BackendInitInfo {
     pub enable_lint: bool,
 }
 
+impl Default for BackendInitInfo {
+    fn default() -> Self {
+        Self {
+            scan_cmake_in_package: true,
+            enable_lint: true,
+        }
+    }
+}
+
 /// Beckend
 #[derive(Debug)]
 struct Backend {
     /// client
     client: Client,
     /// Storage the message of buffers
-    init_info: Arc<Mutex<BackendInitInfo>>,
+    init_info: OnceLock<BackendInitInfo>,
     root_path: OnceLock<Option<PathBuf>>,
+}
+
+impl Backend {
+    fn new(client: Client) -> Self {
+        Self {
+            client,
+            init_info: OnceLock::new(),
+            root_path: OnceLock::new(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,14 +131,7 @@ async fn main() {
     match args {
         NeocmakeCli::Stdio => {
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-            let (service, socket) = LspService::new(|client| Backend {
-                client,
-                init_info: Arc::new(Mutex::new(BackendInitInfo {
-                    scan_cmake_in_package: true,
-                    enable_lint: true,
-                })),
-                root_path: OnceLock::new(),
-            });
+            let (service, socket) = LspService::new(Backend::new);
             Server::new(stdin, stdout, socket).serve(service).await;
         }
         NeocmakeCli::Tcp { port } => {
@@ -150,14 +159,7 @@ async fn main() {
 
             let (read, write) = tokio::io::split(stream);
 
-            let (service, socket) = LspService::new(|client| Backend {
-                client,
-                init_info: Arc::new(Mutex::new(BackendInitInfo {
-                    scan_cmake_in_package: true,
-                    enable_lint: true,
-                })),
-                root_path: OnceLock::new(),
-            });
+            let (service, socket) = LspService::new(Backend::new);
             Server::new(read, write, socket).serve(service).await;
         }
         NeocmakeCli::Tree { tree_path, tojson } => {

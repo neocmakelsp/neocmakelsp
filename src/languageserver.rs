@@ -21,7 +21,7 @@ use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::{did_vcpkg_project, treehelper, VCPKG_LIBS, VCPKG_PREFIX};
 use crate::{
     ast, complete, document_link, fileapi, filewatcher, hover, jump, scansubs, semantic_token,
-    utils,
+    utils, BackendInitInfo,
 };
 
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
@@ -53,6 +53,10 @@ pub fn client_support_snippet() -> bool {
 impl Backend {
     fn root_path(&self) -> Option<&PathBuf> {
         self.root_path.get_or_init(|| None).as_ref()
+    }
+
+    fn init_info(&self) -> &BackendInitInfo {
+        &self.init_info.get_or_init(|| BackendInitInfo::default())
     }
 
     async fn path_in_project(&self, path: &str) -> bool {
@@ -124,7 +128,7 @@ impl Backend {
                 uri.clone(),
                 context.to_string(),
                 LintConfigInfo {
-                    use_lint: self.init_info.lock().await.enable_lint,
+                    use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: true,
                 },
             )
@@ -143,13 +147,16 @@ impl LanguageServer for Backend {
 
         let do_format = initial_config.is_format_enabled();
 
-        let find_cmake_in_package = initial_config.is_scan_cmake_in_package();
+        let scan_cmake_in_package = initial_config.is_scan_cmake_in_package();
 
-        let lint_enable = initial_config.is_lint_enabled();
+        let enable_lint = initial_config.is_lint_enabled();
 
-        let mut init_info = self.init_info.lock().await;
-        init_info.scan_cmake_in_package = find_cmake_in_package;
-        init_info.enable_lint = lint_enable;
+        self.init_info
+            .set(BackendInitInfo {
+                scan_cmake_in_package,
+                enable_lint,
+            })
+            .expect("here should be the first place to init the init_info");
 
         if let Some(workspace) = initial.capabilities.workspace {
             if let Some(watch_file) = workspace.did_change_watched_files {
@@ -489,7 +496,7 @@ impl LanguageServer for Backend {
             uri,
             context,
             LintConfigInfo {
-                use_lint: self.init_info.lock().await.enable_lint,
+                use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: true,
             },
         )
@@ -511,7 +518,7 @@ impl LanguageServer for Backend {
                 uri,
                 context,
                 LintConfigInfo {
-                    use_lint: self.init_info.lock().await.enable_lint,
+                    use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: false,
                 },
             )
@@ -550,7 +557,7 @@ impl LanguageServer for Backend {
             uri,
             context.to_string(),
             LintConfigInfo {
-                use_lint: self.init_info.lock().await.enable_lint,
+                use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: true,
             },
         )
@@ -643,7 +650,7 @@ impl LanguageServer for Backend {
                 location,
                 &self.client,
                 &file_path,
-                self.init_info.lock().await.scan_cmake_in_package,
+                self.init_info().scan_cmake_in_package,
             )
             .await),
             None => Ok(None),
