@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
 use tower::util::ServiceExt;
 use tower::Service;
 use tower_lsp::jsonrpc::Request;
@@ -14,7 +11,6 @@ use tower_lsp::LspService;
 use super::Backend;
 use crate::languageserver::Config;
 use crate::semantic_token::LEGEND_TYPE;
-use crate::BackendInitInfo;
 
 fn initialize_request(id: i64, init_param: InitializeParams) -> Request {
     Request::build("initialize")
@@ -25,14 +21,7 @@ fn initialize_request(id: i64, init_param: InitializeParams) -> Request {
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_init() {
-    let (mut service, _) = LspService::new(|client| Backend {
-        client,
-        init_info: Arc::new(Mutex::new(BackendInitInfo {
-            scan_cmake_in_package: true,
-            enable_lint: true,
-        })),
-        root_path: Arc::new(Mutex::new(None)),
-    });
+    let (mut service, _) = LspService::new(Backend::new);
 
     #[cfg(unix)]
     let init_param = InitializeParams {
