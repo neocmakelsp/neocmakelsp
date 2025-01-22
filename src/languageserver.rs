@@ -70,8 +70,7 @@ impl Backend {
             return false;
         };
         use std::path::Component;
-        diff
-            .components()
+        diff.components()
             .all(|component| component != Component::ParentDir)
     }
 
