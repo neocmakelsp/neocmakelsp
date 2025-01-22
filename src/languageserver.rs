@@ -2,7 +2,7 @@ mod config;
 #[cfg(test)]
 mod test;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, RwLock};
 
 use tokio::sync::Mutex;
@@ -56,22 +56,26 @@ impl Backend {
     }
 
     fn init_info(&self) -> &BackendInitInfo {
-        self.init_info.get_or_init(BackendInitInfo::default)
+        self.init_info
+            .get()
+            .expect("Should have been inited before")
     }
 
-    async fn path_in_project(&self, path: &str) -> bool {
-        if self.root_path().is_none() {
+    async fn path_in_project<P: AsRef<Path>>(&self, path: P) -> bool {
+        let Some(root_path) = self.root_path() else {
             return true;
-        }
+        };
 
-        // NOTE: not enough good, but is ok
-        !path.starts_with("/usr")
+        let Some(diff) = pathdiff::diff_paths(path, root_path) else {
+            return false;
+        };
+        use std::path::Component;
+        diff
+            .components()
+            .all(|component| component != Component::ParentDir)
     }
-    async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
-        if !self.path_in_project(uri.path()).await {
-            return;
-        }
 
+    async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
         let Ok(file_path) = uri.to_file_path() else {
             tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
@@ -82,6 +86,10 @@ impl Backend {
                 .await;
             return;
         };
+
+        if !self.path_in_project(&file_path).await {
+            return;
+        }
 
         let gammererror = checkerror(&file_path, &context, lint_info);
         if let Some(diagnoses) = gammererror {

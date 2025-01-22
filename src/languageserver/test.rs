@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use tower::util::ServiceExt;
 use tower::Service;
 use tower_lsp::jsonrpc::Request;
@@ -82,4 +84,23 @@ async fn test_init() {
             }
         ))
     );
+    let backend = service.inner();
+    #[cfg(unix)]
+    {
+        assert!(backend.path_in_project(Path::new("/tmp/helloworld/")).await);
+        assert!(
+            !backend
+                .path_in_project(Path::new("/home/helloworld/"))
+                .await
+        );
+    }
+    #[cfg(not(unix))]
+    {
+        assert!(
+            backend
+                .path_in_project(Path::new(r"C:\\Windows\\System\\FolderA"))
+                .await
+        );
+        assert!(!backend.path_in_project(Path::new(r"C:\\Windows")).await);
+    }
 }
