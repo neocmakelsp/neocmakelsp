@@ -117,7 +117,7 @@ async fn test_init() {
     }
 
     let test_url = Url::from_file_path(root_cmake.clone()).unwrap();
-    let open_parm = DidOpenTextDocumentParams {
+    let open_params = DidOpenTextDocumentParams {
         text_document: TextDocumentItem {
             uri: test_url.clone(),
             text: file_info.to_string(),
@@ -125,7 +125,7 @@ async fn test_init() {
             language_id: "cmake".to_string(),
         },
     };
-    backend.did_open(open_parm).await;
+    backend.did_open(open_params).await;
 
     let complete_param = CompletionParams {
         text_document_position: TextDocumentPositionParams {
