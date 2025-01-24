@@ -40,7 +40,6 @@ fn get_space(spacelen: u32, use_space: bool) -> String {
     space
 }
 
-// use crate::utils::treehelper::point_to_position;
 pub async fn getformat(
     source: &str,
     client: &tower_lsp::Client,
@@ -48,10 +47,9 @@ pub async fn getformat(
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<Vec<TextEdit>> {
-    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source.as_str(), None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
 
     if tree.root_node().has_error() {
         client
@@ -215,6 +213,7 @@ fn format_content(
     (new_text, endline)
 }
 
+// Only source from cli need do normalize first
 pub fn get_format_cli(
     source: &str,
     indent_size: u32,

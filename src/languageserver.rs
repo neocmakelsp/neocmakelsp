@@ -18,7 +18,7 @@ use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::gammar::{checkerror, ErrorInformation, LintConfigInfo};
 use crate::semantic_token::LEGEND_TYPE;
-use crate::utils::{did_vcpkg_project, treehelper, VCPKG_LIBS, VCPKG_PREFIX};
+use crate::utils::{did_vcpkg_project, treehelper, DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX};
 use crate::{
     ast, complete, document_link, fileapi, filewatcher, hover, jump, scansubs, semantic_token,
     utils, BackendInitInfo,
@@ -484,7 +484,7 @@ impl LanguageServer for Backend {
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let uri = input.text_document.uri.clone();
-        let context = input.text_document.text.clone();
+        let context = input.text_document.text.normalize();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
         drop(storemap);
@@ -508,6 +508,7 @@ impl LanguageServer for Backend {
             },
         )
         .await;
+
         self.client
             .log_message(MessageType::INFO, "file opened!")
             .await;
@@ -516,7 +517,7 @@ impl LanguageServer for Backend {
     async fn did_change(&self, input: DidChangeTextDocumentParams) {
         // create a parse
         let uri = input.text_document.uri.clone();
-        let context = input.content_changes[0].text.clone();
+        let context = input.content_changes[0].text.normalize();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
         drop(storemap);
@@ -635,8 +636,8 @@ impl LanguageServer for Backend {
                 format!("file {:?} closed!", params.text_document.uri),
             )
             .await;
-        //notify_send("file closed", Type::Info);
     }
+
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
         let location = input.text_document_position.position;

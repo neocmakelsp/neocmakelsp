@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::{remove_quotation, remove_quotation_and_replace_placeholders};
+use crate::utils::{
+    remove_quotation, remove_quotation_and_replace_placeholders, DocumentNormalize,
+};
 use crate::{complete, jump, CMakeNodeKinds};
 
 /// NOTE: key is be included path, value is the top CMakeLists
@@ -41,8 +43,8 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     bufs
 }
 
-pub async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
-    let Ok(source) = std::fs::read_to_string(path.as_ref()) else {
+async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
+    let Ok(source) = std::fs::read_to_string(path.as_ref()).map(|source| source.normalize()) else {
         return Vec::new();
     };
 

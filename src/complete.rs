@@ -71,10 +71,9 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
-    let context = context.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&context, None);
+    let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
     let Some(result_data) = getsubcomplete(
         tree.root_node(),
@@ -104,7 +103,10 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
             completions.append(&mut data.clone());
-        } else if let Ok(context) = fs::read_to_string(parent).await {
+        } else if let Ok(context) = fs::read_to_string(parent)
+            .await
+            .map(|context| context.normalize())
+        {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
                 lsp_types::Url::from_file_path(parent).unwrap(),
