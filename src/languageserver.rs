@@ -236,6 +236,7 @@ impl LanguageServer for Backend {
                 version: Some(version),
             }),
             capabilities: ServerCapabilities {
+                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
                         open_close: Some(true),
@@ -514,6 +515,65 @@ impl LanguageServer for Backend {
             .await;
     }
 
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let Some(toolong) = params
+            .context
+            .diagnostics
+            .iter()
+            .find(|dia| dia.message.starts_with("[C0301]"))
+        else {
+            return Ok(None);
+        };
+
+        let uri = params.text_document.uri;
+        let storemap = BUFFERS_CACHE.lock().await;
+
+        let Some(context) = storemap.get(&uri) else {
+            return Ok(None);
+        };
+        let line = params.range.start.line;
+        let context: Vec<&str> = context.lines().collect();
+        let edit_line = context[line as usize].to_string();
+        drop(storemap);
+        let Some((last, _)) = edit_line
+            .chars()
+            .enumerate()
+            .filter(|(_, c)| *c == ' ')
+            .last()
+            .clone()
+        else {
+            return Ok(None);
+        };
+        Ok(Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
+            title: "lint fix".to_string(),
+            kind: Some(CodeActionKind::QUICKFIX),
+            diagnostics: Some(vec![toolong.clone()]),
+            edit: Some(WorkspaceEdit {
+                changes: None,
+                change_annotations: None,
+                document_changes: Some(DocumentChanges::Edits(vec![TextDocumentEdit {
+                    text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
+                    edits: vec![OneOf::Left(TextEdit {
+                        range: Range {
+                            start: Position {
+                                line,
+                                character: last as u32,
+                            },
+                            end: Position {
+                                line,
+                                character: last as u32,
+                            },
+                        },
+                        new_text: "\n".to_string(),
+                    })],
+                }])),
+            }),
+            command: None,
+            is_preferred: None,
+            disabled: None,
+            data: None,
+        })]))
+    }
     async fn did_change(&self, input: DidChangeTextDocumentParams) {
         // create a parse
         let uri = input.text_document.uri.clone();
