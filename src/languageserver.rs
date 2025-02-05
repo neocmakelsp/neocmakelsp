@@ -61,7 +61,7 @@ impl Backend {
             .expect("Should have been inited before")
     }
 
-    async fn path_in_project<P: AsRef<Path>>(&self, path: P) -> bool {
+    fn path_in_project<P: AsRef<Path>>(&self, path: P) -> bool {
         let Some(root_path) = self.root_path() else {
             return true;
         };
@@ -86,7 +86,7 @@ impl Backend {
             return;
         };
 
-        if !self.path_in_project(&file_path).await {
+        if !self.path_in_project(&file_path) {
             return;
         }
 

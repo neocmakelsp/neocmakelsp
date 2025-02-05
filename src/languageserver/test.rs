@@ -99,21 +99,13 @@ async fn test_init() {
     let backend = service.inner();
     #[cfg(unix)]
     {
-        assert!(backend.path_in_project(Path::new("/tmp/helloworld/")).await);
-        assert!(
-            !backend
-                .path_in_project(Path::new("/home/helloworld/"))
-                .await
-        );
+        assert!(backend.path_in_project(Path::new("/tmp/helloworld/")));
+        assert!(!backend.path_in_project(Path::new("/home/helloworld/")));
     }
     #[cfg(not(unix))]
     {
-        assert!(
-            backend
-                .path_in_project(Path::new(r"C:\\Windows\\System\\FolderA"))
-                .await
-        );
-        assert!(!backend.path_in_project(Path::new(r"C:\\Windows")).await);
+        assert!(backend.path_in_project(Path::new(r"C:\\Windows\\System\\FolderA")));
+        assert!(!backend.path_in_project(Path::new(r"C:\\Windows")));
     }
 
     let test_url = Url::from_file_path(root_cmake.clone()).unwrap();
