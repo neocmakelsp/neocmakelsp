@@ -7,7 +7,7 @@ use serde::Deserialize;
 pub struct CMakeLintConfig {
     pub command_upcase: String,
     pub enable_external_cmake_lint: bool,
-    pub max_words: usize,
+    pub line_max_words: usize,
 }
 
 pub struct LintSuggestion {
@@ -54,7 +54,7 @@ impl Default for CMakeLintConfig {
         Self {
             command_upcase: "ignore".to_string(),
             enable_external_cmake_lint: false,
-            max_words: 80,
+            line_max_words: 80,
         }
     }
 }
@@ -88,6 +88,6 @@ mod tests {
     fn tst_lint_config() {
         assert_eq!((*CMAKE_LINT_CONFIG).command_upcase, "ignore");
         assert_eq!((*CMAKE_LINT_CONFIG).enable_external_cmake_lint, false);
-        assert_eq!((*CMAKE_LINT_CONFIG).max_words, 80);
+        assert_eq!((*CMAKE_LINT_CONFIG).line_max_words, 80);
     }
 }

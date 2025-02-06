@@ -169,13 +169,21 @@ This will check the case of all commands.
 
 ### `cmake-lint` integration
 
-When [`cmake-lint`](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` will utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
+When [`cmake-lint`](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` can utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
 
 ```toml
 enable_external_cmake_lint = true # true to use external cmake-lint, or false to disable it
 ```
 
 If `enable_external_cmake_lint` is turned on but `cmake-lint` is not installed, external linting will not report any error message.
+
+### internal lint
+
+cmake-lint now is disabled by default from 0.8.18. And from 0.8.18, neocmakelsp itself starts to support similar lint functions like cmake-lint.
+
+```toml
+line_max_words = 80 # this define the max words in a line
+```
 
 ### If you want to use watchfile in Neovim, set
 

@@ -83,7 +83,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
         return run_extra_lint(path);
     }
     let mut info = vec![];
-    let max_len = CMAKE_LINT_CONFIG.max_words;
+    let max_len = CMAKE_LINT_CONFIG.line_max_words;
     for (index, line) in contexts.iter().enumerate() {
         let len = line.len();
         if len > max_len {
