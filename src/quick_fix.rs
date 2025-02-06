@@ -22,7 +22,7 @@ pub fn lint_fix_action(
         root,
         &context.lines().collect(),
         line as usize,
-        &diagnose,
+        diagnose,
         longest,
         &uri,
     )
@@ -77,7 +77,7 @@ fn sub_lint_fix_action(
                     new_text.push_str(arg);
                 }
                 return Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
-                    title: "lint fix".to_string(),
+                    title: "too long lint fix".to_string(),
                     kind: Some(CodeActionKind::QUICKFIX),
                     diagnostics: Some(vec![diagnose.clone()]),
                     edit: Some(WorkspaceEdit {
