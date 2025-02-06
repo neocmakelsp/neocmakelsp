@@ -1,4 +1,4 @@
-project('neocmakelsp', 'rust', version: '0.8.2', meson_version: '>= 1.1.0')
+project('neocmakelsp', 'rust', version: '0.8.18', meson_version: '>= 1.1.0')
 
 find_program('cargo', version: '>= 1.80')
 
