@@ -22,11 +22,10 @@ If you have any questions or want to help in other ways, feel free to join [out 
    - [Neovim Configuration](#neovim)
    - [Helix Configuration](#helix)
    - [Emacs Configuration](#emacs)
-5. [Features](#features)
-6. [User Feedback](#user-feedback)
+5. [User Feedback](#user-feedback)
    - [macOS Users](#user-feedback)
    - [Windows Users](#user-feedback)
-7. [Visual Examples](#visual-examples)
+6. [Visual Examples](#visual-examples)
 
 
 
@@ -149,6 +148,7 @@ To use `neocmakelsp` with eglot:
 -   symbol_provider
 -   On hover
 -   Format
+-   CodeAction
 -   document_link
 -   GO TO Definitation
     -   find_package
