@@ -88,6 +88,6 @@ mod tests {
     fn tst_lint_config() {
         assert_eq!((*CMAKE_LINT_CONFIG).command_upcase, "ignore");
         assert_eq!((*CMAKE_LINT_CONFIG).enable_external_cmake_lint, false);
-        assert_eq!((*CMAKE_LINT_CONFIG).max_words, 30);
+        assert_eq!((*CMAKE_LINT_CONFIG).max_words, 80);
     }
 }
