@@ -341,8 +341,7 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
-        let root_path_lock = self.root_path();
-        let root_path = root_path_lock;
+
         let work_done_token = ProgressToken::Number(1);
         let progress = self
             .client
@@ -352,7 +351,7 @@ impl LanguageServer for Backend {
             .begin()
             .await;
 
-        if let Some(ref project_root) = root_path {
+        if let Some(ref project_root) = self.root_path() {
             progress
                 .report_with_message(&format!("start scanning {}", project_root.display()), 10)
                 .await;
