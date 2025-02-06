@@ -409,7 +409,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let child = child.child(2).unwrap();
                     let mut advancedwalk = child.walk();
                     for identifier in child.children(&mut advancedwalk) {
-                        if identifier.kind() == "argument"
+                        if identifier.kind() == CMakeNodeKinds::ARGUMENT
                             && identifier.start_position().row == identifier.end_position().row
                         {
                             let startx = identifier.start_position().column;
