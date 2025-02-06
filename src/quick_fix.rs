@@ -11,7 +11,7 @@ use crate::CMakeNodeKinds;
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::ToPosition};
 
 static LINT_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\((?<length>\d+)\/(?<max>\d+)\)").unwrap());
+    LazyLock::new(|| Regex::new(r#"((?<length>\d+)/(?<max>\d+))"#).unwrap());
 
 #[test]
 fn lint_regex_text() {
