@@ -22,6 +22,7 @@ mod gammar;
 mod hover;
 mod jump;
 mod languageserver;
+mod quick_fix;
 mod scansubs;
 mod search;
 mod semantic_token;
