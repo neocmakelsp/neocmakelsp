@@ -53,10 +53,10 @@ fn sub_lint_fix_action(
 ) -> Option<CodeActionResponse> {
     let mut cursor = input.walk();
     for child in input.children(&mut cursor) {
-        if child.end_position().column < line {
+        if child.end_position().row < line {
             continue;
         }
-        if child.start_position().column > line {
+        if child.start_position().row > line {
             break;
         }
         match child.kind() {
@@ -79,12 +79,12 @@ fn sub_lint_fix_action(
                     let end_col = arg.end_position().column;
                     let len = arg.end_position().column - arg.start_position().column;
                     let arg = &source[current_row][start_col..end_col];
-                    if start_row + len > longest {
+                    if start_row + len + 1 > longest {
                         start_row = 0;
                         new_text.push('\n');
                         new_text.push_str(&start_space);
                     } else {
-                        start_row += len;
+                        start_row += len + 1;
                         if !new_text.is_empty() {
                             new_text.push(' ');
                         }
