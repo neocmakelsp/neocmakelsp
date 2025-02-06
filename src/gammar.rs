@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::path::Path;
 use std::process::Command;
+use std::sync::LazyLock;
 
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::Point;
@@ -47,20 +48,16 @@ pub fn checkerror<P: AsRef<Path>>(
         use_extra_cmake_lint,
     }: LintConfigInfo,
 ) -> Option<ErrorInfo> {
-    let cmake_lint_info = if use_lint && use_extra_cmake_lint {
-        run_cmake_lint(local_path)
+    let newsource = source.lines().collect();
+    let cmake_lint_info = if use_lint {
+        run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
     } else {
         None
     };
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None)?;
-    let mut result = checkerror_inner(
-        local_path,
-        &source.lines().collect(),
-        thetree.root_node(),
-        use_lint,
-    );
+    let mut result = checkerror_inner(local_path, &newsource, thetree.root_node(), use_lint);
     if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
         for item in v.inner {
@@ -74,20 +71,59 @@ pub fn checkerror<P: AsRef<Path>>(
 const RE_MATCH_LINT_RESULT: &str =
     r#"(?P<line>\d+)(,(?P<column>\d+))?: (?P<message>\[(?P<severity>[A-Z])\d+\]\s+.*)"#;
 
-fn run_cmake_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
+static LINT_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap());
+
+fn run_cmake_lint<P: AsRef<Path>>(
+    path: P,
+    use_extra_cmake_lint: bool,
+    contexts: &Vec<&str>,
+) -> Option<ErrorInfo> {
+    if use_extra_cmake_lint {
+        return run_extra_lint(path);
+    }
+    let mut info = vec![];
+    let max_len = CMAKE_LINT_CONFIG.max_words;
+    for (index, line) in contexts.iter().enumerate() {
+        let len = line.len();
+        if len > max_len {
+            let start_point = Point {
+                row: index,
+                column: 0,
+            };
+            let end_point = Point {
+                row: index,
+                column: 0,
+            };
+            let message = format!("[C0301] Line too long ({}/{})", len, max_len);
+            info.push(ErrorInformation {
+                start_point,
+                end_point,
+                message,
+                severity: Some(DiagnosticSeverity::WARNING),
+            });
+        }
+    }
+    if info.is_empty() {
+        None
+    } else {
+        Some(ErrorInfo { inner: info })
+    }
+}
+
+fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
     let path = path.as_ref();
-    if !path.exists() || !CMAKE_LINT_CONFIG.enable_external_cmake_lint {
+    if !path.exists() {
         return None;
     }
 
     let output = Command::new("cmake-lint").arg(path).output().ok()?;
     let output_str = String::from_utf8_lossy(&output.stdout);
 
-    let re = regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap();
     let mut info = vec![];
 
     for input in output_str.lines() {
-        if let Some(m) = re.captures(input) {
+        if let Some(m) = LINT_REGEX.captures(input) {
             let severity = match m.name("severity").unwrap().as_str() {
                 "E" => DiagnosticSeverity::ERROR,
                 "W" => DiagnosticSeverity::WARNING,

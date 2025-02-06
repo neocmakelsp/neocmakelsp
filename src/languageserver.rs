@@ -13,6 +13,7 @@ use tree_sitter::Parser;
 
 use self::config::Config;
 use super::Backend;
+use crate::config::CMAKE_LINT_CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
@@ -586,7 +587,7 @@ impl LanguageServer for Backend {
             context.to_string(),
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
-                use_extra_cmake_lint: true,
+                use_extra_cmake_lint: CMAKE_LINT_CONFIG.enable_external_cmake_lint,
             },
         )
         .await;

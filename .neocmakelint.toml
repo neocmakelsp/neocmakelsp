@@ -1,2 +1,3 @@
 command_upcase = "ignore" # "lowcase", "upcase"
-enable_external_cmake_lint = true # true to use external cmake-lint
+enable_external_cmake_lint = false # true to use external cmake-lint
+max_words = 50 # internal lint just supports longest check
