@@ -1,3 +1,6 @@
+use std::sync::LazyLock;
+
+use regex::Regex;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionResponse, Diagnostic,
     DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit,
@@ -7,13 +10,27 @@ use tower_lsp::lsp_types::{
 use crate::CMakeNodeKinds;
 use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::ToPosition};
 
+static LINT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\((?<length>\d+)\/(?<max>\d+)\)").unwrap());
+
+#[test]
+fn lint_regex_text() {
+    let information = "[C0301] Line too long (92/80)";
+    let caps = LINT_REGEX.captures(&information).unwrap();
+    assert_eq!(&caps["length"], "92");
+    assert_eq!(&caps["max"], "80");
+}
+
 pub fn lint_fix_action(
     context: &str,
     line: u32,
     diagnose: &Diagnostic,
-    longest: usize,
     uri: tower_lsp::lsp_types::Url,
 ) -> Option<CodeActionResponse> {
+    let Some(caps) = LINT_REGEX.captures(&diagnose.message) else {
+        return None;
+    };
+    let longest = caps["max"].parse().unwrap();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;

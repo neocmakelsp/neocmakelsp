@@ -532,7 +532,7 @@ impl LanguageServer for Backend {
         };
 
         let line = params.range.start.line;
-        Ok(quick_fix::lint_fix_action(context, line, toolong, 80, uri))
+        Ok(quick_fix::lint_fix_action(context, line, toolong, uri))
     }
 
     async fn did_change(&self, input: DidChangeTextDocumentParams) {
