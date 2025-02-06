@@ -18,10 +18,11 @@ use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::gammar::{checkerror, ErrorInformation, LintConfigInfo};
 use crate::semantic_token::LEGEND_TYPE;
+use crate::utils::treehelper::ToPosition;
 use crate::utils::{did_vcpkg_project, treehelper, DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX};
 use crate::{
-    ast, complete, document_link, fileapi, filewatcher, hover, jump, scansubs, semantic_token,
-    utils, BackendInitInfo,
+    ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix, scansubs,
+    semantic_token, utils, BackendInitInfo,
 };
 
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
@@ -100,10 +101,8 @@ impl Backend {
                 severity,
             } in diagnoses.inner
             {
-                let pointx =
-                    lsp_types::Position::new(start_point.row as u32, start_point.column as u32);
-                let pointy =
-                    lsp_types::Position::new(end_point.row as u32, end_point.column as u32);
+                let pointx = start_point.to_position();
+                let pointy = end_point.to_position();
                 let range = Range {
                     start: pointx,
                     end: pointy,
@@ -531,49 +530,11 @@ impl LanguageServer for Backend {
         let Some(context) = storemap.get(&uri) else {
             return Ok(None);
         };
+
         let line = params.range.start.line;
-        let context: Vec<&str> = context.lines().collect();
-        let edit_line = context[line as usize].to_string();
-        drop(storemap);
-        let Some((last, _)) = edit_line
-            .chars()
-            .enumerate()
-            .filter(|(_, c)| *c == ' ')
-            .last()
-            .clone()
-        else {
-            return Ok(None);
-        };
-        Ok(Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
-            title: "lint fix".to_string(),
-            kind: Some(CodeActionKind::QUICKFIX),
-            diagnostics: Some(vec![toolong.clone()]),
-            edit: Some(WorkspaceEdit {
-                changes: None,
-                change_annotations: None,
-                document_changes: Some(DocumentChanges::Edits(vec![TextDocumentEdit {
-                    text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
-                    edits: vec![OneOf::Left(TextEdit {
-                        range: Range {
-                            start: Position {
-                                line,
-                                character: last as u32,
-                            },
-                            end: Position {
-                                line,
-                                character: last as u32,
-                            },
-                        },
-                        new_text: "\n".to_string(),
-                    })],
-                }])),
-            }),
-            command: None,
-            is_preferred: None,
-            disabled: None,
-            data: None,
-        })]))
+        Ok(quick_fix::lint_fix_action(context, line, toolong, 80, uri))
     }
+
     async fn did_change(&self, input: DidChangeTextDocumentParams) {
         // create a parse
         let uri = input.text_document.uri.clone();
@@ -724,6 +685,7 @@ impl LanguageServer for Backend {
             None => Ok(None),
         }
     }
+
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
@@ -732,8 +694,6 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         drop(storemap);
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
             Err(_) => {
@@ -743,6 +703,7 @@ impl LanguageServer for Backend {
         };
         Ok(jump::godef(location, context.as_str(), &file_path, &self.client, false).await)
     }
+
     async fn goto_definition(
         &self,
         input: GotoDefinitionParams,
@@ -799,6 +760,7 @@ impl LanguageServer for Backend {
             None => Ok(None),
         }
     }
+
     async fn semantic_tokens_full(
         &self,
         params: SemanticTokensParams,

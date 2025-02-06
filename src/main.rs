@@ -27,6 +27,7 @@ mod search;
 mod semantic_token;
 mod shellcomplete;
 mod utils;
+mod quick_fix;
 use clapargs::NeocmakeCli;
 use std::sync::OnceLock;
 use tower_lsp::lsp_types::Url;

@@ -13,6 +13,7 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_link_libraries",
     "target_include_directories",
 ];
+
 pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
     let line = context.lines().count();
     if line > 10000 {
