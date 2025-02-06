@@ -27,9 +27,7 @@ pub fn lint_fix_action(
     diagnose: &Diagnostic,
     uri: tower_lsp::lsp_types::Url,
 ) -> Option<CodeActionResponse> {
-    let Some(caps) = LINT_REGEX.captures(&diagnose.message) else {
-        return None;
-    };
+    let caps = LINT_REGEX.captures(&diagnose.message)?;
     let longest = caps["max"].parse().unwrap();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
