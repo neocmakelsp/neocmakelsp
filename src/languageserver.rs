@@ -554,7 +554,10 @@ impl LanguageServer for Backend {
             .await;
         }
         self.client
-            .log_message(MessageType::INFO, &format!("{input:?}"))
+            .log_message(
+                MessageType::INFO,
+                &format!("update file: {}", input.text_document.uri),
+            )
             .await;
     }
 
