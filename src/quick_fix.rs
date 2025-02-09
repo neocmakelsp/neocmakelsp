@@ -66,8 +66,8 @@ fn sub_lint_fix_action(
                 let range = Range { start, end };
                 let mut arg_cursor = child.walk();
                 let mut start_row = start.character as usize;
-                let start = start.character as usize;
-                let start_space: String = vec![' '; start].iter().collect();
+                let start_space_len = start.character as usize;
+                let start_space: String = vec![' '; start_space_len].iter().collect();
                 let mut new_text = "".to_string();
                 for arg in child.children(&mut arg_cursor) {
                     let current_row = arg.start_position().row;
@@ -80,7 +80,7 @@ fn sub_lint_fix_action(
                     let len = arg.end_position().column - arg.start_position().column;
                     let arg = &source[current_row][start_col..end_col];
                     if start_row + len + 1 > longest {
-                        start_row = 0;
+                        start_row = start_space_len + len + 1;
                         new_text.push('\n');
                         new_text.push_str(&start_space);
                     } else {
