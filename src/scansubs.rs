@@ -129,7 +129,7 @@ impl fmt::Display for TreeDir {
 
 // Path Input is xxx/CMakeLists.txt
 pub fn get_treedir(path: &Path) -> Option<TreeDir> {
-    let Ok(content) = std::fs::read_to_string(path) else {
+    let Ok(content) = std::fs::read_to_string(path).map(|source| source.normalize()) else {
         return None;
     };
     let mut top = TreeDir {
