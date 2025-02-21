@@ -160,7 +160,7 @@ pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
 fn test_prefix() {
     use crate::utils::findpackage::CMAKE_PREFIXES;
     let prefix = "/data/data/com.termux/files/usr".to_string();
-    std::env::set_var("PREFIX", &prefix);
+    unsafe { std::env::set_var("PREFIX", &prefix) };
     let prefixes = &*CMAKE_PREFIXES;
 
     // since now we use the prefix by cmake first, so...
