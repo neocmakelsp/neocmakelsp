@@ -6,13 +6,13 @@ use tree_sitter::Node;
 use crate::fileapi;
 use crate::jump::JUMP_CACHE;
 #[cfg(unix)]
-use crate::utils::packagepkgconfig::PkgConfig;
-#[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
+#[cfg(unix)]
+use crate::utils::packagepkgconfig::PkgConfig;
 use crate::utils::treehelper::{
-    get_point_string, get_pos_type, PositionType, ToPoint, MESSAGE_STORAGE,
+    MESSAGE_STORAGE, PositionType, ToPoint, get_point_string, get_pos_type,
 };
-use crate::utils::{get_the_packagename, CMakePackage, PackageType, CACHE_CMAKE_PACKAGES_WITHKEYS};
+use crate::utils::{CACHE_CMAKE_PACKAGES_WITHKEYS, CMakePackage, PackageType, get_the_packagename};
 
 #[inline]
 #[cfg(unix)]

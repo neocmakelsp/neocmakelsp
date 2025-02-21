@@ -103,8 +103,8 @@ pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
 fn test_prefix() {
     use std::path::Path;
 
-    use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
     use crate::Url;
+    use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
     let data = completion_items_with_prefix("bash");
 
     let data_package = CMakePackage {
@@ -120,10 +120,10 @@ fn test_prefix() {
             Path::new("/usr/share/bash-completion/bash_completion-fake-config.cmake").to_path_buf(),
         ],
         #[cfg(not(unix))]
-        tojump: vec![Path::new(
-            r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake",
-        )
-        .to_path_buf()],
+        tojump: vec![
+            Path::new(r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake")
+                .to_path_buf(),
+        ],
         from: CMakePackageFrom::System,
     };
     let result_item = CompletionItem {

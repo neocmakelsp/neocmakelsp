@@ -6,10 +6,10 @@ use std::sync::LazyLock;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::Point;
 
+use crate::CMakeNodeKinds;
 use crate::config::{self, CMAKE_LINT_CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
-use crate::CMakeNodeKinds;
 
 const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
 
@@ -485,13 +485,15 @@ fn gammer_passed_check_2() {
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&source, None).unwrap();
 
-    assert!(checkerror_inner(
-        std::path::Path::new("."),
-        &source.lines().collect(),
-        thetree.root_node(),
-        true,
-    )
-    .is_none());
+    assert!(
+        checkerror_inner(
+            std::path::Path::new("."),
+            &source.lines().collect(),
+            thetree.root_node(),
+            true,
+        )
+        .is_none()
+    );
 }
 
 #[test]

@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use super::{
-    get_available_libs, get_cmake_message, get_version, handle_config_package, CMAKECONFIG,
-    CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN,
+    CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
+    get_cmake_message, get_version, handle_config_package,
 };
-use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 use crate::Url;
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 // here is the logic of findpackage on linux
 //

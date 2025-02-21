@@ -398,7 +398,7 @@ fn get_pos_type_inner<'a>(
                 | PositionType::Comment
                 | PositionType::ArgumentOrList
                 | PositionType::FunOrMacroArgs => {
-                    return get_pos_type_inner(location, child, source, jumptype)
+                    return get_pos_type_inner(location, child, source, jumptype);
                 }
                 // NOTE: it should be designed to cannot be reach
                 PositionType::FindPackageSpace(_) | PositionType::FunOrMacroIdentifier => {

@@ -7,22 +7,22 @@ use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 
 /// provide go to definition
 use crate::{
+    CMakeNodeKinds,
     consts::TREESITTER_CMAKE_LANGUAGE,
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        gen_module_pattern, get_the_packagename, include_is_module, replace_placeholders,
-        treehelper::{get_point_string, ToPoint, ToPosition},
-        DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
+        CACHE_CMAKE_PACKAGES_WITHKEYS, DocumentNormalize, LineCommentTmp, gen_module_pattern,
+        get_the_packagename, include_is_module, replace_placeholders,
+        treehelper::{ToPoint, ToPosition, get_point_string},
     },
-    CMakeNodeKinds,
 };
 mod findpackage;
 mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{get_pos_type, PositionType};
+use crate::utils::treehelper::{PositionType, get_pos_type};
 
 /// Storage the information when jump
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -545,11 +545,7 @@ fn getsubdef<P: AsRef<Path>>(
             defs.append(&mut message);
         }
     }
-    if defs.is_empty() {
-        None
-    } else {
-        Some(defs)
-    }
+    if defs.is_empty() { None } else { Some(defs) }
 }
 
 fn get_cmake_package_defs(

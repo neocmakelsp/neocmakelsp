@@ -16,12 +16,12 @@ use tower_lsp::lsp_types::{
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{get_pos_type, PositionType, ToPoint};
+use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
 use crate::utils::{
-    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
-    DocumentNormalize, LineCommentTmp, CACHE_CMAKE_PACKAGES_WITHKEYS,
+    CACHE_CMAKE_PACKAGES_WITHKEYS, DocumentNormalize, LineCommentTmp, gen_module_pattern,
+    include_is_module, remove_quotation_and_replace_placeholders,
 };
-use crate::{fileapi, CMakeNodeKinds};
+use crate::{CMakeNodeKinds, fileapi};
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 

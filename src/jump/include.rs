@@ -6,10 +6,10 @@ use std::sync::{Arc, LazyLock, Mutex};
 use lsp_types::Url;
 use tower_lsp::lsp_types;
 
-use super::{gen_module_pattern, getsubdef, CacheDataUnit, Location};
+use super::{CacheDataUnit, Location, gen_module_pattern, getsubdef};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::PositionType;
-use crate::utils::{include_is_module, DocumentNormalize};
+use crate::utils::{DocumentNormalize, include_is_module};
 
 pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<Vec<Location>> {
     let target = if !include_is_module(subpath) {

@@ -7,8 +7,8 @@ use tower_lsp::lsp_types::CompletionItem;
 
 use super::getsubcomplete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::treehelper::PositionType;
 use crate::utils::DocumentNormalize;
+use crate::utils::treehelper::PositionType;
 
 type CacheData = HashMap<PathBuf, Vec<CompletionItem>>;
 

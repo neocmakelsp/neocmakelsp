@@ -268,7 +268,7 @@ mod editorconfig_test {
 
     use tempfile::NamedTempFile;
 
-    use super::{editconfig_setting_read, EditConfigSetting};
+    use super::{EditConfigSetting, editconfig_setting_read};
     #[test]
     fn tst_editconfig_tab() {
         let mut temp_file = NamedTempFile::new().unwrap();

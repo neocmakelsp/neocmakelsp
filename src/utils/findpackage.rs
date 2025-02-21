@@ -30,9 +30,9 @@ use packagemac as cmakepackage;
 use tower_lsp::lsp_types::Url;
 pub use vcpkg::*;
 
-use super::{remove_quotation, CMakePackage, CMakePackageFrom, PackageType};
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use super::{CMakePackage, CMakePackageFrom, PackageType, remove_quotation};
 use crate::CMakeNodeKinds;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
 fn handle_config_package(filename: &str) -> Option<&str> {
     if let Some(tryfirst) = filename.strip_suffix("-config.cmake") {
@@ -215,15 +215,15 @@ impl FindPackageFunsFake {
             location: Url::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
             version: None,
             #[cfg(unix)]
-            tojump: vec![Path::new(
-                "/usr/share/bash-completion-fake/bash_completion-fake-config.cmake",
-            )
-            .to_path_buf()],
+            tojump: vec![
+                Path::new("/usr/share/bash-completion-fake/bash_completion-fake-config.cmake")
+                    .to_path_buf(),
+            ],
             #[cfg(not(unix))]
-            tojump: vec![Path::new(
-                r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake",
-            )
-            .to_path_buf()],
+            tojump: vec![
+                Path::new(r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake")
+                    .to_path_buf(),
+            ],
             from: CMakePackageFrom::System,
         };
 

@@ -1,10 +1,10 @@
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
-use tower_lsp::{lsp_types, Client};
+use tower_lsp::{Client, lsp_types};
 
+use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 /// Get the tree of ast
 use crate::utils::treehelper::ToPosition;
-use crate::CMakeNodeKinds;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
     "set",
@@ -228,11 +228,7 @@ fn getsubast(
             _ => {}
         }
     }
-    if asts.is_empty() {
-        None
-    } else {
-        Some(asts)
-    }
+    if asts.is_empty() { None } else { Some(asts) }
 }
 
 #[cfg(test)]

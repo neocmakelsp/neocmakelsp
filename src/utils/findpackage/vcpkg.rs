@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
 use super::{
-    get_version, handle_config_package, CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX,
-    SPECIAL_PACKAGE_PATTERN,
+    CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_version,
+    handle_config_package,
 };
-use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 use crate::Url;
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 #[inline]
 pub fn did_vcpkg_project(path: &Path) -> bool {

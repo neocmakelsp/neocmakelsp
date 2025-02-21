@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use serde::Serialize;
-use tower::util::ServiceExt;
 use tower::Service;
+use tower::util::ServiceExt;
 use tower_lsp::jsonrpc::Request;
 use tower_lsp::lsp_types::{
     CompletionParams, CompletionResponse, DidOpenTextDocumentParams, InitializeParams,

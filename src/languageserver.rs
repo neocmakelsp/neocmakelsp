@@ -8,7 +8,7 @@ use std::sync::{Arc, LazyLock, RwLock};
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
-use tower_lsp::{lsp_types, LanguageServer};
+use tower_lsp::{LanguageServer, lsp_types};
 use tree_sitter::Parser;
 
 use self::config::Config;
@@ -17,13 +17,13 @@ use crate::config::CMAKE_LINT_CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
-use crate::gammar::{checkerror, ErrorInformation, LintConfigInfo};
+use crate::gammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper::ToPosition;
-use crate::utils::{did_vcpkg_project, treehelper, DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX};
+use crate::utils::{DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix, scansubs,
-    semantic_token, utils, BackendInitInfo,
+    BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
+    scansubs, semantic_token, utils,
 };
 
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =

@@ -8,9 +8,9 @@ use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{
-    remove_quotation, remove_quotation_and_replace_placeholders, DocumentNormalize,
+    DocumentNormalize, remove_quotation, remove_quotation_and_replace_placeholders,
 };
-use crate::{complete, jump, CMakeNodeKinds};
+use crate::{CMakeNodeKinds, complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists

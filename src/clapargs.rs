@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{arg, Parser};
+use clap::{Parser, arg};
 use clap_complete::Shell;
 
 const LSP_VERSION: &str = env!("CARGO_PKG_VERSION");

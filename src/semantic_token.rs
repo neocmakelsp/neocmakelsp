@@ -1,12 +1,12 @@
 use std::sync::LazyLock;
 
+use tower_lsp::Client;
 use tower_lsp::lsp_types::{
     SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult,
 };
-use tower_lsp::Client;
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::CMakeNodeKinds;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 static NUMBERREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
