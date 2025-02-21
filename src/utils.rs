@@ -286,7 +286,7 @@ fn test_module_pattern() {
     );
     #[cfg(target_os = "android")]
     {
-        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+        unsafe { std::env::set_var("PREFIX", "/data/data/com.termux/files/usr") };
         assert_eq!(
             gen_module_pattern("GNUInstallDirs"),
             Some(
@@ -297,7 +297,7 @@ fn test_module_pattern() {
     }
     #[cfg(not(unix))]
     {
-        std::env::set_var("MSYSTEM_PREFIX", "C:/msys64");
+        unsafe { std::env::set_var("MSYSTEM_PREFIX", "C:/msys64") };
         assert_eq!(
             gen_module_pattern("GNUInstallDirs"),
             Some("C:/msys64/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
