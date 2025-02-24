@@ -1,7 +1,7 @@
 # Neocmakelsp
 
 ## 0.8.20-beta3
-- fix when using relative cmake path, reference not work propertly
+- fix when using relative cmake path, reference not work properly
 
 ## 0.8.20-beta2
 - fix rename do not work for include
