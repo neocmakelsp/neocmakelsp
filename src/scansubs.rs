@@ -15,6 +15,7 @@ use crate::{CMakeNodeKinds, complete, jump};
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
 pub type TreeKey = HashMap<PathBuf, PathBuf>;
+pub type TreeCMakeKey = HashMap<PathBuf, Vec<PathBuf>>;
 
 // NOTE: here get the struct of the tree
 // Cache the data of the struct
@@ -24,7 +25,7 @@ pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
 
 // NOTE: record who is using the cmake file
 // Key is the cmake file, value is the place using it
-pub static TREE_CMAKE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
+pub static TREE_CMAKE_MAP: LazyLock<Arc<Mutex<TreeCMakeKey>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
@@ -48,7 +49,8 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
         tree.insert(subpath.to_path_buf(), path.as_ref().into());
     }
     for cmakepath in cmakebufs {
-        includetree.insert(path.as_ref().into(), cmakepath);
+        let include_key = includetree.entry(cmakepath).or_default();
+        include_key.push(path.as_ref().into());
     }
     bufs
 }

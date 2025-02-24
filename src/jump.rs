@@ -260,21 +260,38 @@ async fn godef_inner<P: AsRef<Path>>(
 async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
     let mut results = vec![];
     let from = path.as_ref();
-    let avaiablepaths = if from
+    let mut paths: Vec<PathBuf> = if from
         .extension()
         .is_some_and(|extension| extension == "cmake")
     {
-        TREE_CMAKE_MAP.lock().await
-    } else {
-        TREE_MAP.lock().await
-    };
+        let avaiablepaths = TREE_CMAKE_MAP.lock().await;
+        let mut temp: Vec<PathBuf> = avaiablepaths
+            .iter()
+            .filter(|(cmake, _parents)| **cmake == from)
+            .flat_map(|(_, parents)| parents.clone())
+            .collect();
 
-    let mut paths: Vec<PathBuf> = avaiablepaths
-        .iter()
-        .filter(|(_child, parent)| **parent == from)
-        .map(|(child, _)| child.clone())
-        .collect();
+        let mut results = vec![];
+        let map = TREE_MAP.lock().await;
+        for included in temp.iter() {
+            let mut childrens = map
+                .iter()
+                .filter(|(_child, parent)| *parent == included)
+                .map(|(child, _)| child.clone())
+                .collect();
+            results.append(&mut childrens);
+        }
+        results.append(&mut temp);
+        results
+    } else {
+        let map = TREE_MAP.lock().await;
+        map.iter()
+            .filter(|(_child, parent)| **parent == from)
+            .map(|(child, _)| child.clone())
+            .collect()
+    };
     paths.push(from.to_path_buf());
+
     for rp in paths {
         let Ok(source) = tokio::fs::read_to_string(&rp)
             .await
