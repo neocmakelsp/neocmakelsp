@@ -127,7 +127,7 @@ fn scan_node<P: AsRef<Path>>(
                         let mut cmake_buf_path = PathBuf::from(name);
 
                         if !cmake_buf_path.is_absolute() {
-                            cmake_buf_path = path.as_ref().join(cmake_buf_path)
+                            cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path)
                         }
                         cmake_bufs.push(cmake_buf_path)
                     }
