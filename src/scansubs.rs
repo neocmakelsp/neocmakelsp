@@ -18,7 +18,13 @@ pub type TreeKey = HashMap<PathBuf, PathBuf>;
 
 // NOTE: here get the struct of the tree
 // Cache the data of the struct
+// Key is the child, value is the parent
 pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+// NOTE: record who is using the cmake file
+// Key is the cmake file, value is the place using it
+pub static TREE_CMAKE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
@@ -35,20 +41,24 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
 }
 
 pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
-    let bufs = scan_dir_inner(path.as_ref(), is_first).await;
+    let (bufs, cmakebufs) = scan_dir_inner(path.as_ref(), is_first).await;
     let mut tree = TREE_MAP.lock().await;
+    let mut includetree = TREE_CMAKE_MAP.lock().await;
     for subpath in bufs.iter() {
         tree.insert(subpath.to_path_buf(), path.as_ref().into());
+    }
+    for cmakepath in cmakebufs {
+        includetree.insert(path.as_ref().into(), cmakepath);
     }
     bufs
 }
 
-async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
+async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(source) = tokio::fs::read_to_string(path.as_ref())
         .await
         .map(|source| source.normalize())
     else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
 
     if is_first {
@@ -61,13 +71,18 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf>
     let tree = tree.root_node();
     let newsource: Vec<&str> = source.lines().collect();
     if tree.is_error() {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     scan_node(&newsource, tree, path)
 }
 
-fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: P) -> Vec<PathBuf> {
+fn scan_node<P: AsRef<Path>>(
+    source: &Vec<&str>,
+    tree: tree_sitter::Node,
+    path: P,
+) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let mut bufs = Vec::new();
+    let mut cmake_bufs = Vec::new();
     let mut course = tree.walk();
     for node in tree.children(&mut course) {
         match node.kind() {
@@ -95,15 +110,37 @@ fn scan_node<P: AsRef<Path>>(source: &Vec<&str>, tree: tree_sitter::Node, path: 
                             .join("CMakeLists.txt");
                         bufs.push(subpath.to_path_buf())
                     }
+                } else if command_name.to_lowercase() == "include" && node.child_count() >= 4 {
+                    let ids = node.child(2).unwrap();
+                    if ids.start_position().row == ids.end_position().row {
+                        let h = ids.start_position().row;
+                        let x = ids.start_position().column;
+                        let y = ids.end_position().column;
+                        let name = &source[h][x..y];
+                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
+                            continue;
+                        };
+                        if !name.ends_with(".cmake") {
+                            continue;
+                        }
+                        let mut cmake_buf_path = PathBuf::from(name);
+
+                        if !cmake_buf_path.is_absolute() {
+                            cmake_buf_path = path.as_ref().join(cmake_buf_path)
+                        }
+                        cmake_bufs.push(cmake_buf_path)
+                    }
                 }
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                bufs.append(&mut scan_node(source, node, path.as_ref()));
+                let (mut childbufs, mut newcmakebufs) = scan_node(source, tree, path.as_ref());
+                bufs.append(&mut childbufs);
+                cmake_bufs.append(&mut newcmakebufs);
             }
             _ => {}
         }
     }
-    bufs
+    (bufs, cmake_bufs)
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]

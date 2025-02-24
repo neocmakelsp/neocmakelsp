@@ -5,6 +5,7 @@ use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 
+use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
 use crate::{
@@ -199,7 +200,7 @@ async fn godef_inner<P: AsRef<Path>>(
 
     let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
 
-    let jumptype = get_pos_type(location, tree.root_node(), &source);
+    let jumptype = get_pos_type(location, tree.root_node(), source);
 
     // NOTE: when just find the var or fun, then we need to skip other position type
     if !matches!(jumptype, PositionType::VarOrFun) && just_var_or_fun {
@@ -258,12 +259,12 @@ async fn godef_inner<P: AsRef<Path>>(
 async fn refrence_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
     let mut results = vec![];
     let from = path.as_ref();
-    if from.ends_with("cmake") {
-        // TODO:
-        return vec![];
-    }
+    let avaiablepaths = if from.ends_with("cmake") {
+        TREE_MAP.lock().await
+    } else {
+        TREE_CMAKE_MAP.lock().await
+    };
 
-    let avaiablepaths = TREE_MAP.lock().await;
     let mut paths: Vec<PathBuf> = avaiablepaths
         .iter()
         .filter(|(_child, parent)| **parent == from)
