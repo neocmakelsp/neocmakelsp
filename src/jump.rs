@@ -207,14 +207,16 @@ async fn godef_inner<P: AsRef<Path>>(
     // part
     if !matches!(
         jumptype,
-        PositionType::VarOrFun | PositionType::ArgumentOrList
+        PositionType::VarOrFun | PositionType::ArgumentOrList | PositionType::FunOrMacroIdentifier
     ) && just_var_or_fun
     {
         return None;
     }
 
     match jumptype {
-        PositionType::VarOrFun | PositionType::ArgumentOrList => {
+        PositionType::VarOrFun
+        | PositionType::ArgumentOrList
+        | PositionType::FunOrMacroIdentifier => {
             let mut locations = vec![];
             let ReferenceInfo {
                 loc: jump_cache,
@@ -241,10 +243,7 @@ async fn godef_inner<P: AsRef<Path>>(
             findpackage::cmpfindpackage(tofind)
         }
         // NOTE: here is reserve to do next time
-        PositionType::Unknown
-        | PositionType::Comment
-        | PositionType::FunOrMacroArgs
-        | PositionType::FunOrMacroIdentifier => None,
+        PositionType::Unknown | PositionType::Comment | PositionType::FunOrMacroArgs => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {
@@ -261,7 +260,10 @@ async fn godef_inner<P: AsRef<Path>>(
 async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
     let mut results = vec![];
     let from = path.as_ref();
-    let avaiablepaths = if from.ends_with("cmake") {
+    let avaiablepaths = if from
+        .extension()
+        .is_some_and(|extension| extension == "cmake")
+    {
         TREE_CMAKE_MAP.lock().await
     } else {
         TREE_MAP.lock().await

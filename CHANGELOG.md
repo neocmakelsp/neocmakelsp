@@ -1,5 +1,9 @@
 # Neocmakelsp
 
+## 0.8.20-beta2
+- fix rename do not work for include
+- fix rename not work if position is on definition
+
 ## 0.8.20-beta1
 - support real reference
 - support rename

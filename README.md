@@ -157,6 +157,7 @@ To use `neocmakelsp` with eglot:
 -   Get the project struct
 -   It is also a cli tool to format
 -   Lint
+-   Rename
 
 ## Lint form 6.0.27
 
