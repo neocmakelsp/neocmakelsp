@@ -203,13 +203,10 @@ async fn godef_inner<P: AsRef<Path>>(
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
-            let Some(ReferenceInfo {
+            let ReferenceInfo {
                 loc: jump_cache,
                 is_function,
-            }) = get_cached_def(&originuri, tofind).await
-            else {
-                return None;
-            };
+            } = get_cached_def(&originuri, tofind).await?;
             if is_jump {
                 return Some(vec![jump_cache]);
             }
