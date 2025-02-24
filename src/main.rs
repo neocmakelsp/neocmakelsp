@@ -23,6 +23,7 @@ mod hover;
 mod jump;
 mod languageserver;
 mod quick_fix;
+mod rename;
 mod scansubs;
 mod search;
 mod semantic_token;

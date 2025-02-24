@@ -174,9 +174,10 @@ pub async fn godef<P: AsRef<Path>>(
     originuri: P,
     client: &tower_lsp::Client,
     is_jump: bool,
+    just_var_or_fun: bool,
 ) -> Option<Vec<Location>> {
     let current_point = location.to_point();
-    let locations = godef_inner(current_point, source, originuri, is_jump).await;
+    let locations = godef_inner(current_point, source, originuri, is_jump, just_var_or_fun).await;
     if locations.is_none() {
         client
             .log_message(MessageType::INFO, "Not find any locations")
@@ -190,16 +191,20 @@ async fn godef_inner<P: AsRef<Path>>(
     source: &str,
     originuri: P,
     is_jump: bool,
+    just_var_or_fun: bool,
 ) -> Option<Vec<Location>> {
-    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None)?;
+    let tree = parse.parse(source, None)?;
 
     let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
 
     let jumptype = get_pos_type(location, tree.root_node(), &source);
 
+    // NOTE: when just find the var or fun, then we need to skip other position type
+    if !matches!(jumptype, PositionType::VarOrFun) && just_var_or_fun {
+        return None;
+    }
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
@@ -210,13 +215,13 @@ async fn godef_inner<P: AsRef<Path>>(
             if is_jump {
                 return Some(vec![jump_cache]);
             }
+
+            let Ok(loc) = jump_cache.uri.to_file_path() else {
+                return None;
+            };
             locations.push(jump_cache);
-            let newsource: Vec<&str> = source.lines().collect();
-            if let Some(mut defdata) =
-                reference(tree.root_node(), &newsource, tofind, originuri, is_function)
-            {
-                locations.append(&mut defdata);
-            }
+            let mut defdata = refrence_all(&loc, tofind, is_function).await;
+            locations.append(&mut defdata);
             if locations.is_empty() {
                 None
             } else {
@@ -250,8 +255,45 @@ async fn godef_inner<P: AsRef<Path>>(
     }
 }
 
+async fn refrence_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
+    let mut results = vec![];
+    let from = path.as_ref();
+    if from.ends_with("cmake") {
+        // TODO:
+        return vec![];
+    }
+
+    let avaiablepaths = TREE_MAP.lock().await;
+    let mut paths: Vec<PathBuf> = avaiablepaths
+        .iter()
+        .filter(|(_child, parent)| **parent == from)
+        .map(|(child, _)| child.clone())
+        .collect();
+    paths.push(from.to_path_buf());
+    for rp in paths {
+        let Ok(source) = tokio::fs::read_to_string(&rp)
+            .await
+            .map(|source| source.normalize())
+        else {
+            continue;
+        };
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let Some(tree) = parse.parse(&source, None) else {
+            continue;
+        };
+        let newsource = source.lines().collect();
+        if let Some(mut locs) =
+            reference_inner(tree.root_node(), &newsource, tofind, rp, is_function)
+        {
+            results.append(&mut locs);
+        }
+    }
+    results
+}
+
 /// sub get the def
-fn reference<P: AsRef<Path>>(
+fn reference_inner<P: AsRef<Path>>(
     root: Node,
     newsource: &Vec<&str>,
     tofind: &str,
@@ -266,7 +308,7 @@ fn reference<P: AsRef<Path>>(
                 continue;
             }
             if let Some(mut context) =
-                reference(child, newsource, tofind, originuri.as_ref(), is_function)
+                reference_inner(child, newsource, tofind, originuri.as_ref(), is_function)
             {
                 definitions.append(&mut context);
             }
@@ -649,6 +691,7 @@ mod jump_test {
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();
@@ -701,6 +744,7 @@ add_subdirectory(abcd_test)
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();
@@ -726,6 +770,7 @@ add_subdirectory(abcd_test)
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();

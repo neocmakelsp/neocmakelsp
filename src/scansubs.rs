@@ -44,7 +44,10 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
 }
 
 async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
-    let Ok(source) = std::fs::read_to_string(path.as_ref()).map(|source| source.normalize()) else {
+    let Ok(source) = tokio::fs::read_to_string(path.as_ref())
+        .await
+        .map(|source| source.normalize())
+    else {
         return Vec::new();
     };
 
