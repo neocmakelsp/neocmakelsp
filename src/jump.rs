@@ -30,6 +30,7 @@ use crate::utils::treehelper::{PositionType, get_pos_type};
 pub struct JumpCacheUnit {
     pub location: Location,
     pub document_info: String,
+    pub is_function: bool,
 }
 
 pub type JumpKV = HashMap<String, JumpCacheUnit>;
@@ -37,13 +38,12 @@ pub type JumpKV = HashMap<String, JumpCacheUnit>;
 pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CacheDataUnit {
     key: String,
     location: Location,
     document_info: String,
+    is_function: bool,
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
@@ -65,6 +65,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         key,
         location,
         document_info,
+        is_function,
     } in result_data
     {
         cache.insert(
@@ -72,20 +73,35 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
             JumpCacheUnit {
                 location,
                 document_info,
+                is_function,
             },
         );
     }
     None
 }
 
-pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Location> {
+#[derive(Debug, Clone)]
+pub struct ReferenceInfo {
+    is_function: bool,
+    loc: Location,
+}
+
+pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<ReferenceInfo> {
     let mut path = path.as_ref().to_path_buf();
 
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
-    if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-        return Some(location.clone());
+    if let Some(JumpCacheUnit {
+        location,
+        is_function,
+        ..
+    }) = jump_cache.get(key)
+    {
+        return Some(ReferenceInfo {
+            loc: location.clone(),
+            is_function: *is_function,
+        });
     }
     drop(jump_cache);
     if let Ok(context) = tokio::fs::read_to_string(&path).await {
@@ -97,15 +113,31 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
         drop(buffer_cache);
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-            return Some(location.clone());
+        if let Some(JumpCacheUnit {
+            location,
+            is_function,
+            ..
+        }) = jump_cache.get(key)
+        {
+            return Some(ReferenceInfo {
+                loc: location.clone(),
+                is_function: *is_function,
+            });
         }
     }
 
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-            return Some(location.clone());
+        if let Some(JumpCacheUnit {
+            location,
+            is_function,
+            ..
+        }) = jump_cache.get(key)
+        {
+            return Some(ReferenceInfo {
+                loc: location.clone(),
+                is_function: *is_function,
+            });
         }
         drop(jump_cache);
         if let Ok(context) = tokio::fs::read_to_string(&parent).await {
@@ -117,8 +149,16 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
             drop(buffer_cache);
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
-            if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-                return Some(location.clone());
+            if let Some(JumpCacheUnit {
+                location,
+                is_function,
+                ..
+            }) = jump_cache.get(key)
+            {
+                return Some(ReferenceInfo {
+                    loc: location.clone(),
+                    is_function: *is_function,
+                });
             }
         }
         path.clone_from(parent);
@@ -163,16 +203,20 @@ async fn godef_inner<P: AsRef<Path>>(
     match jumptype {
         PositionType::VarOrFun => {
             let mut locations = vec![];
-            if let Some(jump_cache) = get_cached_defs(&originuri, tofind).await {
-                if is_jump {
-                    return Some(vec![jump_cache]);
-                }
-                locations.push(jump_cache);
+            let Some(ReferenceInfo {
+                loc: jump_cache,
+                is_function,
+            }) = get_cached_def(&originuri, tofind).await
+            else {
+                return None;
+            };
+            if is_jump {
+                return Some(vec![jump_cache]);
             }
-
+            locations.push(jump_cache);
             let newsource: Vec<&str> = source.lines().collect();
             if let Some(mut defdata) =
-                simplegodefsub(tree.root_node(), &newsource, tofind, originuri, is_jump)
+                reference(tree.root_node(), &newsource, tofind, originuri, is_function)
             {
                 locations.append(&mut defdata);
             }
@@ -210,31 +254,32 @@ async fn godef_inner<P: AsRef<Path>>(
 }
 
 /// sub get the def
-fn simplegodefsub<P: AsRef<Path>>(
+fn reference<P: AsRef<Path>>(
     root: Node,
     newsource: &Vec<&str>,
     tofind: &str,
     originuri: P,
-    is_jump: bool,
+    is_function: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        // if is inside same line
-        //
-        if child.kind() == CMakeNodeKinds::IDENTIFIER {
-            continue;
-        }
         if child.child_count() != 0 {
-            if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
+            if child.kind() == CMakeNodeKinds::UNQUOTED_ARGUMENT {
                 continue;
             }
             if let Some(mut context) =
-                simplegodefsub(child, newsource, tofind, originuri.as_ref(), is_jump)
+                reference(child, newsource, tofind, originuri.as_ref(), is_function)
             {
                 definitions.append(&mut context);
             }
-        } else if child.start_position().row == child.end_position().row {
+            continue;
+        }
+        if child.start_position().row == child.end_position().row {
+            // NOTE: if different, means it is not what I want
+            if (child.kind() == CMakeNodeKinds::IDENTIFIER) ^ is_function {
+                continue;
+            }
             let h = child.start_position().row;
             let x = child.start_position().column;
             let y = child.end_position().column;
@@ -324,6 +369,7 @@ fn getsubdef<P: AsRef<Path>>(
                         range: Range { start, end },
                     },
                     document_info,
+                    is_function: true,
                 });
             }
             CMakeNodeKinds::MACRO_DEF => {
@@ -356,6 +402,7 @@ fn getsubdef<P: AsRef<Path>>(
                         range: Range { start, end },
                     },
                     document_info,
+                    is_function: true,
                 });
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
@@ -530,6 +577,7 @@ fn getsubdef<P: AsRef<Path>>(
                             },
                         },
                         document_info,
+                        is_function: false,
                     });
                 }
             }
@@ -762,9 +810,10 @@ include(efg_test.cmake)
                         line: 1,
                         character: 8
                     }
-                }
+                },
             },
-            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display())
+            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
+            is_function: false
         }]
     );
     assert_eq!(

@@ -173,7 +173,8 @@ include(efg_test.cmake)
                     }
                 }
             },
-            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display())
+            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
+            is_function: false
         }]
     );
     assert_eq!(include_files, vec![include_cmake_path_2]);
