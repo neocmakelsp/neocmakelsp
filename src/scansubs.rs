@@ -73,6 +73,7 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf
     if tree.is_error() {
         return (Vec::new(), Vec::new());
     }
+
     scan_node(&newsource, tree, path)
 }
 
@@ -133,7 +134,7 @@ fn scan_node<P: AsRef<Path>>(
                 }
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                let (mut childbufs, mut newcmakebufs) = scan_node(source, tree, path.as_ref());
+                let (mut childbufs, mut newcmakebufs) = scan_node(source, node, path.as_ref());
                 bufs.append(&mut childbufs);
                 cmake_bufs.append(&mut newcmakebufs);
             }
