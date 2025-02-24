@@ -203,11 +203,18 @@ async fn godef_inner<P: AsRef<Path>>(
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
     // NOTE: when just find the var or fun, then we need to skip other position type
-    if !matches!(jumptype, PositionType::VarOrFun) && just_var_or_fun {
+    // Because when value in arguments, then it maybe definition, so we also need to handle this
+    // part
+    if !matches!(
+        jumptype,
+        PositionType::VarOrFun | PositionType::ArgumentOrList
+    ) && just_var_or_fun
+    {
         return None;
     }
+
     match jumptype {
-        PositionType::VarOrFun => {
+        PositionType::VarOrFun | PositionType::ArgumentOrList => {
             let mut locations = vec![];
             let ReferenceInfo {
                 loc: jump_cache,
@@ -223,11 +230,7 @@ async fn godef_inner<P: AsRef<Path>>(
             locations.push(jump_cache);
             let mut defdata = reference_all(&loc, tofind, is_function).await;
             locations.append(&mut defdata);
-            if locations.is_empty() {
-                None
-            } else {
-                Some(locations)
-            }
+            Some(locations)
         }
         PositionType::FindPackageSpace(space) => {
             let newtofind = format!("{space}{}", get_the_packagename(tofind));
@@ -240,7 +243,6 @@ async fn godef_inner<P: AsRef<Path>>(
         // NOTE: here is reserve to do next time
         PositionType::Unknown
         | PositionType::Comment
-        | PositionType::ArgumentOrList
         | PositionType::FunOrMacroArgs
         | PositionType::FunOrMacroIdentifier => None,
         #[cfg(unix)]
@@ -305,9 +307,6 @@ fn reference_inner<P: AsRef<Path>>(
     let mut course = root.walk();
     for child in root.children(&mut course) {
         if child.child_count() != 0 {
-            if child.kind() == CMakeNodeKinds::UNQUOTED_ARGUMENT {
-                continue;
-            }
             if let Some(mut context) =
                 reference_inner(child, newsource, tofind, originuri.as_ref(), is_function)
             {
@@ -318,6 +317,9 @@ fn reference_inner<P: AsRef<Path>>(
         if child.start_position().row == child.end_position().row {
             // NOTE: if different, means it is not what I want
             if (child.kind() == CMakeNodeKinds::IDENTIFIER) ^ is_function {
+                continue;
+            }
+            if child.kind() != CMakeNodeKinds::VARIABLE && !is_function {
                 continue;
             }
             let h = child.start_position().row;
