@@ -3,6 +3,7 @@ mod config;
 mod test;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::exit;
 use std::sync::{Arc, LazyLock, RwLock};
 
 use tokio::sync::Mutex;
@@ -422,7 +423,10 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        Ok(())
+        // NOTE: do nothing
+        // Seems tower_lsp won't do anything when receive this command.
+        // Now it should be proper for me to directly exit(0) here
+        exit(0)
     }
 
     async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
