@@ -277,8 +277,6 @@ fn getsubdef<P: AsRef<Path>>(
         comments: vec![],
     };
     for child in input.children(&mut course) {
-        let start = child.start_position().to_position();
-        let end = child.end_position().to_position();
         match child.kind() {
             CMakeNodeKinds::LINE_COMMENT => {
                 let start_x = child.start_position().column;
@@ -305,6 +303,8 @@ fn getsubdef<P: AsRef<Path>>(
                 let Some(function_name) = argument_list.child(0) else {
                     continue;
                 };
+                let start = function_name.start_position().to_position();
+                let end = function_name.end_position().to_position();
                 let x = function_name.start_position().column;
                 let y = function_name.end_position().column;
                 let h = function_name.start_position().row;
@@ -335,6 +335,8 @@ fn getsubdef<P: AsRef<Path>>(
                 let Some(marco_name) = argument_list.child(0) else {
                     continue;
                 };
+                let start = marco_name.start_position().to_position();
+                let end = marco_name.end_position().to_position();
                 let x = marco_name.start_position().column;
                 let y = marco_name.end_position().column;
                 let h = marco_name.start_position().row;
