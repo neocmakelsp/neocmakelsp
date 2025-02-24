@@ -1,5 +1,10 @@
 # Neocmakelsp
 
+## 0.8.20-beta1
+- support real reference
+- support rename
+- to edition 2024
+
 ## 0.8.8
 - futures-util v0.3.30 is yanked, so publish new release
 
