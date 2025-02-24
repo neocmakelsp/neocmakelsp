@@ -50,7 +50,10 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     }
     for cmakepath in cmakebufs {
         let include_key = includetree.entry(cmakepath).or_default();
-        include_key.push(path.as_ref().into());
+        let toaddpath = path.as_ref().into();
+        if !include_key.contains(&toaddpath) {
+            include_key.push(toaddpath);
+        }
     }
     bufs
 }

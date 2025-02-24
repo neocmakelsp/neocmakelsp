@@ -1,5 +1,8 @@
 # Neocmakelsp
 
+## 0.8.20-beta4
+- fix that every time save a file, the references will increase, which also cause problems when doing rename
+
 ## 0.8.20-beta3
 - fix when using relative cmake path, reference not work properly
 
