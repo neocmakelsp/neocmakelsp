@@ -262,9 +262,9 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
     let mut results = vec![];
     let from = path.as_ref();
     let avaiablepaths = if from.ends_with("cmake") {
-        TREE_MAP.lock().await
-    } else {
         TREE_CMAKE_MAP.lock().await
+    } else {
+        TREE_MAP.lock().await
     };
 
     let mut paths: Vec<PathBuf> = avaiablepaths
