@@ -221,7 +221,7 @@ async fn godef_inner<P: AsRef<Path>>(
                 return None;
             };
             locations.push(jump_cache);
-            let mut defdata = refrence_all(&loc, tofind, is_function).await;
+            let mut defdata = reference_all(&loc, tofind, is_function).await;
             locations.append(&mut defdata);
             if locations.is_empty() {
                 None
@@ -256,7 +256,7 @@ async fn godef_inner<P: AsRef<Path>>(
     }
 }
 
-async fn refrence_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
+async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
     let mut results = vec![];
     let from = path.as_ref();
     let avaiablepaths = if from.ends_with("cmake") {
