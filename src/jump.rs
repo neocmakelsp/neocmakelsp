@@ -5,6 +5,7 @@ use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 
+use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
 use crate::{
     CMakeNodeKinds,
@@ -384,13 +385,16 @@ fn getsubdef<P: AsRef<Path>>(
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
                         let name = &source[h][x..y];
+                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
+                            continue;
+                        };
                         let (is_builtin, subpath) = {
-                            if !include_is_module(name) {
+                            if !include_is_module(&name) {
                                 (false, local_path.parent().unwrap().join(name))
                             } else {
                                 // NOTE: Module file now is not works on windows
                                 // Maybe also not works on android, please make pr for me
-                                let Some(glob_pattern) = gen_module_pattern(name) else {
+                                let Some(glob_pattern) = gen_module_pattern(&name) else {
                                     continue;
                                 };
                                 let Some(path) = glob::glob(&glob_pattern)
