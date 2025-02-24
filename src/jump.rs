@@ -5,6 +5,7 @@ use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
 
+use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
 use crate::{
@@ -30,6 +31,7 @@ use crate::utils::treehelper::{PositionType, get_pos_type};
 pub struct JumpCacheUnit {
     pub location: Location,
     pub document_info: String,
+    pub is_function: bool,
 }
 
 pub type JumpKV = HashMap<String, JumpCacheUnit>;
@@ -37,13 +39,12 @@ pub type JumpKV = HashMap<String, JumpCacheUnit>;
 pub static JUMP_CACHE: LazyLock<Arc<Mutex<JumpKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-const JUMP_FILITER_KIND: &[&str] = &["identifier", "unquoted_argument"];
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CacheDataUnit {
     key: String,
     location: Location,
     document_info: String,
+    is_function: bool,
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> {
@@ -65,6 +66,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         key,
         location,
         document_info,
+        is_function,
     } in result_data
     {
         cache.insert(
@@ -72,20 +74,35 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
             JumpCacheUnit {
                 location,
                 document_info,
+                is_function,
             },
         );
     }
     None
 }
 
-pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Location> {
+#[derive(Debug, Clone)]
+pub struct ReferenceInfo {
+    is_function: bool,
+    loc: Location,
+}
+
+pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<ReferenceInfo> {
     let mut path = path.as_ref().to_path_buf();
 
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
-    if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-        return Some(location.clone());
+    if let Some(JumpCacheUnit {
+        location,
+        is_function,
+        ..
+    }) = jump_cache.get(key)
+    {
+        return Some(ReferenceInfo {
+            loc: location.clone(),
+            is_function: *is_function,
+        });
     }
     drop(jump_cache);
     if let Ok(context) = tokio::fs::read_to_string(&path).await {
@@ -97,15 +114,31 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
         drop(buffer_cache);
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-            return Some(location.clone());
+        if let Some(JumpCacheUnit {
+            location,
+            is_function,
+            ..
+        }) = jump_cache.get(key)
+        {
+            return Some(ReferenceInfo {
+                loc: location.clone(),
+                is_function: *is_function,
+            });
         }
     }
 
     while let Some(parent) = tree_map.get(&path) {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-            return Some(location.clone());
+        if let Some(JumpCacheUnit {
+            location,
+            is_function,
+            ..
+        }) = jump_cache.get(key)
+        {
+            return Some(ReferenceInfo {
+                loc: location.clone(),
+                is_function: *is_function,
+            });
         }
         drop(jump_cache);
         if let Ok(context) = tokio::fs::read_to_string(&parent).await {
@@ -117,8 +150,16 @@ pub async fn get_cached_defs<P: AsRef<Path>>(path: P, key: &str) -> Option<Locat
             drop(buffer_cache);
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
-            if let Some(JumpCacheUnit { location, .. }) = jump_cache.get(key) {
-                return Some(location.clone());
+            if let Some(JumpCacheUnit {
+                location,
+                is_function,
+                ..
+            }) = jump_cache.get(key)
+            {
+                return Some(ReferenceInfo {
+                    loc: location.clone(),
+                    is_function: *is_function,
+                });
             }
         }
         path.clone_from(parent);
@@ -134,9 +175,10 @@ pub async fn godef<P: AsRef<Path>>(
     originuri: P,
     client: &tower_lsp::Client,
     is_jump: bool,
+    just_var_or_fun: bool,
 ) -> Option<Vec<Location>> {
     let current_point = location.to_point();
-    let locations = godef_inner(current_point, source, originuri, is_jump).await;
+    let locations = godef_inner(current_point, source, originuri, is_jump, just_var_or_fun).await;
     if locations.is_none() {
         client
             .log_message(MessageType::INFO, "Not find any locations")
@@ -150,37 +192,45 @@ async fn godef_inner<P: AsRef<Path>>(
     source: &str,
     originuri: P,
     is_jump: bool,
+    just_var_or_fun: bool,
 ) -> Option<Vec<Location>> {
-    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None)?;
+    let tree = parse.parse(source, None)?;
 
     let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
 
-    let jumptype = get_pos_type(location, tree.root_node(), &source);
+    let jumptype = get_pos_type(location, tree.root_node(), source);
+
+    // NOTE: when just find the var or fun, then we need to skip other position type
+    // Because when value in arguments, then it maybe definition, so we also need to handle this
+    // part
+    if !matches!(
+        jumptype,
+        PositionType::VarOrFun | PositionType::ArgumentOrList
+    ) && just_var_or_fun
+    {
+        return None;
+    }
 
     match jumptype {
-        PositionType::VarOrFun => {
+        PositionType::VarOrFun | PositionType::ArgumentOrList => {
             let mut locations = vec![];
-            if let Some(jump_cache) = get_cached_defs(&originuri, tofind).await {
-                if is_jump {
-                    return Some(vec![jump_cache]);
-                }
-                locations.push(jump_cache);
+            let ReferenceInfo {
+                loc: jump_cache,
+                is_function,
+            } = get_cached_def(&originuri, tofind).await?;
+            if is_jump {
+                return Some(vec![jump_cache]);
             }
 
-            let newsource: Vec<&str> = source.lines().collect();
-            if let Some(mut defdata) =
-                simplegodefsub(tree.root_node(), &newsource, tofind, originuri, is_jump)
-            {
-                locations.append(&mut defdata);
-            }
-            if locations.is_empty() {
-                None
-            } else {
-                Some(locations)
-            }
+            let Ok(loc) = jump_cache.uri.to_file_path() else {
+                return None;
+            };
+            locations.push(jump_cache);
+            let mut defdata = reference_all(&loc, tofind, is_function).await;
+            locations.append(&mut defdata);
+            Some(locations)
         }
         PositionType::FindPackageSpace(space) => {
             let newtofind = format!("{space}{}", get_the_packagename(tofind));
@@ -193,7 +243,6 @@ async fn godef_inner<P: AsRef<Path>>(
         // NOTE: here is reserve to do next time
         PositionType::Unknown
         | PositionType::Comment
-        | PositionType::ArgumentOrList
         | PositionType::FunOrMacroArgs
         | PositionType::FunOrMacroIdentifier => None,
         #[cfg(unix)]
@@ -209,32 +258,70 @@ async fn godef_inner<P: AsRef<Path>>(
     }
 }
 
+async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool) -> Vec<Location> {
+    let mut results = vec![];
+    let from = path.as_ref();
+    let avaiablepaths = if from.ends_with("cmake") {
+        TREE_CMAKE_MAP.lock().await
+    } else {
+        TREE_MAP.lock().await
+    };
+
+    let mut paths: Vec<PathBuf> = avaiablepaths
+        .iter()
+        .filter(|(_child, parent)| **parent == from)
+        .map(|(child, _)| child.clone())
+        .collect();
+    paths.push(from.to_path_buf());
+    for rp in paths {
+        let Ok(source) = tokio::fs::read_to_string(&rp)
+            .await
+            .map(|source| source.normalize())
+        else {
+            continue;
+        };
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let Some(tree) = parse.parse(&source, None) else {
+            continue;
+        };
+        let newsource = source.lines().collect();
+        if let Some(mut locs) =
+            reference_inner(tree.root_node(), &newsource, tofind, rp, is_function)
+        {
+            results.append(&mut locs);
+        }
+    }
+    results
+}
+
 /// sub get the def
-fn simplegodefsub<P: AsRef<Path>>(
+fn reference_inner<P: AsRef<Path>>(
     root: Node,
     newsource: &Vec<&str>,
     tofind: &str,
     originuri: P,
-    is_jump: bool,
+    is_function: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
     let mut course = root.walk();
     for child in root.children(&mut course) {
-        // if is inside same line
-        //
-        if child.kind() == CMakeNodeKinds::IDENTIFIER {
-            continue;
-        }
         if child.child_count() != 0 {
-            if is_jump && JUMP_FILITER_KIND.contains(&child.kind()) {
-                continue;
-            }
             if let Some(mut context) =
-                simplegodefsub(child, newsource, tofind, originuri.as_ref(), is_jump)
+                reference_inner(child, newsource, tofind, originuri.as_ref(), is_function)
             {
                 definitions.append(&mut context);
             }
-        } else if child.start_position().row == child.end_position().row {
+            continue;
+        }
+        if child.start_position().row == child.end_position().row {
+            // NOTE: if different, means it is not what I want
+            if (child.kind() == CMakeNodeKinds::IDENTIFIER) ^ is_function {
+                continue;
+            }
+            if child.kind() != CMakeNodeKinds::VARIABLE && !is_function {
+                continue;
+            }
             let h = child.start_position().row;
             let x = child.start_position().column;
             let y = child.end_position().column;
@@ -324,6 +411,7 @@ fn getsubdef<P: AsRef<Path>>(
                         range: Range { start, end },
                     },
                     document_info,
+                    is_function: true,
                 });
             }
             CMakeNodeKinds::MACRO_DEF => {
@@ -356,6 +444,7 @@ fn getsubdef<P: AsRef<Path>>(
                         range: Range { start, end },
                     },
                     document_info,
+                    is_function: true,
                 });
             }
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
@@ -530,6 +619,7 @@ fn getsubdef<P: AsRef<Path>>(
                             },
                         },
                         document_info,
+                        is_function: false,
                     });
                 }
             }
@@ -604,6 +694,7 @@ mod jump_test {
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();
@@ -656,6 +747,7 @@ add_subdirectory(abcd_test)
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();
@@ -681,6 +773,7 @@ add_subdirectory(abcd_test)
             &jump_file_src,
             &top_cmake,
             true,
+            false,
         )
         .await
         .unwrap();
@@ -762,9 +855,10 @@ include(efg_test.cmake)
                         line: 1,
                         character: 8
                     }
-                }
+                },
             },
-            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display())
+            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
+            is_function: false
         }]
     );
     assert_eq!(

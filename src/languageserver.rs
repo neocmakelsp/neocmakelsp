@@ -23,7 +23,7 @@ use crate::utils::treehelper::ToPosition;
 use crate::utils::{DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
     BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
-    scansubs, semantic_token, utils,
+    rename, scansubs, semantic_token, utils,
 };
 
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
@@ -236,6 +236,7 @@ impl LanguageServer for Backend {
                 version: Some(version),
             }),
             capabilities: ServerCapabilities {
+                rename_provider: Some(OneOf::Left(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
                     TextDocumentSyncOptions {
@@ -704,7 +705,34 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        Ok(jump::godef(location, context.as_str(), &file_path, &self.client, false).await)
+        Ok(jump::godef(
+            location,
+            context.as_str(),
+            &file_path,
+            &self.client,
+            false,
+            false,
+        )
+        .await)
+    }
+
+    async fn rename(&self, input: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let edited = input.new_name;
+        let uri = input.text_document_position.text_document.uri;
+        let location = input.text_document_position.position;
+        let storemap = BUFFERS_CACHE.lock().await;
+        let Some(context) = storemap.get(&uri).cloned() else {
+            return Ok(None);
+        };
+        drop(storemap);
+        let file_path = match uri.to_file_path() {
+            Ok(file_path) => file_path,
+            Err(_) => {
+                tracing::error!("Cannot get file_path from {uri:?}");
+                return Err(LspError::internal_error());
+            }
+        };
+        Ok(rename::rename(&edited, location, file_path, &self.client, &context).await)
     }
 
     async fn goto_definition(
@@ -732,7 +760,7 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        match jump::godef(location, &context, &file_path, &self.client, true).await {
+        match jump::godef(location, &context, &file_path, &self.client, true, false).await {
             Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                 range
                     .iter()
