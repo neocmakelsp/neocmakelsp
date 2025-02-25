@@ -327,7 +327,3 @@ It just remove the space in the end, replace `\t` at the begin of each line to `
 
 * I do not know if all features will work on macOS and Windows, so if someone use macOS or Windows, please open an issue if you find any bugs.
 * I want a co-maintainer, who ideally is familiar with macOS, Windows and LSP.
-
-## Sponsor me
-
-<iframe src="https://github.com/sponsors/Decodetalkers/card" title="Sponsor Decodetalkers" height="225" width="600" style="border: 0;"></iframe>
