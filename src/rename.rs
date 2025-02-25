@@ -12,9 +12,8 @@ pub async fn rename<P: AsRef<Path>>(
     source: &str,
 ) -> Option<WorkspaceEdit> {
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-    let mut defs = jump::godef(location, source, originuri, client, false, true).await?;
-    // NOTE: ensure there is not same location, or it will cause problems
-    defs.dedup();
+    let defs = jump::godef(location, source, originuri, client, false, true).await?;
+
     for Location { uri, range } in defs {
         let edits = changes.entry(uri).or_default();
         edits.push(TextEdit {

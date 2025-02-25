@@ -232,6 +232,8 @@ async fn godef_inner<P: AsRef<Path>>(
             locations.push(jump_cache);
             let mut defdata = reference_all(&loc, tofind, is_function).await;
             locations.append(&mut defdata);
+            // NOTE: ensure there is not same location, or it will cause problems
+            locations.dedup();
             Some(locations)
         }
         PositionType::FindPackageSpace(space) => {
