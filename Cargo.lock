@@ -790,7 +790,7 @@ dependencies = [
 
 [[package]]
 name = "neocmakelsp"
-version = "0.8.20"
+version = "0.8.21"
 dependencies = [
  "anstyle",
  "anyhow",
