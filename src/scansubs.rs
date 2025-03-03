@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::{
-    DocumentNormalize, remove_quotation, remove_quotation_and_replace_placeholders,
-};
+use crate::utils::{remove_quotation, remove_quotation_and_replace_placeholders};
 use crate::{CMakeNodeKinds, complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
@@ -59,10 +57,7 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
 }
 
 async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
-    let Ok(source) = tokio::fs::read_to_string(path.as_ref())
-        .await
-        .map(|source| source.normalize())
-    else {
+    let Ok(source) = tokio::fs::read_to_string(path.as_ref()).await else {
         return (Vec::new(), Vec::new());
     };
 
@@ -175,7 +170,7 @@ impl fmt::Display for TreeDir {
 
 // Path Input is xxx/CMakeLists.txt
 pub fn get_treedir(path: &Path) -> Option<TreeDir> {
-    let Ok(content) = std::fs::read_to_string(path).map(|source| source.normalize()) else {
+    let Ok(content) = std::fs::read_to_string(path) else {
         return None;
     };
     let mut top = TreeDir {

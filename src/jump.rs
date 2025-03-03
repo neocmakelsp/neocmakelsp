@@ -14,8 +14,8 @@ use crate::{
     languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
-        CACHE_CMAKE_PACKAGES_WITHKEYS, DocumentNormalize, LineCommentTmp, gen_module_pattern,
-        get_the_packagename, include_is_module, replace_placeholders,
+        CACHE_CMAKE_PACKAGES_WITHKEYS, LineCommentTmp, gen_module_pattern, get_the_packagename,
+        include_is_module, replace_placeholders,
         treehelper::{ToPoint, ToPosition, get_point_string},
     },
 };
@@ -295,10 +295,7 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
     paths.push(from.to_path_buf());
 
     for rp in paths {
-        let Ok(source) = tokio::fs::read_to_string(&rp)
-            .await
-            .map(|source| source.normalize())
-        else {
+        let Ok(source) = tokio::fs::read_to_string(&rp).await else {
             continue;
         };
         let mut parse = tree_sitter::Parser::new();

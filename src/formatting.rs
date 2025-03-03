@@ -3,7 +3,6 @@ use tower_lsp::lsp_types;
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::DocumentNormalize;
 use crate::utils::treehelper::is_comment;
 
 const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
@@ -220,10 +219,9 @@ pub fn get_format_cli(
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<String> {
-    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
     if input.has_error() {
         return None;

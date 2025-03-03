@@ -21,7 +21,7 @@ use crate::formatting::getformat;
 use crate::gammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper::ToPosition;
-use crate::utils::{DocumentNormalize, VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
+use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
     BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
     rename, scansubs, semantic_token, utils,
@@ -489,7 +489,7 @@ impl LanguageServer for Backend {
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let uri = input.text_document.uri.clone();
-        let context = input.text_document.text.normalize();
+        let context = input.text_document.text;
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.entry(uri.clone()).or_insert(context.clone());
         drop(storemap);
@@ -543,7 +543,7 @@ impl LanguageServer for Backend {
     async fn did_change(&self, input: DidChangeTextDocumentParams) {
         // create a parse
         let uri = input.text_document.uri.clone();
-        let context = input.content_changes[0].text.normalize();
+        let context = input.content_changes[0].text.clone();
         let mut storemap = BUFFERS_CACHE.lock().await;
         storemap.insert(uri.clone(), context.clone());
         drop(storemap);

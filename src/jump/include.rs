@@ -8,8 +8,8 @@ use tower_lsp::lsp_types;
 
 use super::{CacheDataUnit, Location, gen_module_pattern, getsubdef};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::include_is_module;
 use crate::utils::treehelper::PositionType;
-use crate::utils::{DocumentNormalize, include_is_module};
 
 pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<Vec<Location>> {
     let target = if !include_is_module(subpath) {
@@ -94,7 +94,7 @@ pub fn scanner_include_defs(
             }
         }
     }
-    let content = fs::read_to_string(path).ok()?.normalize();
+    let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&content, None)?;
@@ -191,7 +191,7 @@ pub fn scanner_package_defs(
             return Some(complete_items.clone());
         }
     }
-    let content = fs::read_to_string(path).ok()?.normalize();
+    let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(&content, None)?;

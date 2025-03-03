@@ -255,27 +255,6 @@ fn test_comment() {
     assert_eq!(linecomment.comment(), "Abcd\nEFGH");
 }
 
-pub trait DocumentNormalize {
-    fn normalize(&self) -> String;
-}
-
-impl<T> DocumentNormalize for T
-where
-    T: AsRef<str>,
-{
-    fn normalize(&self) -> String {
-        self.as_ref().replace("\r\n", "\n").to_string()
-    }
-}
-
-#[test]
-fn strip_newline_works() {
-    assert_eq!("Test0\r\n\r\n".normalize(), "Test0\n\n");
-    assert_eq!("Test1\r\n".normalize(), "Test1\n");
-    assert_eq!("Test2\nTest2".normalize(), "Test2\nTest2");
-    assert_eq!("Test3".normalize(), "Test3");
-}
-
 #[test]
 fn test_module_pattern() {
     #[cfg(unix)]

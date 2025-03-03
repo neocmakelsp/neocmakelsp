@@ -18,8 +18,8 @@ use crate::languageserver::BUFFERS_CACHE;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
 use crate::utils::{
-    CACHE_CMAKE_PACKAGES_WITHKEYS, DocumentNormalize, LineCommentTmp, gen_module_pattern,
-    include_is_module, remove_quotation_and_replace_placeholders,
+    CACHE_CMAKE_PACKAGES_WITHKEYS, LineCommentTmp, gen_module_pattern, include_is_module,
+    remove_quotation_and_replace_placeholders,
 };
 use crate::{CMakeNodeKinds, fileapi};
 
@@ -103,10 +103,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
             completions.append(&mut data.clone());
-        } else if let Ok(context) = fs::read_to_string(parent)
-            .await
-            .map(|context| context.normalize())
-        {
+        } else if let Ok(context) = fs::read_to_string(parent).await {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
                 lsp_types::Url::from_file_path(parent).unwrap(),
@@ -133,15 +130,14 @@ pub async fn getcomplete<P: AsRef<Path>>(
     find_cmake_in_package: bool,
 ) -> Option<CompletionResponse> {
     let local_path = local_path.as_ref();
-    let source = source.normalize();
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None);
+    let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
     let mut complete: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
-    let postype = get_pos_type(current_point, tree.root_node(), &source);
+    let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             let mut cached_compeletion = get_cached_completion(local_path).await;
@@ -1001,7 +997,7 @@ fn test_complete_win() {
 
     use tempfile::tempdir;
 
-    let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()".normalize();
+    let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()";
 
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

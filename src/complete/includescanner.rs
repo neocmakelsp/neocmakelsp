@@ -7,7 +7,6 @@ use tower_lsp::lsp_types::CompletionItem;
 
 use super::getsubcomplete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::DocumentNormalize;
 use crate::utils::treehelper::PositionType;
 
 type CacheData = HashMap<PathBuf, Vec<CompletionItem>>;
@@ -30,7 +29,7 @@ pub fn scanner_include_complete(
             }
         }
     }
-    let content = fs::read_to_string(path).ok()?.normalize();
+    let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(content.clone(), None)?;
@@ -67,7 +66,7 @@ pub fn scanner_package_complete(
             return Some(complete_items.clone());
         }
     }
-    let content = fs::read_to_string(path).ok()?.normalize();
+    let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None)?;
