@@ -3,8 +3,6 @@ use std::path::PathBuf;
 use clap::{Parser, arg};
 use clap_complete::Shell;
 
-const LSP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 pub const fn get_styles() -> clap::builder::Styles {
     clap::builder::Styles::styled()
         .usage(
@@ -50,7 +48,7 @@ pub const fn get_styles() -> clap::builder::Styles {
     about="CMake Lsp implementation based on Tower and Tree-sitter", 
     long_about = None,
     author = "Cris",
-    version=LSP_VERSION
+    version,
 )]
 pub enum NeocmakeCli {
     #[command(long_flag = "stdio", about = "run with stdio")]
