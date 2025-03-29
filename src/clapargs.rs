@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{Parser, arg};
-use clap_complete::Shell;
 
 pub const fn get_styles() -> clap::builder::Styles {
     clap::builder::Styles::styled()
@@ -78,12 +77,6 @@ pub enum NeocmakeCli {
         tree_path: PathBuf,
         #[arg(value_name = "tojson", short = 'j')]
         tojson: bool,
-    },
-    #[command(long_flag = "generate-completion", about = "generate the completion")]
-    GenCompletion {
-        // If provided, outputs the completion file for given shell
-        #[arg(value_enum, required = true)]
-        shell: Shell,
     },
 }
 

@@ -27,7 +27,6 @@ mod rename;
 mod scansubs;
 mod search;
 mod semantic_token;
-mod shellcomplete;
 mod utils;
 use clapargs::NeocmakeCli;
 use std::sync::OnceLock;
@@ -120,6 +119,8 @@ fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditCon
 
 #[tokio::main]
 async fn main() {
+    clap_complete::CompleteEnv::with_factory(<NeocmakeCli as clap::CommandFactory>::command)
+        .complete();
     let log = tracing_subscriber::fmt();
 
     let args = NeocmakeCli::parse();
@@ -259,7 +260,6 @@ async fn main() {
                 }
             }
         }
-        NeocmakeCli::GenCompletion { shell } => shellcomplete::generate_shell_completion(shell),
     }
 }
 
