@@ -26,11 +26,13 @@ fn compare_shell_completions(shell: &str, completion_script: &str) {
     assert_eq!(output, completion_script);
 }
 
+#[cfg(unix)]
 #[test]
 fn verify_bash_completions() {
     compare_shell_completions("bash", include_str!("../completions/bash/neocmakelsp"));
 }
 
+#[cfg(unix)]
 #[test]
 fn verify_zsh_completions() {
     compare_shell_completions("zsh", include_str!("../completions/zsh/_neocmakelsp"));
