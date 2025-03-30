@@ -1,6 +1,7 @@
 # CMake LSP implementation based on Tower and Tree-sitter
 
 [![Crates.io](https://img.shields.io/crates/v/neocmakelsp.svg)](https://crates.io/crates/neocmakelsp)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/neocmakelsp/neocmakelsp/release.yml?branch=master)](https://github.com/neocmakelsp/neocmakelsp/actions)
 [![codecov](https://codecov.io/gh/neocmakelsp/neocmakelsp/graph/badge.svg?token=JKWSFR51TF)](https://codecov.io/gh/neocmakelsp/neocmakelsp)
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/neocmakelsp.svg)](https://repology.org/project/neocmakelsp/versions)
