@@ -248,8 +248,8 @@ pub fn get_format_cli(
 #[cfg(unix)]
 #[test]
 fn tst_format_function() {
-    let source = include_str!("../assert/function/formatbefore.cmake");
-    let sourceafter = include_str!("../assert/function/formatafter.cmake");
+    let source = include_str!("../assets_for_test/function/formatbefore.cmake");
+    let sourceafter = include_str!("../assets_for_test/function/formatafter.cmake");
     let formatstr = get_format_cli(source, 1, false, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
@@ -259,8 +259,8 @@ fn tst_format_function() {
 #[cfg(unix)]
 #[test]
 fn tst_format_base() {
-    let source = include_str!("../assert/base/formatbefore.cmake");
-    let sourceafter = include_str!("../assert/base/formatafter.cmake");
+    let source = include_str!("../assets_for_test/base/formatbefore.cmake");
+    let sourceafter = include_str!("../assets_for_test/base/formatafter.cmake");
     let formatstr = get_format_cli(source, 1, false, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
@@ -270,8 +270,8 @@ fn tst_format_base() {
 #[cfg(unix)]
 #[test]
 fn tst_format_lastline() {
-    let source = include_str!("../assert/lastline/before.cmake");
-    let sourceafter = include_str!("../assert/lastline/after.cmake");
+    let source = include_str!("../assets_for_test/lastline/before.cmake");
+    let sourceafter = include_str!("../assets_for_test/lastline/after.cmake");
     let formatstr = get_format_cli(source, 4, true, false).unwrap();
     let formatstr_with_lastline = get_format_cli(source, 4, true, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);

@@ -454,5 +454,7 @@ fn test_hl() {
             ),
         }))
     }
-    semantic_token_test(include_str!("../assert/highlight/bracket_argument.cmake"));
+    semantic_token_test(include_str!(
+        "../assets_for_test/highlight/bracket_argument.cmake"
+    ));
 }

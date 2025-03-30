@@ -236,7 +236,7 @@ mod ast_test {
     use super::*;
     #[test]
     fn test_ast_1() {
-        let context = include_str!("../assert/ast_test/bast_test.cmake");
+        let context = include_str!("../assets_for_test/ast_test/bast_test.cmake");
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
@@ -246,7 +246,7 @@ mod ast_test {
 
     #[test]
     fn test_ast_2() {
-        let context = include_str!("../assert/ast_test/nheko_test.cmake");
+        let context = include_str!("../assets_for_test/ast_test/nheko_test.cmake");
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();

@@ -401,6 +401,6 @@ fn tst_version() {
     assert_eq!(get_version(projectversion), Some("5.11".to_string()));
     let projectversion = "SET(PACKAGE_VERSION 5.11)";
     assert_eq!(get_version(projectversion), Some("5.11".to_string()));
-    let qmlversion = include_str!("../../assert/Qt5QmlConfigVersion.cmake");
+    let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
     assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
 }

@@ -1,9 +1,9 @@
-use std::process::Command;
-
-use assert_cmd::cargo::CommandCargoExt;
-use regex::{Captures, Regex};
-
+#[allow(unused)]
 fn compare_shell_completions(shell: &str, completion_script: &str) {
+    use std::process::Command;
+
+    use assert_cmd::cargo::CommandCargoExt;
+    use regex::{Captures, Regex};
     let mut command = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
     command.env("COMPLETE", shell);
 
