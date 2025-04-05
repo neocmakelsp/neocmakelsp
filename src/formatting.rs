@@ -3,31 +3,78 @@ use tower_lsp::lsp_types;
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::treehelper::is_comment;
+use crate::utils::treehelper::contain_comment;
 
-const CLOSURE: &[&str] = &["function_def", "macro_def", "if_condition", "foreach_loop"];
+const CLOSURE: &[&str] = &[
+    CMakeNodeKinds::FUNCTION_DEF,
+    CMakeNodeKinds::MACRO_DEF,
+    CMakeNodeKinds::IF_CONDITION,
+    CMakeNodeKinds::FOREACH_LOOP,
+];
 
-fn pre_format(line: &str, row: usize, input: tree_sitter::Node) -> String {
+// NOTE: when element in the same place, format bugs
+// for example
+// ```cmake
+// if(${QT_VERSION} STREQUAL 5)  find_package(Qt5ServiceSupport)
+//  find_package(Qt5ThemeSupport REQUIRED)
+//  find_package(Qt5ThemeSupport REQUIRED)
+// endif()
+// ```
+// with out this function, it will copy the first line twice, this makes bug
+fn strict_format_part<'a>(origin_line: &'a str, row: usize, child: tree_sitter::Node) -> &'a str {
+    if row != child.start_position().row {
+        return origin_line;
+    }
+    let mut output = origin_line;
+    let start = child.start_position().column;
+    let end = child.end_position().column;
+
+    if child.start_position().row == child.end_position().row {
+        output = &output[start..end];
+    } else {
+        output = &output[start..];
+    }
+    output
+}
+
+fn pre_format(
+    line: &str,
+    row: usize,
+    child: tree_sitter::Node,
+    input: tree_sitter::Node,
+) -> String {
+    if child.kind() == CMakeNodeKinds::LINE_COMMENT {
+        return strict_format_part(line, row, child).to_string();
+    }
     let comment_chars: Vec<usize> = line
         .chars()
         .enumerate()
         .filter(|(_, c)| *c == '#')
         .map(|(i, _)| i)
         .collect();
+    let child_end_column = child.end_position().column;
+    let child_end_row = child.end_position().row;
+    let mut followed_by_comment = false;
     for column in comment_chars {
-        if is_comment(tree_sitter::Point { row, column }, input)
+        if contain_comment(tree_sitter::Point { row, column }, input)
             // this means it is the extra line, so should think it should be comment line
-            || (row == input.end_position().row && column >= input.end_position().column)
+            || (row == child_end_row && column >= child_end_column && line[child_end_column..column].trim_end().is_empty())
         {
             if column == 0 || line.chars().nth(column - 1).unwrap() == ' ' {
+                followed_by_comment = true;
                 break;
             }
             let linebefore = &line[..column];
+            let linebefore = strict_format_part(linebefore, row, child);
             let lineafter = &line[column..];
             return format!("{linebefore} {lineafter}");
         }
     }
-    line.to_string()
+    if followed_by_comment {
+        line.to_string()
+    } else {
+        strict_format_part(line, row, child).to_string()
+    }
 }
 
 fn get_space(spacelen: u32, use_space: bool) -> String {
@@ -179,7 +226,7 @@ fn format_content(
             .skip(start_row)
             .enumerate()
         {
-            let currentline = pre_format(currentline, start_row + index, input);
+            let currentline = pre_format(currentline, start_row + index, child, input);
             let currentline = currentline.trim_end();
             let trimapter = currentline.trim_start();
             let spacesize = currentline.len() - trimapter.len();

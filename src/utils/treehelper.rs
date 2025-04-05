@@ -243,7 +243,7 @@ fn location_range_contain(location: Point, range_node: Node) -> bool {
     true
 }
 
-pub fn is_comment(location: Point, root: Node) -> bool {
+pub fn contain_comment(location: Point, root: Node) -> bool {
     if !location_range_contain(location, root) {
         return false;
     }
@@ -261,7 +261,7 @@ pub fn is_comment(location: Point, root: Node) -> bool {
         {
             return true;
         }
-        if child.child_count() != 0 && is_comment(location, child) {
+        if child.child_count() != 0 && contain_comment(location, child) {
             return true;
         }
     }
@@ -422,8 +422,8 @@ A#ss\" #sss)";
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let input = tree.root_node();
-    assert!(!is_comment(Point { row: 1, column: 1 }, input));
-    assert!(is_comment(Point { row: 1, column: 8 }, input));
+    assert!(!contain_comment(Point { row: 1, column: 1 }, input));
+    assert!(contain_comment(Point { row: 1, column: 8 }, input));
 }
 
 #[test]
