@@ -12,16 +12,16 @@ const CLOSURE: &[&str] = &[
     CMakeNodeKinds::FOREACH_LOOP,
 ];
 
-// NOTE: when element in the same place, format bugs
-// for example
-// ```cmake
-// if(${QT_VERSION} STREQUAL 5)  find_package(Qt5ServiceSupport)
-//  find_package(Qt5ThemeSupport REQUIRED)
-//  find_package(Qt5ThemeSupport REQUIRED)
-// endif()
-// ```
-// with out this function, it will copy the first line twice, this makes bug
-fn strict_format_part<'a>(origin_line: &'a str, row: usize, child: tree_sitter::Node) -> &'a str {
+/// NOTE: when element in the same place, format bugs
+/// for example
+/// ```cmake
+/// if(${QT_VERSION} STREQUAL 5)  find_package(Qt5ServiceSupport)
+///  find_package(Qt5ThemeSupport REQUIRED)
+///  find_package(Qt5ThemeSupport REQUIRED)
+/// endif()
+/// ```
+/// with out this function, it will copy the first line twice, this makes bug
+fn restrict_format_part<'a>(origin_line: &'a str, row: usize, child: tree_sitter::Node) -> &'a str {
     if row != child.start_position().row {
         return origin_line;
     }
@@ -44,7 +44,7 @@ fn pre_format(
     input: tree_sitter::Node,
 ) -> String {
     if child.kind() == CMakeNodeKinds::LINE_COMMENT {
-        return strict_format_part(line, row, child).to_string();
+        return restrict_format_part(line, row, child).to_string();
     }
     let comment_chars: Vec<usize> = line
         .chars()
@@ -65,7 +65,7 @@ fn pre_format(
                 break;
             }
             let linebefore = &line[..column];
-            let linebefore = strict_format_part(linebefore, row, child);
+            let linebefore = restrict_format_part(linebefore, row, child);
             let lineafter = &line[column..];
             return format!("{linebefore} {lineafter}");
         }
@@ -73,7 +73,7 @@ fn pre_format(
     if followed_by_comment {
         line.to_string()
     } else {
-        strict_format_part(line, row, child).to_string()
+        restrict_format_part(line, row, child).to_string()
     }
 }
 
