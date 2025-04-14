@@ -159,7 +159,7 @@ impl LanguageServer for Backend {
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
 
-        init_snippet_setting(initial_config.use_snippet());
+        init_snippet_setting(initial_config.use_snippets());
 
         let do_format = initial_config.is_format_enabled();
 
