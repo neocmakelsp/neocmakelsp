@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use lsp_types::Url;
+use lsp_types::Uri;
 use tower_lsp::lsp_types;
 
 use super::Location;
@@ -23,7 +23,7 @@ pub(super) fn cmpsubdirectory<P: AsRef<Path>>(
                     character: 0,
                 },
             },
-            uri: Url::from_file_path(target).unwrap(),
+            uri: Uri::from_file_path(target).unwrap(),
         }]);
     }
     None
@@ -58,7 +58,7 @@ fn tst_cmp_subdirectory() {
                     character: 0,
                 },
             },
-            uri: Url::from_file_path(subdir_file).unwrap(),
+            uri: Uri::from_file_path(subdir_file).unwrap(),
         }]
     );
 }

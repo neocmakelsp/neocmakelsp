@@ -30,7 +30,7 @@ mod semantic_token;
 mod utils;
 use clapargs::NeocmakeCli;
 use std::sync::OnceLock;
-use tower_lsp::lsp_types::Url;
+use tower_lsp::lsp_types::Uri;
 
 #[derive(Debug)]
 struct BackendInitInfo {

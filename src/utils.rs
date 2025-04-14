@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Url;
+use tower_lsp::lsp_types::Uri;
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
@@ -44,7 +44,7 @@ impl std::fmt::Display for CMakePackageFrom {
 pub struct CMakePackage {
     pub name: String,
     pub packagetype: PackageType,
-    pub location: Url,
+    pub location: Uri,
     pub version: Option<String>,
     pub tojump: Vec<PathBuf>,
     pub from: CMakePackageFrom,

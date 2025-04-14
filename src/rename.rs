@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use tower_lsp::lsp_types::{Location, Position, TextEdit, Url, WorkspaceEdit};
+use tower_lsp::lsp_types::{Location, Position, TextEdit, Uri, WorkspaceEdit};
 
 use crate::jump;
 
@@ -11,7 +11,7 @@ pub async fn rename<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     source: &str,
 ) -> Option<WorkspaceEdit> {
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
     let defs = jump::godef(location, source, originuri, client, false, true).await?;
 
     for Location { uri, range } in defs {

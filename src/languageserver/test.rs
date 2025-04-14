@@ -8,7 +8,7 @@ use tower_lsp::lsp_types::{
     CompletionParams, CompletionResponse, DidOpenTextDocumentParams, InitializeParams,
     InitializeResult, PartialResultParams, Position, SemanticTokensFullOptions,
     SemanticTokensLegend, SemanticTokensOptions, SemanticTokensServerCapabilities,
-    TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
+    TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Uri,
     WorkDoneProgressOptions, WorkDoneProgressParams, WorkspaceFolder,
 };
 use tower_lsp::{LanguageServer, LspService};
@@ -47,7 +47,7 @@ async fn test_init() {
     let init_param = InitializeParams {
         workspace_folders: Some(vec![WorkspaceFolder {
             name: "main".to_string(),
-            uri: Url::from_file_path("/tmp").unwrap(),
+            uri: Uri::from_file_path("/tmp").unwrap(),
         }]),
         initialization_options: Some(
             serde_json::to_value(Config {
@@ -62,7 +62,7 @@ async fn test_init() {
     let init_param = InitializeParams {
         workspace_folders: Some(vec![WorkspaceFolder {
             name: "main".to_string(),
-            uri: Url::from_file_path(r"C:\\Windows\\System").unwrap(),
+            uri: Uri::from_file_path(r"C:\\Windows\\System").unwrap(),
         }]),
         initialization_options: Some(
             serde_json::to_value(Config {
@@ -108,7 +108,7 @@ async fn test_init() {
         assert!(!backend.path_in_project(Path::new(r"C:\\Windows")));
     }
 
-    let test_url = Url::from_file_path(root_cmake.clone()).unwrap();
+    let test_url = Uri::from_file_path(root_cmake.clone()).unwrap();
     let open_params = DidOpenTextDocumentParams {
         text_document: TextDocumentItem {
             uri: test_url.clone(),

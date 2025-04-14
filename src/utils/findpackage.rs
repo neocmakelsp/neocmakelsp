@@ -17,6 +17,7 @@ use packageunix as cmakepackage;
 mod packagewin;
 #[cfg(target_os = "windows")]
 use packagewin as cmakepackage;
+
 #[cfg(target_os = "macos")]
 mod packagemac;
 use std::collections::HashMap;
@@ -27,7 +28,7 @@ use std::sync::LazyLock;
 pub use cmakepackage::*;
 #[cfg(target_os = "macos")]
 use packagemac as cmakepackage;
-use tower_lsp::lsp_types::Url;
+use tower_lsp::lsp_types::Uri;
 pub use vcpkg::*;
 
 use super::{CMakePackage, CMakePackageFrom, PackageType, remove_quotation};
@@ -210,9 +211,9 @@ impl FindPackageFunsFake {
             name: "bash-completion-fake".to_string(),
             packagetype: PackageType::Dir,
             #[cfg(unix)]
-            location: Url::from_file_path("/usr/share/bash-completion-fake").unwrap(),
+            location: Uri::from_file_path("/usr/share/bash-completion-fake").unwrap(),
             #[cfg(not(unix))]
-            location: Url::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
+            location: Uri::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
             version: None,
             #[cfg(unix)]
             tojump: vec![
@@ -314,11 +315,11 @@ pub mod packagepkgconfig {
     use std::sync::{Arc, LazyLock, Mutex};
 
     use super::{FindPackageFunsFake, FindPackageFunsReal, FindPackageFunsTrait};
-    use crate::Url;
+    use crate::Uri;
 
     pub struct PkgConfig {
         pub libname: String,
-        pub path: Url,
+        pub path: Uri,
     }
 
     pub static QUERYSRULES: LazyLock<Arc<Mutex<Vec<&str>>>> = LazyLock::new(|| {
@@ -345,7 +346,7 @@ pub mod packagepkgconfig {
                         realname.to_string(),
                         PkgConfig {
                             libname: realname.to_string(),
-                            path: Url::from_file_path(entry).unwrap(),
+                            path: Uri::from_file_path(entry).unwrap(),
                         },
                     );
                 }

@@ -7,7 +7,7 @@ use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
     get_cmake_message, get_version, handle_config_package,
 };
-use crate::Url;
+use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 // here is the logic of findpackage on linux
@@ -68,7 +68,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 tojump.swap(0, config_file_location);
             }
 
-            let location = Url::from_file_path(&path).unwrap();
+            let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
                 packagename.to_string(),
@@ -91,7 +91,7 @@ pub(super) fn get_cmake_message_with_prefixes(
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let location = Url::from_file_path(path.path()).unwrap();
+            let location = Uri::from_file_path(path.path()).unwrap();
             let (packagetype, mut packagename) = {
                 if path.metadata().is_ok_and(|data| data.is_dir()) {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {

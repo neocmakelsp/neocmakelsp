@@ -1,5 +1,4 @@
-//use lsp_types::CompletionItem;
-use lsp_types::Url;
+use lsp_types::Uri;
 use tower_lsp::lsp_types;
 
 use super::Location;
@@ -21,7 +20,7 @@ pub(super) fn cmpfindpackage(input: &str) -> Option<Vec<Location>> {
                         character: 0,
                     },
                 },
-                uri: Url::from_file_path(apath).unwrap(),
+                uri: Uri::from_file_path(apath).unwrap(),
             })
             .collect()
     })
@@ -51,7 +50,7 @@ fn test_find_package() {
                     character: 0,
                 },
             },
-            uri: Url::from_file_path(jump_path).unwrap()
+            uri: Uri::from_file_path(jump_path).unwrap()
         }]
     );
 }

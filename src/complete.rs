@@ -106,7 +106,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
         } else if let Ok(context) = fs::read_to_string(parent).await {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
-                lsp_types::Url::from_file_path(parent).unwrap(),
+                lsp_types::Uri::from_file_path(parent).unwrap(),
                 context.clone(),
             );
             drop(buffer_cache);

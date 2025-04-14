@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use tokio::sync::Mutex;
-use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Url};
+use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Uri};
 
 use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
@@ -108,7 +108,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
     if let Ok(context) = tokio::fs::read_to_string(&path).await {
         let mut buffer_cache = BUFFERS_CACHE.lock().await;
         buffer_cache.insert(
-            lsp_types::Url::from_file_path(&path).unwrap(),
+            lsp_types::Uri::from_file_path(&path).unwrap(),
             context.clone(),
         );
         drop(buffer_cache);
@@ -144,7 +144,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
         if let Ok(context) = tokio::fs::read_to_string(&parent).await {
             let mut buffer_cache = BUFFERS_CACHE.lock().await;
             buffer_cache.insert(
-                lsp_types::Url::from_file_path(&path).unwrap(),
+                lsp_types::Uri::from_file_path(&path).unwrap(),
                 context.clone(),
             );
             drop(buffer_cache);
@@ -226,10 +226,8 @@ async fn godef_inner<P: AsRef<Path>>(
                 return Some(vec![jump_cache]);
             }
 
-            let Ok(loc) = jump_cache.uri.to_file_path() else {
-                return None;
-            };
-            locations.push(jump_cache);
+            let loc = jump_cache.uri.to_file_path().ok()?;
+            locations.push(jump_cache.clone());
             let mut defdata = reference_all(&loc, tofind, is_function).await;
             locations.append(&mut defdata);
             // NOTE: ensure there is not same location, or it will cause problems
@@ -346,7 +344,7 @@ fn reference_inner<P: AsRef<Path>>(
             let message = &newsource[h][x..y];
             if message == tofind {
                 definitions.push(Location {
-                    uri: Url::from_file_path(originuri.as_ref()).unwrap(),
+                    uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
                     range: Range {
                         start: child.start_position().to_position(),
                         end: child.end_position().to_position(),
@@ -425,7 +423,7 @@ fn getsubdef<P: AsRef<Path>>(
                 defs.push(CacheDataUnit {
                     key: name.to_string(),
                     location: Location {
-                        uri: Url::from_file_path(local_path).unwrap(),
+                        uri: Uri::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
@@ -458,7 +456,7 @@ fn getsubdef<P: AsRef<Path>>(
                 defs.push(CacheDataUnit {
                     key: name.to_string(),
                     location: Location {
-                        uri: Url::from_file_path(local_path).unwrap(),
+                        uri: Uri::from_file_path(local_path).unwrap(),
                         range: Range { start, end },
                     },
                     document_info,
@@ -624,7 +622,7 @@ fn getsubdef<P: AsRef<Path>>(
                     defs.push(CacheDataUnit {
                         key: name.to_string(),
                         location: Location {
-                            uri: Url::from_file_path(local_path).unwrap(),
+                            uri: Uri::from_file_path(local_path).unwrap(),
                             range: Range {
                                 start: Position {
                                     line: h as u32,
@@ -720,7 +718,7 @@ mod jump_test {
         assert_eq!(
             locations,
             vec![Location {
-                uri: Url::from_file_path(subdir_file).unwrap(),
+                uri: Uri::from_file_path(subdir_file).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 0,
@@ -773,7 +771,7 @@ add_subdirectory(abcd_test)
         assert_eq!(
             locations,
             vec![Location {
-                uri: Url::from_file_path(&top_cmake).unwrap(),
+                uri: Uri::from_file_path(&top_cmake).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 1,
@@ -799,7 +797,7 @@ add_subdirectory(abcd_test)
         assert_eq!(
             locations_2,
             vec![Location {
-                uri: Url::from_file_path(top_cmake).unwrap(),
+                uri: Uri::from_file_path(top_cmake).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 3,
@@ -863,7 +861,7 @@ include(efg_test.cmake)
         vec![CacheDataUnit {
             key: "ABCD".to_string(),
             location: Location {
-                uri: Url::from_file_path(&include_cmake_path).unwrap(),
+                uri: Uri::from_file_path(&include_cmake_path).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 1,
