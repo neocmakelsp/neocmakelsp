@@ -103,7 +103,7 @@ pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
 fn test_prefix() {
     use std::path::Path;
 
-    use crate::Url;
+    use crate::Uri;
     use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
     let data = completion_items_with_prefix("bash");
 
@@ -111,9 +111,9 @@ fn test_prefix() {
         name: "bash-completion-fake".to_string(),
         packagetype: PackageType::Dir,
         #[cfg(unix)]
-        location: Url::from_file_path("/usr/share/bash-completion").unwrap(),
+        location: Uri::from_file_path("/usr/share/bash-completion").unwrap(),
         #[cfg(not(unix))]
-        location: Url::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
+        location: Uri::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
         version: None,
         #[cfg(unix)]
         tojump: vec![
@@ -159,7 +159,7 @@ pub static PKGCONFIG_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
             detail: Some("Module".to_string()),
             documentation: Some(Documentation::String(format!(
                 "{}\n{}",
-                package.libname, package.path
+                package.libname, *package.path
             ))),
             ..Default::default()
         })

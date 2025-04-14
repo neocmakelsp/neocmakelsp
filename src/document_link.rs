@@ -6,7 +6,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
 };
-use crate::{CMakeNodeKinds, Url};
+use crate::{CMakeNodeKinds, Uri};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
@@ -92,7 +92,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                         };
                         links.push(DocumentLink {
                             range,
-                            target: Some(Url::from_file_path(file_path).unwrap()),
+                            target: Some(Uri::from_file_path(file_path).unwrap()),
                             tooltip: None,
                             data: None,
                         })
@@ -149,7 +149,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 };
                 links.push(DocumentLink {
                     range,
-                    target: Some(Url::from_file_path(final_uri).unwrap()),
+                    target: Some(Uri::from_file_path(final_uri).unwrap()),
                     tooltip,
                     data: None,
                 })
@@ -255,7 +255,7 @@ add_subdirectory(abcd_test)
                         character: 33
                     }
                 },
-                target: Some(Url::from_file_path(&hello_cmake).unwrap()),
+                target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
                 tooltip: Some(format!("link: {}", hello_cmake.display())),
                 data: None
             },
@@ -270,7 +270,7 @@ add_subdirectory(abcd_test)
                         character: 26
                     }
                 },
-                target: Some(Url::from_file_path(&subdir_file).unwrap()),
+                target: Some(Uri::from_file_path(&subdir_file).unwrap()),
                 tooltip: Some(format!("link: {}", subdir_file.display())),
                 data: None
             },

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
-use lsp_types::Url;
+use lsp_types::Uri;
 use tower_lsp::lsp_types;
 
 use super::{CacheDataUnit, Location, gen_module_pattern, getsubdef};
@@ -36,7 +36,7 @@ pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<
                     character: 0,
                 },
             },
-            uri: Url::from_file_path(target).unwrap(),
+            uri: Uri::from_file_path(target).unwrap(),
         }])
     } else {
         None
@@ -69,7 +69,7 @@ fn tst_cmp_included_cmake() {
                     character: 0,
                 },
             },
-            uri: Url::from_file_path(include_cmake).unwrap(),
+            uri: Uri::from_file_path(include_cmake).unwrap(),
         }]
     );
 }
@@ -161,7 +161,7 @@ include(efg_test.cmake)
         vec![CacheDataUnit {
             key: "ABCD".to_string(),
             location: Location {
-                uri: Url::from_file_path(&include_cmake_path).unwrap(),
+                uri: Uri::from_file_path(&include_cmake_path).unwrap(),
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: 1,

@@ -7,7 +7,7 @@ use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_version,
     handle_config_package,
 };
-use crate::Url;
+use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 #[inline]
@@ -94,7 +94,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             else {
                 continue;
             };
-            let location = Url::from_file_path(&path).unwrap();
+            let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
                 packagename.to_string(),
@@ -118,7 +118,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let location = Url::from_file_path(path.path()).unwrap();
+            let location = Uri::from_file_path(path.path()).unwrap();
             let (packagetype, mut packagename) = {
                 if path.metadata().is_ok_and(|data| data.is_dir()) {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
@@ -269,7 +269,7 @@ fn test_vcpkgpackage_search() {
             CMakePackage {
                 name: "VulkanHeaders".to_string(),
                 packagetype: PackageType::Dir,
-                location: Url::from_file_path(vulkan_dir).unwrap(),
+                location: Uri::from_file_path(vulkan_dir).unwrap(),
                 version: Some("1.3.295".to_string()),
                 tojump: vec![
                     safe_canonicalize(&vulkan_config_cmake).unwrap(),
@@ -283,7 +283,7 @@ fn test_vcpkgpackage_search() {
             CMakePackage {
                 name: "ECM".to_string(),
                 packagetype: PackageType::Dir,
-                location: Url::from_file_path(ecm_dir).unwrap(),
+                location: Uri::from_file_path(ecm_dir).unwrap(),
                 version: Some("6.5.0".to_string()),
                 tojump: vec![
                     safe_canonicalize(&ecm_config_cmake).unwrap(),

@@ -25,7 +25,7 @@ pub fn lint_fix_action(
     context: &str,
     line: u32,
     diagnose: &Diagnostic,
-    uri: tower_lsp::lsp_types::Url,
+    uri: tower_lsp::lsp_types::Uri,
 ) -> Option<CodeActionResponse> {
     let caps = LINT_REGEX.captures(&diagnose.message)?;
     let longest = caps["max"].parse().unwrap();
@@ -49,7 +49,7 @@ fn sub_lint_fix_action(
     line: usize,
     diagnose: &Diagnostic,
     longest: usize,
-    uri: &tower_lsp::lsp_types::Url,
+    uri: &tower_lsp::lsp_types::Uri,
 ) -> Option<CodeActionResponse> {
     let mut cursor = input.walk();
     for child in input.children(&mut cursor) {

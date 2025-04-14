@@ -27,7 +27,7 @@ use crate::{
     rename, scansubs, semantic_token, utils,
 };
 
-pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Url, String>>>> =
+pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Uri, String>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -77,7 +77,7 @@ impl Backend {
             .all(|component| component != Component::ParentDir)
     }
 
-    async fn publish_diagnostics(&self, uri: Url, context: String, lint_info: LintConfigInfo) {
+    async fn publish_diagnostics(&self, uri: Uri, context: String, lint_info: LintConfigInfo) {
         let Ok(file_path) = uri.to_file_path() else {
             tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
@@ -145,7 +145,6 @@ impl Backend {
     }
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, initial: InitializeParams) -> Result<InitializeResult> {
         let initial_config: Config = initial
@@ -561,7 +560,7 @@ impl LanguageServer for Backend {
         self.client
             .log_message(
                 MessageType::INFO,
-                &format!("update file: {}", input.text_document.uri),
+                &format!("update file: {:?}", input.text_document.uri),
             )
             .await;
     }

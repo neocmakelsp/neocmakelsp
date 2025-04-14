@@ -7,7 +7,7 @@ use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
     get_cmake_message, get_version, handle_config_package,
 };
-use crate::Url;
+use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 // here is the logic of findpackage on linux
@@ -69,7 +69,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 tojump.swap(0, config_file_location);
             }
 
-            let location = Url::from_file_path(&path).unwrap();
+            let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
                 packagename.to_string(),
@@ -93,7 +93,7 @@ pub(super) fn get_cmake_message_with_prefixes(
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let package_path = Url::from_file_path(path.path()).unwrap();
+            let package_path = Uri::from_file_path(path.path()).unwrap();
             let (packagetype, mut packagename) = {
                 if path.metadata().is_ok_and(|data| data.is_dir()) {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
@@ -213,7 +213,7 @@ fn test_package_search() {
             CMakePackage {
                 name: "VulkanHeaders".to_string(),
                 packagetype: PackageType::Dir,
-                location: Url::from_file_path(vulkan_dir).unwrap(),
+                location: Uri::from_file_path(vulkan_dir).unwrap(),
                 version: Some("1.3.295".to_string()),
                 tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
                 from: CMakePackageFrom::System,
@@ -224,7 +224,7 @@ fn test_package_search() {
             CMakePackage {
                 name: "ECM".to_string(),
                 packagetype: PackageType::Dir,
-                location: Url::from_file_path(ecm_dir).unwrap(),
+                location: Uri::from_file_path(ecm_dir).unwrap(),
                 version: Some("6.5.0".to_string()),
                 tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
                 from: CMakePackageFrom::System,
