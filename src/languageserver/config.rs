@@ -6,6 +6,7 @@ pub struct Config {
     pub scan_cmake_in_package: Option<bool>,
     pub semantic_token: Option<bool>,
     pub lint: Option<LintConfig>,
+    use_snippet: Option<bool>,
 }
 
 impl Config {
@@ -29,6 +30,10 @@ impl Config {
             .map(|config| config.enable.unwrap_or(true))
             .unwrap_or(true)
     }
+
+    pub fn use_snippet(&self) -> bool {
+        self.use_snippet.unwrap_or(true)
+    }
 }
 
 impl Default for Config {
@@ -38,6 +43,7 @@ impl Default for Config {
             scan_cmake_in_package: Some(true),
             semantic_token: Some(false),
             lint: Some(LintConfig::default()),
+            use_snippet: Some(true),
         }
     }
 }

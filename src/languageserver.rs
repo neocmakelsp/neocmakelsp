@@ -26,12 +26,12 @@ use crate::{
     BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
     rename, scansubs, semantic_token, utils,
 };
-
+use std::sync::atomic::{AtomicBool, Ordering};
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Uri, String>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
-
+static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 fn set_client_text_document(text_document: Option<TextDocumentClientCapabilities>) {
     let mut data = CLIENT_CAPABILITIES.write().unwrap();
     *data = text_document;
@@ -42,7 +42,14 @@ pub fn get_client_capabilities() -> Option<TextDocumentClientCapabilities> {
     data.clone()
 }
 
-pub fn client_support_snippet() -> bool {
+fn init_snippet_setting(use_snippet: bool) {
+    ENABLE_SNIPPET.store(use_snippet, Ordering::Relaxed);
+}
+
+pub fn to_use_snippet() -> bool {
+    if !ENABLE_SNIPPET.load(Ordering::Relaxed) {
+        return false;
+    }
     match get_client_capabilities() {
         Some(c) => c
             .completion
@@ -151,6 +158,8 @@ impl LanguageServer for Backend {
             .initialization_options
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
+
+        init_snippet_setting(initial_config.use_snippet());
 
         let do_format = initial_config.is_format_enabled();
 

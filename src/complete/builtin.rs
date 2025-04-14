@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 use anyhow::Result;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
-use crate::languageserver::client_support_snippet;
+use crate::languageserver::to_use_snippet;
 
 fn shorter_var(arg: &str) -> String {
     let mut shorter = arg.to_string();
@@ -123,7 +123,7 @@ fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
         );
     }
 
-    let client_support_snippet = client_support_snippet();
+    let client_support_snippet = to_use_snippet();
 
     Ok(completes
         .iter()
