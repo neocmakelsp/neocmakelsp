@@ -74,6 +74,16 @@ if not configs.neocmake then
 end
 ```
 
+* In nvim0.11
+
+```lua
+vim.lsp.config("neocmake", {
+    -- Some config
+    -- If none, just enable it
+})
+vim.lsp.enable("neocmake")
+```
+
 #### `tcp`
 
 ```lua
