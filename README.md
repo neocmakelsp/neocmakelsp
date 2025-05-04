@@ -172,7 +172,11 @@ To use `neocmakelsp` with eglot:
 
 ## Lint form 6.0.27
 
-Put a file named `.neocmakelint.toml` under the root of the project.
+Lint is controlled by a configuration file. The configuration file can be at the project level (the file named `.neocmakelint.toml` located in the root of the project) or at the user level (when project-level configuration is not found). The user-level configuration file differs across different operating systems:
+
+* Linux:  `$XDG_CONFIG_HOME/neocmmakelsp/lint.toml` or  `$HOME/.config/neocmmakelsp/lint.toml`
+* macOS:  `$HOME/Library/Application Support/neocmmakelsp/lint.toml`
+* Windows: `{FOLDERID_RoamingAppData}/neocmmakelsp/lint.toml`
 
 ```toml
 command_upcase = "ignore" # "lowercase", "upcase"

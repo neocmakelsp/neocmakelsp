@@ -1,7 +1,8 @@
-use std::io::Read;
 use std::sync::LazyLock;
 
+use dirs::config_dir;
 use serde::Deserialize;
+use std::path::PathBuf;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct CMakeLintConfig {
@@ -59,21 +60,35 @@ impl Default for CMakeLintConfig {
     }
 }
 
-pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
-    let Ok(mut file) = std::fs::OpenOptions::new()
-        .read(true)
-        .open(".neocmakelint.toml")
-    else {
-        return CMakeLintConfig::default();
-    };
-    let mut buf = String::new();
-    if file.read_to_string(&mut buf).is_err() {
-        return CMakeLintConfig::default();
-    }
+fn find_user_config() -> Option<PathBuf> {
+    let mut path = std::env::current_dir().unwrap(); // should never fail
+    path = path.join(".neocmakelint.toml");
 
-    if let Ok(config) = toml::from_str::<CMakeLintConfig>(&buf) {
-        return config;
+    if path.exists() {
+        tracing::info!("Using project-level config file: {:?}", path);
+        return Some(path);
     };
+
+    if let Some(mut path) = config_dir() {
+        path = path.join("neocmakelsp").join("lint.toml");
+        if path.exists() {
+            tracing::info!("Using user-level config file: {:?}", path);
+            return Some(path);
+        }
+    };
+
+    None
+}
+
+pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
+    if let Some(path) = find_user_config() {
+        if let Ok(buf) = std::fs::read_to_string(path) {
+            if let Ok(config) = toml::from_str::<CMakeLintConfig>(&buf) {
+                return config;
+            };
+        };
+    };
+
     CMakeLintConfig::default()
 });
 

@@ -30,6 +30,7 @@ clap_complete = { version = "4.5.47", features = ["unstable-dynamic"] }
 treesitter_kind_collector = "0.2.0"
 anstyle = "1.0.10"
 pathdiff = "0.2.3"
+dirs = "6.0.0"
 
 [target.'cfg(windows)'.dependencies]
 path-absolutize = "3.1.1"
