@@ -261,7 +261,12 @@ fn checkerror_inner<P: AsRef<Path>>(
             if !is_sub_directory && include_is_module(&first_arg) {
                 continue;
             }
-            let include_path = parent_path.join(first_arg);
+            let sub_path = Path::new(&first_arg);
+            let include_path = if sub_path.is_absolute() {
+                sub_path.to_path_buf()
+            } else {
+                parent_path.join(sub_path)
+            };
             match include_path.try_exists() {
                 Ok(true) => {
                     if include_path.is_file() {

@@ -1,8 +1,8 @@
 mod findpackage;
 pub mod treehelper;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::LazyLock;
+use std::{collections::HashMap, sync::Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +10,9 @@ use tower_lsp::lsp_types::Uri;
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
+
+static PLACE_ENV_HODER_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\$ENV\{(\w+)\}").unwrap());
 
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub enum PackageType {
@@ -147,11 +150,39 @@ pub fn remove_quotation(origin: &str) -> &str {
 }
 
 pub fn replace_placeholders(template: &str) -> Option<String> {
+    if template.contains("$ENV{") {
+        return replace_placeholders_with_env_map(template);
+    }
     if !template.contains("${") {
         return Some(template.to_string());
     }
     let values = fileapi::get_entries_data()?;
     replace_placeholders_with_hashmap(template, &values)
+}
+
+static CACHE_ENV_DATA: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn replace_placeholders_with_env_map(template: &str) -> Option<String> {
+    let mut result = template.to_string();
+
+    let mut cache = CACHE_ENV_DATA.lock().unwrap();
+    for caps in PLACE_ENV_HODER_REGEX.captures_iter(template) {
+        let key = &caps[1];
+        match cache.get(key) {
+            Some(value) => {
+                result = result.replace(&caps[0], value);
+            }
+            None => {
+                let Ok(value) = std::env::var(key) else {
+                    return None;
+                };
+                result = result.replace(&caps[0], &value);
+                cache.insert(key.to_string(), value);
+            }
+        }
+    }
+    Some(result)
 }
 
 fn replace_placeholders_with_hashmap(
@@ -170,6 +201,17 @@ fn replace_placeholders_with_hashmap(
         }
     }
     Some(result)
+}
+
+#[test]
+fn env_arg_test() {
+    unsafe {
+        std::env::set_var("TempDir", "/tmp");
+    }
+    assert_eq!(
+        "/tmp/wezterm",
+        replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
+    )
 }
 
 #[test]
