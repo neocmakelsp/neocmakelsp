@@ -1,5 +1,19 @@
 # Neocmakelsp
 
+## 0.8.30
+
+- This version use the forked lsp-types, bump the dependence of
+  fluent-uri. This release contains a lot of experiment things, like using
+  the async trait of rust instead of that of async-trait, like using
+  fluent-uri instead of the crate of url.
+
+- This release also is used to
+  test the pr for fluent-uri. I believe the fluent-uri is better than that
+  url, and also make a pr, but the author these days is very busy, and
+  does have time to review my pr, so I added my modification to my forked
+  lsp-types which is named as lsp-types-f. If there is any problem, please
+  open an issue for me, I will try to fix it
+
 ## 0.8.20-beta4
 - fix that every time save a file, the references will increase, which also cause problems when doing rename
 
