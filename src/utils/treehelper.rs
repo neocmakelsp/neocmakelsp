@@ -420,7 +420,7 @@ fn tst_line_comment() {
 A#ss\" #sss)";
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
     assert!(!contain_comment(Point { row: 1, column: 1 }, input));
     assert!(contain_comment(Point { row: 1, column: 8 }, input));
@@ -445,7 +445,7 @@ include("abcd/efg.cmake")
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
     let source_lines = source.lines().collect();
     let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
@@ -481,7 +481,7 @@ endmacro()
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
 
     assert_eq!(

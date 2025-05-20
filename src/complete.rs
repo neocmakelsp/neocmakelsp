@@ -1001,7 +1001,7 @@ fn test_complete_win() {
 
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&file_info, None).unwrap();
+    let thetree = parse.parse(file_info, None).unwrap();
     let dir = tempdir().unwrap();
     let root_cmake = dir.path().join("CMakeList.txt");
     let mut file = File::create(&root_cmake).unwrap();

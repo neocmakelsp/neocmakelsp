@@ -258,7 +258,7 @@ mod tests {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
 
-        let output = gen_builtin_commands(&output);
+        let output = gen_builtin_commands(output);
 
         assert!(output.is_ok());
     }
@@ -268,7 +268,7 @@ mod tests {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_variables.txt");
 
-        let output = gen_builtin_variables(&output);
+        let output = gen_builtin_variables(output);
 
         assert!(output.is_ok());
     }
@@ -278,7 +278,7 @@ mod tests {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
 
-        let output = gen_builtin_modules(&output);
+        let output = gen_builtin_modules(output);
 
         assert!(output.is_ok());
     }

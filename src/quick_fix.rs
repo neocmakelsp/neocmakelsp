@@ -17,7 +17,7 @@ static LINT_REGEX: LazyLock<Regex> =
 #[test]
 fn lint_regex_text() {
     let information = "[C0301] Line too long (92/80)";
-    let caps = LINT_REGEX.captures(&information).unwrap();
+    let caps = LINT_REGEX.captures(information).unwrap();
     assert_eq!(&caps["length"], "92");
     assert_eq!(&caps["max"], "80");
 }

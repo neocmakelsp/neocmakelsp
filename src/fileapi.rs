@@ -123,7 +123,7 @@ mod api_test {
 
         let final_json = include_str!("../assets_for_test/fileapi/fileapifinal.json");
 
-        let json_target: QueryJson = serde_json::from_str(&final_json).unwrap();
+        let json_target: QueryJson = serde_json::from_str(final_json).unwrap();
 
         assert_eq!(json_target, json);
 

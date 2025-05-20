@@ -63,8 +63,8 @@ pub fn include_is_module(file_name: &str) -> bool {
 
 #[test]
 fn ut_ismodule() {
-    assert_eq!(include_is_module("GNUInstall"), true);
-    assert_eq!(include_is_module("test.cmake"), false);
+    assert!(include_is_module("GNUInstall"));
+    assert!(!include_is_module("test.cmake"));
 }
 
 // get the content and split all argument to vector
@@ -106,7 +106,7 @@ fn get_node_content_tst_1() {
     let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
     let argumentlist = input.child(0).unwrap().child(2).unwrap();
     let lines: Vec<&str> = source.lines().collect();
@@ -126,7 +126,7 @@ Core Gui Widget
 )"#;
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
+    let tree = parse.parse(source, None).unwrap();
     let input = tree.root_node();
     let argumentlist = input.child(0).unwrap().child(2).unwrap();
     let lines: Vec<&str> = source.lines().collect();
@@ -340,7 +340,7 @@ pub fn get_the_packagename(package: &str) -> &str {
 
 #[test]
 fn package_name_check_tst() {
-    let package_names = vec!["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
+    let package_names = ["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
     let output: Vec<&str> = package_names
         .iter()
         .map(|name| get_the_packagename(name))

@@ -462,7 +462,7 @@ fn gammer_passed_check_1() {
     let source = include_str!("../assets_for_test/gammar/include_check.cmake");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None).unwrap();
+    let thetree = parse.parse(source, None).unwrap();
 
     let input = thetree.root_node();
     assert_eq!(
@@ -488,7 +488,7 @@ fn gammer_passed_check_2() {
     let source = include_str!("../assets_for_test/gammar/pass_test.cmake");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None).unwrap();
+    let thetree = parse.parse(source, None).unwrap();
 
     assert!(
         checkerror_inner(

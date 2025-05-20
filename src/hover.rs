@@ -115,9 +115,9 @@ find_package(bash-completion-fake)
             character: 15,
         },
         thetree.root_node(),
-        &content,
+        content,
     )
     .await
     .unwrap();
-    assert_eq!(document, cmakepackage_document_fmt(&fake_package));
+    assert_eq!(document, cmakepackage_document_fmt(fake_package));
 }

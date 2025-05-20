@@ -707,7 +707,7 @@ mod jump_test {
 
         let locations = godef_inner(
             Point { row: 0, column: 20 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,
@@ -760,7 +760,7 @@ add_subdirectory(abcd_test)
 
         let locations = godef_inner(
             Point { row: 2, column: 18 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,
@@ -786,7 +786,7 @@ add_subdirectory(abcd_test)
         );
         let locations_2 = godef_inner(
             Point { row: 4, column: 13 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,

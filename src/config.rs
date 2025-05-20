@@ -101,8 +101,8 @@ mod tests {
 
     #[test]
     fn tst_lint_config() {
-        assert_eq!((*CMAKE_LINT_CONFIG).command_upcase, "ignore");
-        assert_eq!((*CMAKE_LINT_CONFIG).enable_external_cmake_lint, false);
-        assert_eq!((*CMAKE_LINT_CONFIG).line_max_words, 80);
+        assert_eq!(CMAKE_LINT_CONFIG.command_upcase, "ignore");
+        assert!(!CMAKE_LINT_CONFIG.enable_external_cmake_lint);
+        assert_eq!(CMAKE_LINT_CONFIG.line_max_words, 80);
     }
 }
