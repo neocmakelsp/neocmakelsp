@@ -229,7 +229,7 @@ add_subdirectory(abcd_test)
     let hello_cmake = dir.path().join("hello.cmake");
     File::create_new(&hello_cmake).unwrap();
     let mut top_file = File::create_new(&top_cmake).unwrap();
-    top_file.write(jump_file_src.as_bytes()).unwrap();
+    top_file.write_all(jump_file_src.as_bytes()).unwrap();
     let subdir = dir.path().join("abcd_test");
     fs::create_dir_all(&subdir).unwrap();
     let subdir_file = subdir.join("CMakeLists.txt");
