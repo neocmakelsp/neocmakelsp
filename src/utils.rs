@@ -1,11 +1,10 @@
 mod findpackage;
 pub mod treehelper;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::LazyLock;
-use std::{collections::HashMap, sync::Mutex};
+use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
-
 use tower_lsp::lsp_types::Uri;
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =

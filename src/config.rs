@@ -1,8 +1,8 @@
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use dirs::config_dir;
 use serde::Deserialize;
-use std::path::PathBuf;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct CMakeLintConfig {

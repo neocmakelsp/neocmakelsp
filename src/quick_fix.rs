@@ -8,7 +8,8 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::CMakeNodeKinds;
-use crate::{consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::ToPosition};
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::ToPosition;
 
 static LINT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"((?<length>\d+)/(?<max>\d+))"#).unwrap());
