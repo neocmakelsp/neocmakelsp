@@ -4,6 +4,7 @@ mod test;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 
 use tokio::sync::Mutex;
@@ -26,7 +27,6 @@ use crate::{
     BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
     rename, scansubs, semantic_token, utils,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Uri, String>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 

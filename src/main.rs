@@ -28,8 +28,9 @@ mod scansubs;
 mod search;
 mod semantic_token;
 mod utils;
-use clapargs::NeocmakeCli;
 use std::sync::OnceLock;
+
+use clapargs::NeocmakeCli;
 use tower_lsp::lsp_types::Uri;
 
 #[derive(Debug)]

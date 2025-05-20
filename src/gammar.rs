@@ -462,7 +462,7 @@ fn gammer_passed_check_1() {
     let source = include_str!("../assets_for_test/gammar/include_check.cmake");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None).unwrap();
+    let thetree = parse.parse(source, None).unwrap();
 
     let input = thetree.root_node();
     assert_eq!(
@@ -488,7 +488,7 @@ fn gammer_passed_check_2() {
     let source = include_str!("../assets_for_test/gammar/pass_test.cmake");
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&source, None).unwrap();
+    let thetree = parse.parse(source, None).unwrap();
 
     assert!(
         checkerror_inner(
@@ -511,21 +511,15 @@ aa.cmake:56: [C0301] Line too long (143/80)
 aa.cmake:57: [C0301] Line too long (145/80)"#;
     let re = regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap();
     for s in input.split('\n') {
-        match re.captures(s) {
-            Some(m) => {
-                assert!(m.name("line").is_some() && m.name("message").is_some());
-                let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
-                let column = if let Some(m) = m.name("column") {
-                    m.as_str().parse().unwrap()
-                } else {
-                    0
-                };
-                let message = m.name("message").unwrap().as_str().to_owned();
-                println!("{row}:{column} -- {message}");
-            }
-            None => {
-                assert!(false);
-            }
-        }
+        let m = re.captures(s).unwrap();
+        assert!(m.name("line").is_some() && m.name("message").is_some());
+        let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
+        let column = if let Some(m) = m.name("column") {
+            m.as_str().parse().unwrap()
+        } else {
+            0
+        };
+        let message = m.name("message").unwrap().as_str().to_owned();
+        println!("{row}:{column} -- {message}");
     }
 }

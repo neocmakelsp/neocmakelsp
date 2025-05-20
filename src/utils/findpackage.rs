@@ -45,7 +45,7 @@ fn handle_config_package(filename: &str) -> Option<&str> {
 #[test]
 fn handle_config_package_tst() {
     let test_file = "libaec-config.cmake";
-    let tst_file = handle_config_package(&test_file).unwrap();
+    let tst_file = handle_config_package(test_file).unwrap();
     assert_eq!(tst_file, "libaec");
 }
 
@@ -133,25 +133,25 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
 fn special_package_pattern_tst() {
     let matched_pattern = "boost_atomic-1.86.0";
     assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
     assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic");
     assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
 
     let matched_pattern = "QuaZip-Qt5-1.4";
     assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
     assert_eq!(captures.get(1).unwrap().as_str(), "QuaZip-Qt5");
     assert_eq!(captures.get(2).unwrap().as_str(), "1.4");
 
     let matched_pattern = "boost_atomic2-1.86.0";
     assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
     assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic2");
     assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
 
     let matched_pattern = "mongoc-1.0";
     assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(&matched_pattern).unwrap();
+    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
     assert_eq!(captures.get(1).unwrap().as_str(), "mongoc");
     assert_eq!(captures.get(2).unwrap().as_str(), "1.0");
 

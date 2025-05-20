@@ -699,7 +699,7 @@ mod jump_test {
         let dir = tempdir().unwrap();
         let top_cmake = dir.path().join("CMakeLists.txt");
         let mut top_file = File::create_new(&top_cmake).unwrap();
-        top_file.write(jump_file_src.as_bytes()).unwrap();
+        top_file.write_all(jump_file_src.as_bytes()).unwrap();
         let subdir = dir.path().join("abcd_test");
         fs::create_dir_all(&subdir).unwrap();
         let subdir_file = subdir.join("CMakeLists.txt");
@@ -707,7 +707,7 @@ mod jump_test {
 
         let locations = godef_inner(
             Point { row: 0, column: 20 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,
@@ -752,7 +752,7 @@ add_subdirectory(abcd_test)
         let dir = tempdir().unwrap();
         let top_cmake = dir.path().join("CMakeLists.txt");
         let mut top_file = File::create_new(&top_cmake).unwrap();
-        top_file.write(jump_file_src.as_bytes()).unwrap();
+        top_file.write_all(jump_file_src.as_bytes()).unwrap();
         let subdir = dir.path().join("abcd_test");
         fs::create_dir_all(&subdir).unwrap();
         let subdir_file = subdir.join("CMakeLists.txt");
@@ -760,7 +760,7 @@ add_subdirectory(abcd_test)
 
         let locations = godef_inner(
             Point { row: 2, column: 18 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,
@@ -786,7 +786,7 @@ add_subdirectory(abcd_test)
         );
         let locations_2 = godef_inner(
             Point { row: 4, column: 13 },
-            &jump_file_src,
+            jump_file_src,
             &top_cmake,
             true,
             false,
