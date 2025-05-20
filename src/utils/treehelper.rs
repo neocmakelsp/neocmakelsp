@@ -320,7 +320,7 @@ fn get_pos_type_inner<'a>(
                     if child_count >= 2
                         && !location_range_contain(location, first_argument)
                         && input_type == PositionType::FindPackage
-                        && node_source.iter().any(|context| *context == "COMPONENTS")
+                        && node_source.contains(&"COMPONENTS")
                     {
                         return PositionType::FindPackageSpace(val);
                     }
