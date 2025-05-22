@@ -32,7 +32,7 @@ bindir = prefix / get_option('bindir')
 datadir = prefix / get_option('datadir')
 
 fish_compeletion_dir = datadir / 'fish' / 'vendor_completions.d'
-bash_compeletion_dir = datadir / 'bash-compeletion' / 'completions'
+bash_compeletion_dir = datadir / 'bash-completion' / 'completions'
 zsh_compeletion_dir = datadir / 'zsh' / 'site-functions'
 
 custom_target(
