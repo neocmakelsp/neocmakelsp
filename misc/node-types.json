@@ -135,6 +135,52 @@
     }
   },
   {
+    "type": "bracket_argument",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "bracket_argument_close",
+          "named": true
+        },
+        {
+          "type": "bracket_argument_content",
+          "named": true
+        },
+        {
+          "type": "bracket_argument_open",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "bracket_comment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "bracket_comment_close",
+          "named": true
+        },
+        {
+          "type": "bracket_comment_content",
+          "named": true
+        },
+        {
+          "type": "bracket_comment_open",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "cache_var",
     "named": true,
     "fields": {},
@@ -568,6 +614,7 @@
   {
     "type": "source_file",
     "named": true,
+    "root": true,
     "fields": {},
     "children": {
       "multiple": true,
@@ -764,11 +811,27 @@
     "named": true
   },
   {
-    "type": "bracket_argument",
+    "type": "bracket_argument_close",
     "named": true
   },
   {
-    "type": "bracket_comment",
+    "type": "bracket_argument_content",
+    "named": true
+  },
+  {
+    "type": "bracket_argument_open",
+    "named": true
+  },
+  {
+    "type": "bracket_comment_close",
+    "named": true
+  },
+  {
+    "type": "bracket_comment_content",
+    "named": true
+  },
+  {
+    "type": "bracket_comment_open",
     "named": true
   },
   {

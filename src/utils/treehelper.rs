@@ -349,7 +349,12 @@ fn get_pos_type_inner<'a>(
                 PositionType::FindPkgConfig => input_type,
                 _ => PositionType::VarOrFun,
             },
-            CMakeNodeKinds::LINE_COMMENT | CMakeNodeKinds::BRACKET_COMMENT => PositionType::Comment,
+            CMakeNodeKinds::LINE_COMMENT
+            | CMakeNodeKinds::BRACKET_COMMENT
+            | CMakeNodeKinds::BRACKET_COMMENT_CONTENT
+            | CMakeNodeKinds::BRACKET_COMMENT_CLOSE
+            | CMakeNodeKinds::BRACKET_COMMENT_OPEN
+            | CMakeNodeKinds::BRACKET_ARGUMENT_OPEN => PositionType::Comment,
             _ => PositionType::VarOrFun,
         };
 
