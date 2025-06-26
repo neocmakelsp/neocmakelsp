@@ -95,7 +95,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 row: index,
                 column: 0,
             };
-            let message = format!("[C0301] Line too long ({}/{})", len, max_len);
+            let message = format!("[C0301] Line too long ({len}/{max_len})");
             info.push(ErrorInformation {
                 start_point,
                 end_point,
