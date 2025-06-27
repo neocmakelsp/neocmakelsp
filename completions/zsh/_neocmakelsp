@@ -7,7 +7,7 @@ function _clap_dynamic_completer_neocmakelsp() {
         _CLAP_IFS="$_CLAP_IFS" \
         _CLAP_COMPLETE_INDEX="$_CLAP_COMPLETE_INDEX" \
         COMPLETE="zsh" \
-        neocmakelsp -- ${words} 2>/dev/null \
+        neocmakelsp -- "${words[@]}" 2>/dev/null \
     )}")
 
     if [[ -n $completions ]]; then
