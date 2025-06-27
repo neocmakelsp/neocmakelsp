@@ -16,7 +16,7 @@ fn shorter_var(arg: &str) -> String {
         shorter = format!("{}...", &args[0..20]);
     }
     if shorter.contains(' ') {
-        shorter = format!("(arg_type: <{}>)", shorter);
+        shorter = format!("(arg_type: <{shorter}>)");
     }
     shorter = format!("<{shorter}>");
     shorter
@@ -62,7 +62,7 @@ fn convert_to_lsp_snippet(input: &str) -> String {
             result.push_str(&input[last_pos..matched.start()]);
 
             // Replace the variable
-            result.push_str(&format!("${{{}:{}}}", i, var_name));
+            result.push_str(&format!("${{{i}:{var_name}}}"));
             // Update last position to after this match
             last_pos = matched.end();
             i += 1;
@@ -131,7 +131,7 @@ fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
             let mut insert_text_format = InsertTextFormat::PLAIN_TEXT;
             let mut insert_text = akey.to_string();
             let mut detail = "Function".to_string();
-            let s = format!(r"\n\s+(?P<signature>{}\([^)]*\))", akey);
+            let s = format!(r"\n\s+(?P<signature>{akey}\([^)]*\))");
             let r_match_signature = regex::Regex::new(s.as_str()).unwrap();
 
             // snippets only work for lower case for now...
