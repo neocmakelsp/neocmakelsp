@@ -172,9 +172,6 @@ pub async fn getformat(
         }
 
         let new_source = new_source.unwrap();
-        client
-            .log_message(MessageType::INFO, new_source.clone())
-            .await;
         let lines = new_source.chars().filter(|c| *c == '\n').count();
 
         return Some(vec![TextEdit {

@@ -122,14 +122,8 @@ pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
 pub static CMAKE_FORMAT_CONFIG: LazyLock<CMakeFormatConfig> = LazyLock::new(|| {
     if let Some(path) = find_format_user_config() {
         if let Ok(buf) = std::fs::read_to_string(path) {
-            match toml::from_str::<CMakeFormatConfig>(&buf) {
-                Ok(config) => {
-                    tracing::info!("{config:?}");
-                    return config;
-                }
-                Err(err) => {
-                    tracing::error!("Failed to parse format config: {err}");
-                }
+            if let Ok(config) = toml::from_str::<CMakeFormatConfig>(&buf) {
+                return config;
             }
         };
     };
