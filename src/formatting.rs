@@ -109,44 +109,47 @@ pub async fn getformat(
 
         let cmd = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn();
 
-        if let Err(err) = cmd {
-            client
-                .log_message(
-                    MessageType::WARNING,
-                    format!("Error running external formatter: {err:?}"),
-                )
-                .await;
-            return None;
-        }
-
-        let mut process = cmd.unwrap();
-        match process.stdin.take() {
-            Some(mut stdin) => {
-                if let Err(err) = stdin.write(source.as_bytes()).await {
-                    client
-                        .log_message(
-                            MessageType::WARNING,
-                            format!("Error writing to stdin of external formatter: {err:?}"),
-                        )
-                        .await;
-                    return None;
-                }
+        let mut process = match cmd {
+            Ok(process) => process,
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error running external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
             }
-            None => panic!("stdin for external formatter should be present"),
         };
 
-        let output = process.wait_with_output().await;
-        if let Err(err) = output {
+        let mut stdin = process
+            .stdin
+            .take()
+            .expect("stdin for external formatter should be present");
+        if let Err(err) = stdin.write(source.as_bytes()).await {
             client
                 .log_message(
                     MessageType::WARNING,
-                    format!("Error reading output from external formatter: {err:?}"),
+                    format!("Error writing to stdin of external formatter: {err:?}"),
                 )
                 .await;
             return None;
         }
 
-        let output = output.unwrap();
+        let output = process.wait_with_output().await;
+        let output = match output {
+            Ok(output) => output,
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error reading output from external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+        };
+
         if !output.status.success() {
             client
                 .log_message(
@@ -160,18 +163,19 @@ pub async fn getformat(
             return None;
         }
 
-        let new_source = String::from_utf8(output.stdout);
-        if let Err(err) = new_source {
-            client
-                .log_message(
-                    MessageType::WARNING,
-                    format!("Error converting output to UTF-8 string: {err:?}"),
-                )
-                .await;
-            return None;
-        }
+        let new_source = match String::from_utf8(output.stdout) {
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error converting output to UTF-8 string: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+            Ok(new_source) => new_source,
+        };
 
-        let new_source = new_source.unwrap();
         let lines = new_source.chars().filter(|c| *c == '\n').count();
 
         return Some(vec![TextEdit {
