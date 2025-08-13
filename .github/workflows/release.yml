@@ -47,7 +47,7 @@ jobs:
 
         runs-on: ${{ matrix.os }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: dtolnay/rust-toolchain@stable
               with:
                   targets: ${{ matrix.target }}
@@ -99,7 +99,7 @@ jobs:
               with:
                   files: out/*
                   draft: true
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: dtolnay/rust-toolchain@stable
             - name: Publish to crate
               run: cargo publish --token ${{ secrets.CRATE_TOKEN }}
