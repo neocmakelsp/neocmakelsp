@@ -655,6 +655,7 @@ impl LanguageServer for Backend {
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
         match storemap.get(&uri) {
             Some(context) => Ok(getformat(
+                self.root_path().map(|p| p.as_path()),
                 context,
                 &self.client,
                 space_line,
