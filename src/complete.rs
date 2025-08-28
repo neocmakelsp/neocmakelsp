@@ -6,15 +6,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
-use tokio::fs;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
-    self, CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType,
-    Position,
+    CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType, Position,
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::languageserver::BUFFERS_CACHE;
+use crate::languageserver::get_or_update_buffer_context;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
 use crate::utils::{
@@ -103,13 +101,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
             completions.append(&mut data.clone());
-        } else if let Ok(context) = fs::read_to_string(parent).await {
-            let mut buffer_cache = BUFFERS_CACHE.lock().await;
-            buffer_cache.insert(
-                lsp_types::Uri::from_file_path(parent).unwrap(),
-                context.clone(),
-            );
-            drop(buffer_cache);
+        } else if let Ok(context) = get_or_update_buffer_context(parent).await {
             drop(complete_cache);
             completions.append(&mut update_cache(parent, context.as_str()).await);
             path.clone_from(parent);

@@ -30,6 +30,17 @@ use crate::{
 pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Uri, String>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+pub async fn get_or_update_buffer_context<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
+    let uri = lsp_types::Uri::from_file_path(&path).unwrap();
+    let mut buffer_cache = BUFFERS_CACHE.lock().await;
+    if let Some(context) = buffer_cache.get(&uri) {
+        return Ok(context.clone());
+    }
+    let context = tokio::fs::read_to_string(&path).await?;
+    buffer_cache.insert(uri, context.clone());
+    Ok(context)
+}
+
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 fn set_client_text_document(text_document: Option<TextDocumentClientCapabilities>) {
