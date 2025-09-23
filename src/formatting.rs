@@ -67,6 +67,9 @@ fn pre_format(
             let linebefore = &line[..column];
             let linebefore = restrict_format_part(linebefore, row, child);
             let lineafter = &line[column..];
+            if linebefore.chars().all(|c| c.is_whitespace()) {
+                return lineafter.to_string();
+            }
             return format!("{linebefore} {lineafter}");
         }
     }
@@ -312,6 +315,16 @@ fn tst_format_base() {
     let formatstr_with_lastline = get_format_cli(source, 1, false, true).unwrap();
     assert_eq!(formatstr.as_str(), sourceafter);
     assert_eq!(formatstr_with_lastline.as_str(), sourceafter);
+}
+
+#[cfg(unix)]
+#[test]
+fn tst_format_base_second_call() {
+    let source = include_str!("../assets_for_test/base/formatbefore.cmake");
+    let sourceafter = include_str!("../assets_for_test/base/formatafter.cmake");
+    let formatstr = get_format_cli(source, 1, false, false).unwrap();
+    let formatstr = get_format_cli(&formatstr, 1, false, false).unwrap();
+    assert_eq!(formatstr.as_str(), sourceafter);
 }
 
 #[cfg(unix)]
