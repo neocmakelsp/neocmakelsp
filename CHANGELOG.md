@@ -62,7 +62,7 @@ Full changes: https://github.com/neocmakelsp/neocmakelsp/compare/v0.8.4...v0.8.5
 - Now hover and complete will show the comment of cmake
 
 ## 0.8.3
-- support reading value from fileapi and use it in compeleting
+- support reading value from fileapi and use it in completing
 - fix jumping to buildin cmake file not works on temux
 - fix meson build, induce a python wrapper
 

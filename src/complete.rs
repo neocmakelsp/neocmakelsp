@@ -132,9 +132,9 @@ pub async fn getcomplete<P: AsRef<Path>>(
     let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
-            let mut cached_compeletion = get_cached_completion(local_path).await;
-            if !cached_compeletion.is_empty() {
-                complete.append(&mut cached_compeletion);
+            let mut cached_completion = get_cached_completion(local_path).await;
+            if !cached_completion.is_empty() {
+                complete.append(&mut cached_completion);
             }
             if let Some(mut cmake_cache) = fileapi::get_complete_data() {
                 complete.append(&mut cmake_cache);
@@ -171,9 +171,9 @@ pub async fn getcomplete<P: AsRef<Path>>(
             complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
-            let mut cached_compeletion = get_cached_completion(local_path).await;
-            if !cached_compeletion.is_empty() {
-                complete.append(&mut cached_compeletion);
+            let mut cached_completion = get_cached_completion(local_path).await;
+            if !cached_completion.is_empty() {
+                complete.append(&mut cached_completion);
             }
             if let Some(mut cmake_cache) = fileapi::get_complete_data() {
                 complete.append(&mut cmake_cache);
