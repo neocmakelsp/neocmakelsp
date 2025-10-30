@@ -65,7 +65,7 @@ jobs:
             - name: Run tests
               run: cargo test --verbose
             - name: Upload artifacts
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
                   name: ${{ matrix.target }}
