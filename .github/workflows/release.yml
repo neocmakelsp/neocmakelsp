@@ -78,7 +78,7 @@ jobs:
             - build
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/download-artifact@v5
+            - uses: actions/download-artifact@v6
             - name: Show files
               run: |
                   pwd
