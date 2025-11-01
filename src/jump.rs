@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use tokio::sync::Mutex;
-use tower_lsp::lsp_types::{self, Location, MessageType, Position, Range, Uri};
+use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
+use crate::languageserver::get_or_update_buffer_context;
 use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
 use crate::{
     CMakeNodeKinds,
     consts::TREESITTER_CMAKE_LANGUAGE,
-    languageserver::BUFFERS_CACHE,
     scansubs::TREE_MAP,
     utils::{
         CACHE_CMAKE_PACKAGES_WITHKEYS, LineCommentTmp, gen_module_pattern, get_the_packagename,
@@ -105,13 +105,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
         });
     }
     drop(jump_cache);
-    if let Ok(context) = tokio::fs::read_to_string(&path).await {
-        let mut buffer_cache = BUFFERS_CACHE.lock().await;
-        buffer_cache.insert(
-            lsp_types::Uri::from_file_path(&path).unwrap(),
-            context.clone(),
-        );
-        drop(buffer_cache);
+    if let Ok(context) = get_or_update_buffer_context(&path).await {
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
         if let Some(JumpCacheUnit {
@@ -141,13 +135,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
             });
         }
         drop(jump_cache);
-        if let Ok(context) = tokio::fs::read_to_string(&parent).await {
-            let mut buffer_cache = BUFFERS_CACHE.lock().await;
-            buffer_cache.insert(
-                lsp_types::Uri::from_file_path(&path).unwrap(),
-                context.clone(),
-            );
-            drop(buffer_cache);
+        if let Ok(context) = get_or_update_buffer_context(&path).await {
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
             if let Some(JumpCacheUnit {
@@ -682,6 +670,7 @@ fn get_cmake_package_defs(
 }
 #[cfg(test)]
 mod jump_test {
+    use tower_lsp::lsp_types;
     use tree_sitter::Point;
 
     use super::*;
@@ -738,6 +727,7 @@ mod jump_test {
         use std::fs;
         use std::fs::File;
         use std::io::Write;
+        use tower_lsp::lsp_types;
 
         use tempfile::tempdir;
 
@@ -817,6 +807,7 @@ add_subdirectory(abcd_test)
 fn test_sub_def() {
     use std::fs::File;
     use std::io::Write;
+    use tower_lsp::lsp_types;
 
     use tempfile::tempdir;
     let dir = tempdir().unwrap();

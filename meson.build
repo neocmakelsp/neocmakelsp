@@ -31,9 +31,9 @@ prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')
 datadir = prefix / get_option('datadir')
 
-fish_compeletion_dir = datadir / 'fish' / 'vendor_completions.d'
-bash_compeletion_dir = datadir / 'bash-completion' / 'completions'
-zsh_compeletion_dir = datadir / 'zsh' / 'site-functions'
+fish_completion_dir = datadir / 'fish' / 'vendor_completions.d'
+bash_completion_dir = datadir / 'bash-completion' / 'completions'
+zsh_completion_dir = datadir / 'zsh' / 'site-functions'
 
 custom_target(
   'neocmakelsp',
@@ -45,8 +45,8 @@ custom_target(
   command: command,
 )
 
-install_data('completions/zsh/_neocmakelsp', install_dir: zsh_compeletion_dir)
+install_data('completions/zsh/_neocmakelsp', install_dir: zsh_completion_dir)
 
-install_data('completions/fish/neocmakelsp.fish', install_dir: fish_compeletion_dir)
+install_data('completions/fish/neocmakelsp.fish', install_dir: fish_completion_dir)
 
-install_data('completions/bash/neocmakelsp', install_dir: bash_compeletion_dir)
+install_data('completions/bash/neocmakelsp', install_dir: bash_completion_dir)

@@ -66,7 +66,10 @@ fn pre_format(
             // this means it is the extra line, so should think it should be comment line
             || (row == child_end_row && column >= child_end_column && line[child_end_column..column].trim_end().is_empty())
         {
-            if column == 0 || line.chars().nth(column - 1).unwrap() == ' ' {
+            if column == 0
+                || line.chars().nth(column - 1).unwrap() == ' '
+                || line.chars().nth(column - 1).unwrap() == '\t'
+            {
                 followed_by_comment = true;
                 break;
             }
