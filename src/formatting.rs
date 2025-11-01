@@ -1,7 +1,13 @@
+use std::path::Path;
+use std::process::Stdio;
+
 use lsp_types::{MessageType, Position, TextEdit};
+use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 use tower_lsp::lsp_types;
 
 use crate::CMakeNodeKinds;
+use crate::config::CMAKE_FORMAT_CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::contain_comment;
 
@@ -90,12 +96,111 @@ fn get_space(spacelen: u32, use_space: bool) -> String {
 }
 
 pub async fn getformat(
+    root_path: Option<&Path>,
     source: &str,
     client: &tower_lsp::Client,
     spacelen: u32,
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<Vec<TextEdit>> {
+    if CMAKE_FORMAT_CONFIG.enable_external {
+        let mut cmd = Command::new(&CMAKE_FORMAT_CONFIG.external_program);
+        cmd.args(&CMAKE_FORMAT_CONFIG.external_args);
+        if let Some(root_path) = root_path {
+            cmd.current_dir(root_path);
+        }
+
+        let cmd = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn();
+
+        let mut process = match cmd {
+            Ok(process) => process,
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error running external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+        };
+
+        {
+            let mut stdin = process
+                .stdin
+                .take()
+                .expect("stdin for external formatter should be present");
+
+            if let Err(err) = stdin.write_all(source.as_bytes()).await {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error writing to stdin of external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+
+            // stdin dropped here: https://github.com/tokio-rs/tokio/issues/4477
+        }
+
+        let output = process.wait_with_output().await;
+        let output = match output {
+            Ok(output) => output,
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error reading output from external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+        };
+
+        if !output.status.success() {
+            client
+                .log_message(
+                    MessageType::WARNING,
+                    format!(
+                        "External formatter exited with error code: {}",
+                        output.status.code().unwrap_or(-1)
+                    ),
+                )
+                .await;
+            return None;
+        }
+
+        let new_source = match String::from_utf8(output.stdout) {
+            Err(err) => {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error converting output to UTF-8 string: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+            Ok(new_source) => new_source,
+        };
+
+        let lines = new_source.chars().filter(|c| *c == '\n').count();
+
+        return Some(vec![TextEdit {
+            range: lsp_types::Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: (lines + 1) as u32,
+                    character: 0,
+                },
+            },
+            new_text: new_source,
+        }]);
+    }
+
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source, None).unwrap();
