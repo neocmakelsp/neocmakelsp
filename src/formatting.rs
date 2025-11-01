@@ -125,18 +125,23 @@ pub async fn getformat(
             }
         };
 
-        let mut stdin = process
-            .stdin
-            .take()
-            .expect("stdin for external formatter should be present");
-        if let Err(err) = stdin.write(source.as_bytes()).await {
-            client
-                .log_message(
-                    MessageType::WARNING,
-                    format!("Error writing to stdin of external formatter: {err:?}"),
-                )
-                .await;
-            return None;
+        {
+            let mut stdin = process
+                .stdin
+                .take()
+                .expect("stdin for external formatter should be present");
+
+            if let Err(err) = stdin.write_all(source.as_bytes()).await {
+                client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("Error writing to stdin of external formatter: {err:?}"),
+                    )
+                    .await;
+                return None;
+            }
+
+            // stdin dropped here: https://github.com/tokio-rs/tokio/issues/4477
         }
 
         let output = process.wait_with_output().await;
