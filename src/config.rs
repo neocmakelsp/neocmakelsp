@@ -67,7 +67,7 @@ pub struct CMakeFormatConfig {
     pub external_args: Vec<String>,
 }
 
-fn find_user_config() -> Option<PathBuf> {
+fn find_lint_user_config() -> Option<PathBuf> {
     let mut path = std::env::current_dir().unwrap(); // should never fail
     path = path.join(".neocmakelint.toml");
 
@@ -108,7 +108,7 @@ fn find_format_user_config() -> Option<PathBuf> {
 }
 
 pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
-    if let Some(path) = find_user_config() {
+    if let Some(path) = find_lint_user_config() {
         if let Ok(buf) = std::fs::read_to_string(path) {
             if let Ok(config) = toml::from_str::<CMakeLintConfig>(&buf) {
                 return config;
