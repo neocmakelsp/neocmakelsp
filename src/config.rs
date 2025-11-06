@@ -9,6 +9,18 @@ pub struct CMakeLintConfig {
     pub command_upcase: String,
     pub enable_external_cmake_lint: bool,
     pub line_max_words: usize,
+    pub format: CMakeFormatConfig,
+}
+
+impl Default for CMakeLintConfig {
+    fn default() -> Self {
+        Self {
+            command_upcase: "ignore".to_string(),
+            enable_external_cmake_lint: false,
+            line_max_words: 80,
+            format: CMakeFormatConfig::default(),
+        }
+    }
 }
 
 pub struct LintSuggestion {
@@ -50,21 +62,10 @@ impl Default for LintSuggestion {
     }
 }
 
-impl Default for CMakeLintConfig {
-    fn default() -> Self {
-        Self {
-            command_upcase: "ignore".to_string(),
-            enable_external_cmake_lint: false,
-            line_max_words: 80,
-        }
-    }
-}
-
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]
 pub struct CMakeFormatConfig {
-    pub enable_external: bool,
-    pub external_program: String,
-    pub external_args: Vec<String>,
+    pub program: Option<String>,
+    pub args: Vec<String>,
 }
 
 fn find_lint_user_config() -> Option<PathBuf> {
@@ -87,26 +88,6 @@ fn find_lint_user_config() -> Option<PathBuf> {
     None
 }
 
-fn find_format_user_config() -> Option<PathBuf> {
-    let mut path = std::env::current_dir().unwrap(); // should never fail
-    path = path.join(".neocmakeformat.toml");
-
-    if path.exists() {
-        tracing::info!("Using project-level format config file: {:?}", path);
-        return Some(path);
-    }
-
-    if let Some(mut path) = config_dir() {
-        path = path.join("neocmakelsp").join("format.toml");
-        if path.exists() {
-            tracing::info!("Using user-level format config file: {:?}", path);
-            return Some(path);
-        }
-    }
-
-    None
-}
-
 pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
     if let Some(path) = find_lint_user_config() {
         if let Ok(buf) = std::fs::read_to_string(path) {
@@ -117,18 +98,6 @@ pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
     }
 
     CMakeLintConfig::default()
-});
-
-pub static CMAKE_FORMAT_CONFIG: LazyLock<CMakeFormatConfig> = LazyLock::new(|| {
-    if let Some(path) = find_format_user_config() {
-        if let Ok(buf) = std::fs::read_to_string(path) {
-            if let Ok(config) = toml::from_str::<CMakeFormatConfig>(&buf) {
-                return config;
-            }
-        }
-    }
-
-    CMakeFormatConfig::default()
 });
 
 pub static CMAKE_LINT: LazyLock<LintSuggestion> =
