@@ -69,21 +69,25 @@ pub struct FormatConfig {
 }
 
 fn find_config_file() -> Option<PathBuf> {
-    let mut path = std::env::current_dir().unwrap(); // should never fail
-    path = path.join(".neocmakelint.toml");
+    let current_dir = std::env::current_dir().ok()?;
 
-    if path.exists() {
-        tracing::info!("Using project-level config file: {:?}", path);
-        return Some(path);
-    };
-
-    if let Some(mut path) = config_dir() {
-        path = path.join("neocmakelsp").join("lint.toml");
+    for file in [".neocmake.toml", ".neocmakelint.toml"] {
+        let path = current_dir.join(file);
         if path.exists() {
-            tracing::info!("Using user-level config file: {:?}", path);
+            tracing::info!("Using project-level config file: {:?}", path);
             return Some(path);
         }
     };
+
+    if let Some(config_dir) = config_dir() {
+        for file in ["config.toml", "lint.toml"] {
+            let path = config_dir.join("neocmakelsp").join(file);
+            if path.exists() {
+                tracing::info!("Using user-level config file: {:?}", path);
+                return Some(path);
+            }
+        }
+    }
 
     None
 }
