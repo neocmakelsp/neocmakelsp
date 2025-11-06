@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::Point;
 
 use crate::CMakeNodeKinds;
-use crate::config::{self, CMAKE_LINT_CONFIG};
+use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
 
@@ -83,7 +83,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
         return run_extra_lint(path);
     }
     let mut info = vec![];
-    let max_len = CMAKE_LINT_CONFIG.line_max_words;
+    let max_len = CONFIG.line_max_words;
     for (index, line) in contexts.iter().enumerate() {
         let len = line.len();
         if len > max_len {

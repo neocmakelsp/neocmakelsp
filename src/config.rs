@@ -5,20 +5,20 @@ use dirs::config_dir;
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
-pub struct CMakeLintConfig {
+pub struct Config {
     pub command_upcase: String,
     pub enable_external_cmake_lint: bool,
     pub line_max_words: usize,
-    pub format: CMakeFormatConfig,
+    pub format: FormatConfig,
 }
 
-impl Default for CMakeLintConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
             command_upcase: "ignore".to_string(),
             enable_external_cmake_lint: false,
             line_max_words: 80,
-            format: CMakeFormatConfig::default(),
+            format: FormatConfig::default(),
         }
     }
 }
@@ -63,12 +63,12 @@ impl Default for LintSuggestion {
 }
 
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]
-pub struct CMakeFormatConfig {
+pub struct FormatConfig {
     pub program: Option<String>,
     pub args: Vec<String>,
 }
 
-fn find_lint_user_config() -> Option<PathBuf> {
+fn find_config_file() -> Option<PathBuf> {
     let mut path = std::env::current_dir().unwrap(); // should never fail
     path = path.join(".neocmakelint.toml");
 
@@ -88,17 +88,17 @@ fn find_lint_user_config() -> Option<PathBuf> {
     None
 }
 
-pub static CMAKE_LINT_CONFIG: LazyLock<CMakeLintConfig> = LazyLock::new(|| {
-    if let Some(path) = find_lint_user_config() {
+pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
+    if let Some(path) = find_config_file() {
         if let Ok(buf) = std::fs::read_to_string(path) {
-            if let Ok(config) = toml::from_str::<CMakeLintConfig>(&buf) {
+            if let Ok(config) = toml::from_str::<Config>(&buf) {
                 return config;
             }
         }
     }
 
-    CMakeLintConfig::default()
+    Config::default()
 });
 
 pub static CMAKE_LINT: LazyLock<LintSuggestion> =
-    LazyLock::new(|| CMAKE_LINT_CONFIG.command_upcase.clone().into());
+    LazyLock::new(|| CONFIG.command_upcase.clone().into());
