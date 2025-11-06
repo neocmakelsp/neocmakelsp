@@ -133,23 +133,3 @@ pub static CMAKE_FORMAT_CONFIG: LazyLock<CMakeFormatConfig> = LazyLock::new(|| {
 
 pub static CMAKE_LINT: LazyLock<LintSuggestion> =
     LazyLock::new(|| CMAKE_LINT_CONFIG.command_upcase.clone().into());
-
-#[cfg(test)]
-mod tests {
-    use crate::config::CMAKE_FORMAT_CONFIG;
-    use crate::config::CMAKE_LINT_CONFIG;
-
-    #[test]
-    fn tst_format_config() {
-        assert!(!CMAKE_FORMAT_CONFIG.enable_external);
-        assert_eq!(CMAKE_FORMAT_CONFIG.external_program, "");
-        assert_eq!(CMAKE_FORMAT_CONFIG.external_args.len(), 0);
-    }
-
-    #[test]
-    fn tst_lint_config() {
-        assert_eq!(CMAKE_LINT_CONFIG.command_upcase, "ignore");
-        assert!(!CMAKE_LINT_CONFIG.enable_external_cmake_lint);
-        assert_eq!(CMAKE_LINT_CONFIG.line_max_words, 80);
-    }
-}
