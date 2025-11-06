@@ -77,7 +77,7 @@ fn find_config_file() -> Option<PathBuf> {
             tracing::info!("Using project-level config file: {:?}", path);
             return Some(path);
         }
-    };
+    }
 
     if let Some(config_dir) = config_dir() {
         for file in ["config.toml", "lint.toml"] {
