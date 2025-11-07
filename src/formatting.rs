@@ -7,7 +7,7 @@ use tokio::process::Command;
 use tower_lsp::lsp_types;
 
 use crate::CMakeNodeKinds;
-use crate::config::CMAKE_FORMAT_CONFIG;
+use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::contain_comment;
 
@@ -103,9 +103,9 @@ pub async fn getformat(
     use_space: bool,
     insert_final_newline: bool,
 ) -> Option<Vec<TextEdit>> {
-    if CMAKE_FORMAT_CONFIG.enable_external {
-        let mut cmd = Command::new(&CMAKE_FORMAT_CONFIG.external_program);
-        cmd.args(&CMAKE_FORMAT_CONFIG.external_args);
+    if let Some(program) = &CONFIG.format.program {
+        let mut cmd = Command::new(program);
+        cmd.args(&CONFIG.format.args);
         if let Some(root_path) = root_path {
             cmd.current_dir(root_path);
         }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, arg};
+use clap::Parser;
 
 pub const fn get_styles() -> clap::builder::Styles {
     clap::builder::Styles::styled()

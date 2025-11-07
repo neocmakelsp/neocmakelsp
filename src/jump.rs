@@ -727,9 +727,9 @@ mod jump_test {
         use std::fs;
         use std::fs::File;
         use std::io::Write;
-        use tower_lsp::lsp_types;
 
         use tempfile::tempdir;
+        use tower_lsp::lsp_types;
 
         let jump_file_src = r#"
 set(ABCD 1234)
@@ -807,9 +807,9 @@ add_subdirectory(abcd_test)
 fn test_sub_def() {
     use std::fs::File;
     use std::io::Write;
-    use tower_lsp::lsp_types;
 
     use tempfile::tempdir;
+    use tower_lsp::lsp_types;
     let dir = tempdir().unwrap();
     let top_cmake_path = dir.path().join("CMakeLists.txt");
 

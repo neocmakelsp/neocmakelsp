@@ -172,11 +172,11 @@ To use `neocmakelsp` with eglot:
 
 ## Lint form 6.0.27
 
-Lint is controlled by a configuration file. The configuration file can be at the project level (the file named `.neocmakelint.toml` located in the root of the project) or at the user level (when project-level configuration is not found). The user-level configuration file differs across different operating systems:
+Lint is controlled by a configuration file. The configuration file can be at the project level (the file named `.neocmake.toml` located in the root of the project) or at the user level (when project-level configuration is not found). The user-level configuration file differs across different operating systems:
 
-* Linux:  `$XDG_CONFIG_HOME/neocmakelsp/lint.toml` or  `$HOME/.config/neocmakelsp/lint.toml`
-* macOS:  `$HOME/Library/Application Support/neocmakelsp/lint.toml`
-* Windows: `{FOLDERID_RoamingAppData}/neocmakelsp/lint.toml`
+* Linux:  `$XDG_CONFIG_HOME/neocmakelsp/config.toml` or  `$HOME/.config/neocmakelsp/config.toml`
+* macOS:  `$HOME/Library/Application Support/neocmakelsp/config.toml`
+* Windows: `{FOLDERID_RoamingAppData}/neocmakelsp/config.toml`
 
 ```toml
 command_upcase = "ignore" # "lowercase", "upcase"
@@ -185,7 +185,7 @@ This will check the case of all commands.
 
 ### `cmake-lint` integration
 
-When [`cmake-lint`](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` can utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmakelint.toml` file:
+When [`cmake-lint`](https://cmake-format.readthedocs.io/en/latest/cmake-lint.html) is installed, `neocmakelsp` can utilize it to offer linting and code analysis each time the file is saved. This functionality can be enabled or disabled in the `.neocmake.toml` file:
 
 ```toml
 enable_external_cmake_lint = true # true to use external cmake-lint, or false to disable it
