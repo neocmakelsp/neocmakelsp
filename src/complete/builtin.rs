@@ -154,7 +154,7 @@ fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
                 label: akey.to_string(),
                 kind: Some(CompletionItemKind::FUNCTION),
                 detail: Some(detail),
-                documentation: Some(Documentation::String(message.to_string())),
+                documentation: Some(Documentation::String(message.trim().to_string())),
                 insert_text: Some(insert_text),
                 insert_text_format: Some(insert_text_format),
                 ..Default::default()
@@ -179,7 +179,7 @@ fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::VARIABLE),
             detail: Some("Variable".to_string()),
-            documentation: Some(Documentation::String(message.to_string())),
+            documentation: Some(Documentation::String(message.trim().to_string())),
             ..Default::default()
         })
         .collect())
@@ -201,7 +201,7 @@ fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
             label: akey.to_string(),
             kind: Some(CompletionItemKind::MODULE),
             detail: Some("Module".to_string()),
-            documentation: Some(Documentation::String(message.to_string())),
+            documentation: Some(Documentation::String(message.trim().to_string())),
             ..Default::default()
         })
         .collect())
