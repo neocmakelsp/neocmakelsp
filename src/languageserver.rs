@@ -185,54 +185,52 @@ impl LanguageServer for Backend {
             })
             .expect("here should be the first place to init the init_info");
 
-        if let Some(workspace) = initial.capabilities.workspace {
-            if let Some(watch_file) = workspace.did_change_watched_files {
-                if let (Some(true), Some(true)) = (
-                    watch_file.dynamic_registration,
-                    watch_file.relative_pattern_support,
-                ) {
-                    // NOTE: I think it only contains one workspace
-                    if let Some(ref top_path) = initial
-                        .workspace_folders
-                        .as_ref()
-                        .and_then(|folders| folders.first())
-                        .and_then(|folder| folder.uri.to_file_path().ok())
-                    {
-                        let path = top_path.join("build").join("CMakeCache.txt");
-                        if path.exists() {
-                            filewatcher::refresh_error_packages(path);
-                        }
+        if let Some(workspace) = initial.capabilities.workspace
+            && let Some(watch_file) = workspace.did_change_watched_files
+            && let (Some(true), Some(true)) = (
+                watch_file.dynamic_registration,
+                watch_file.relative_pattern_support,
+            )
+        {
+            // NOTE: I think it only contains one workspace
+            if let Some(ref top_path) = initial
+                .workspace_folders
+                .as_ref()
+                .and_then(|folders| folders.first())
+                .and_then(|folder| folder.uri.to_file_path().ok())
+            {
+                let path = top_path.join("build").join("CMakeCache.txt");
+                if path.exists() {
+                    filewatcher::refresh_error_packages(path);
+                }
 
-                        tracing::info!("find cache-v2 json, start reading the data");
-                        let cache_path = top_path
-                            .join("build")
-                            .join(".cmake")
-                            .join("api")
-                            .join("v1")
-                            .join("reply");
-                        if cache_path.is_dir() {
-                            use std::fs;
-                            if let Ok(entries) = fs::read_dir(cache_path) {
-                                for entry in entries.flatten() {
-                                    let file_path = entry.path();
-                                    if file_path.is_file() {
-                                        let Some(file_name) = file_path.file_name() else {
-                                            continue;
-                                        };
-                                        let file_name = file_name.to_string_lossy().to_string();
-                                        if file_name.starts_with("cache-v2")
-                                            && file_name.ends_with(".json")
-                                        {
-                                            fileapi::update_cache_data(file_path);
-                                            break;
-                                        }
-                                    }
+                tracing::info!("find cache-v2 json, start reading the data");
+                let cache_path = top_path
+                    .join("build")
+                    .join(".cmake")
+                    .join("api")
+                    .join("v1")
+                    .join("reply");
+                if cache_path.is_dir() {
+                    use std::fs;
+                    if let Ok(entries) = fs::read_dir(cache_path) {
+                        for entry in entries.flatten() {
+                            let file_path = entry.path();
+                            if file_path.is_file() {
+                                let Some(file_name) = file_path.file_name() else {
+                                    continue;
+                                };
+                                let file_name = file_name.to_string_lossy().to_string();
+                                if file_name.starts_with("cache-v2") && file_name.ends_with(".json")
+                                {
+                                    fileapi::update_cache_data(file_path);
+                                    break;
                                 }
                             }
                         }
-                        tracing::info!("Finish getting the data in cache-v2 json");
                     }
                 }
+                tracing::info!("Finish getting the data in cache-v2 json");
             }
         }
 
@@ -379,10 +377,10 @@ impl LanguageServer for Backend {
                 .await;
             scansubs::scan_all(&project_root, true).await;
             let build_dir = project_root.join("build");
-            if build_dir.is_dir() {
-                if let Some(query) = &*DEFAULT_QUERY {
-                    query.write_to_build_dir(build_dir.as_path()).ok();
-                }
+            if build_dir.is_dir()
+                && let Some(query) = &*DEFAULT_QUERY
+            {
+                query.write_to_build_dir(build_dir.as_path()).ok();
             }
             if did_vcpkg_project(project_root) {
                 progress

@@ -93,12 +93,11 @@ fn find_config_file() -> Option<PathBuf> {
 }
 
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    if let Some(path) = find_config_file() {
-        if let Ok(buf) = std::fs::read_to_string(path) {
-            if let Ok(config) = toml::from_str::<Config>(&buf) {
-                return config;
-            }
-        }
+    if let Some(path) = find_config_file()
+        && let Ok(buf) = std::fs::read_to_string(path)
+        && let Ok(config) = toml::from_str::<Config>(&buf)
+    {
+        return config;
     }
 
     Config::default()
