@@ -38,10 +38,10 @@ pub(super) fn get_cmake_message_with_prefixes(
                 if CMAKECONFIG.is_match(file.to_str().unwrap()) {
                     ispackage = true;
                 }
-                if CMAKECONFIGVERSION.is_match(file.to_str().unwrap()) {
-                    if let Ok(context) = fs::read_to_string(&file) {
-                        version = get_version(&context);
-                    }
+                if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
+                    && let Ok(context) = fs::read_to_string(&file)
+                {
+                    version = get_version(&context);
                 }
             }
 
@@ -104,10 +104,10 @@ pub(super) fn get_cmake_message_with_prefixes(
                             let filename = path_name.to_str().unwrap();
                             if CMAKEREGEX.is_match(filename) {
                                 tojump.push(filepath.clone());
-                                if CMAKECONFIGVERSION.is_match(filename) {
-                                    if let Ok(context) = fs::read_to_string(&filepath) {
-                                        version = get_version(&context);
-                                    }
+                                if CMAKECONFIGVERSION.is_match(filename)
+                                    && let Ok(context) = fs::read_to_string(&filepath)
+                                {
+                                    version = get_version(&context);
                                 }
                             }
                         }
@@ -126,10 +126,9 @@ pub(super) fn get_cmake_message_with_prefixes(
             if let Some(config_file_location) = tojump
                 .iter()
                 .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
+                && config_file_location != 0
             {
-                if config_file_location != 0 {
-                    tojump.swap(0, config_file_location);
-                }
+                tojump.swap(0, config_file_location);
             }
 
             if let Some(captures) = SPECIAL_PACKAGE_PATTERN.captures(&packagename.clone()) {

@@ -384,10 +384,10 @@ fn get_pos_type_inner<'a>(
                 #[cfg(unix)]
                 PositionType::FindPkgConfig => {
                     let name = get_point_string(location, root, source);
-                    if let Some(name) = name {
-                        if name.to_lowercase() == "pkg_check_modules" {
-                            return PositionType::Unknown;
-                        }
+                    if let Some(name) = name
+                        && name.to_lowercase() == "pkg_check_modules"
+                    {
+                        return PositionType::Unknown;
                     }
                     return jumptype;
                 }

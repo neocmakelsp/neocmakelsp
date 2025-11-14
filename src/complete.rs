@@ -217,10 +217,10 @@ fn getsubcomplete<P: AsRef<Path>>(
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
     ));
     let local_path = local_path.as_ref();
-    if let Some(location) = location {
-        if input.start_position().row as u32 > location.line {
-            return None;
-        }
+    if let Some(location) = location
+        && input.start_position().row as u32 > location.line
+    {
+        return None;
     }
 
     let mut course = input.walk();
@@ -230,11 +230,11 @@ fn getsubcomplete<P: AsRef<Path>>(
         comments: vec![],
     };
     for child in input.children(&mut course) {
-        if let Some(location) = location {
-            if child.start_position().row as u32 > location.line {
-                // if this child is below row, then break all loop
-                break;
-            }
+        if let Some(location) = location
+            && child.start_position().row as u32 > location.line
+        {
+            // if this child is below row, then break all loop
+            break;
         }
         match child.kind() {
             CMakeNodeKinds::LINE_COMMENT => {

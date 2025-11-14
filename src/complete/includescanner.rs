@@ -22,12 +22,11 @@ pub fn scanner_include_complete(
     find_cmake_in_package: bool,
     is_builtin: bool,
 ) -> Option<Vec<CompletionItem>> {
-    if is_builtin {
-        if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
-            if let Some(complete_items) = cache.get(path) {
-                return Some(complete_items.clone());
-            }
-        }
+    if is_builtin
+        && let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
+        && let Some(complete_items) = cache.get(path)
+    {
+        return Some(complete_items.clone());
     }
     let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
@@ -47,10 +46,10 @@ pub fn scanner_include_complete(
     if !is_builtin {
         return result_data;
     }
-    if let Some(ref content) = result_data {
-        if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
-            cache.insert(path.clone(), content.clone());
-        }
+    if let Some(ref content) = result_data
+        && let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock()
+    {
+        cache.insert(path.clone(), content.clone());
     }
     result_data
 }
@@ -61,10 +60,10 @@ pub fn scanner_package_complete(
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
 ) -> Option<Vec<CompletionItem>> {
-    if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock() {
-        if let Some(complete_items) = cache.get(path) {
-            return Some(complete_items.clone());
-        }
+    if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
+        && let Some(complete_items) = cache.get(path)
+    {
+        return Some(complete_items.clone());
     }
     let content = fs::read_to_string(path).ok()?;
     let mut parse = tree_sitter::Parser::new();
@@ -81,10 +80,10 @@ pub fn scanner_package_complete(
         false,
         true,
     );
-    if let Some(ref content) = result_data {
-        if let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock() {
-            cache.insert(path.clone(), content.clone());
-        }
+    if let Some(ref content) = result_data
+        && let Ok(mut cache) = PACKAGE_COMPLETE_CACHE.lock()
+    {
+        cache.insert(path.clone(), content.clone());
     }
     result_data
 }
