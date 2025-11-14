@@ -1,0 +1,11 @@
+[formatting]
+align_comments = false
+column_width = 120
+indent_string = "    "
+
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = ["dependencies", "dev-dependencies"]
+
+[rule.formatting]
+reorder_keys = true

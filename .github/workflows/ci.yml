@@ -1,0 +1,21 @@
+---
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  typos:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: crate-ci/typos@v1.39.0
+
+  taplo:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo
+      - name: Check toml formatting
+        run: taplo format --check --diff
