@@ -7,7 +7,7 @@ description = "The Lsp for cmake"
 repository = "https://github.com/neocmakelsp/neocmakelsp"
 authors = ["Decodertalkers <aakari@tutanota.com>"]
 keywords = ["lsp"]
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
