@@ -1,6 +1,9 @@
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
 
+use anyhow::{Context, Result};
 use lsp_types::{MessageType, Position, TextEdit};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -17,6 +20,25 @@ const CLOSURE: &[&str] = &[
     CMakeNodeKinds::IF_CONDITION,
     CMakeNodeKinds::FOREACH_LOOP,
 ];
+
+// TODO: Maybe make this async and run formatting in parallel.
+pub(crate) fn format_file(
+    path: &Path,
+    inplace: bool,
+    use_space: bool,
+    indent_size: u32,
+    insert_final_newline: bool,
+) -> Result<()> {
+    let content = std::fs::read_to_string(path)?;
+    let formatted_content = get_format_cli(&content, indent_size, use_space, insert_final_newline)?;
+    if inplace {
+        let mut file = File::open(path)?;
+        file.write_all(formatted_content.as_bytes())?;
+    } else {
+        println!("{formatted_content}");
+    }
+    Ok(())
+}
 
 /// NOTE: when element in the same place, format bugs
 /// for example
@@ -373,14 +395,12 @@ pub fn get_format_cli(
     indent_size: u32,
     use_space: bool,
     insert_final_newline: bool,
-) -> Option<String> {
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
-    if input.has_error() {
-        return None;
-    }
+) -> Result<String> {
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&TREESITTER_CMAKE_LANGUAGE)?;
+    let tree = parser
+        .parse(source, None)
+        .context("Failed to parse CMake file into tree")?;
     let (mut new_text, endline) = format_content(
         tree.root_node(),
         &source.lines().collect(),
@@ -397,7 +417,7 @@ pub fn get_format_cli(
     if insert_final_newline && new_text.chars().last().is_some_and(|c| c != '\n') {
         new_text.push('\n');
     }
-    Some(new_text)
+    Ok(new_text)
 }
 
 #[cfg(unix)]

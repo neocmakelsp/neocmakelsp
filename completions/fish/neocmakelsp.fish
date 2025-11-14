@@ -1,1 +1,1 @@
-source (COMPLETE=fish neocmakelsp | psub)
+COMPLETE=fish neocmakelsp | source

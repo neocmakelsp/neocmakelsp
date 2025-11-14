@@ -1,8 +1,9 @@
-use std::io::prelude::*;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
-use clap::Parser;
+use anyhow::{Context, Result};
+use clap::{CommandFactory, Parser};
+use ignore::Walk;
 use ini::Ini;
 use tower_lsp::{Client, LspService, Server};
 mod treesitter_nodetypes;
@@ -10,7 +11,7 @@ mod treesitter_nodetypes;
 use tokio::net::TcpListener;
 use treesitter_nodetypes as CMakeNodeKinds;
 mod ast;
-mod clapargs;
+mod cli;
 mod complete;
 mod config;
 mod consts;
@@ -30,8 +31,10 @@ mod semantic_token;
 mod utils;
 use std::sync::OnceLock;
 
-use clapargs::NeocmakeCli;
 use tower_lsp::lsp_types::Uri;
+
+use crate::cli::{Cli, Command};
+use crate::formatting::format_file;
 
 #[derive(Debug)]
 struct BackendInitInfo {
@@ -48,7 +51,6 @@ impl Default for BackendInitInfo {
     }
 }
 
-/// Beckend
 #[derive(Debug)]
 struct Backend {
     /// client
@@ -68,7 +70,7 @@ impl Backend {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EditConfigSetting {
     use_space: bool,
     indent_size: u32,
@@ -119,149 +121,110 @@ fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditCon
 }
 
 #[tokio::main]
-async fn main() {
-    clap_complete::CompleteEnv::with_factory(<NeocmakeCli as clap::CommandFactory>::command)
-        .complete();
-    let log = tracing_subscriber::fmt();
+async fn main() -> Result<()> {
+    clap_complete::CompleteEnv::with_factory(Cli::command).complete();
 
-    let args = NeocmakeCli::parse();
-    if matches!(args, NeocmakeCli::Stdio) {
-        // NOTE: `stdout` should be retained when sending rpc messages.
-        // Also, most editors can't handle the ANSI escape codes properly in their log capture.
+    let args = Cli::parse();
+
+    let log = tracing_subscriber::fmt();
+    if matches!(args.command, Command::Stdio) {
+        // NOTE: `stdio` is used for the language server protocol, so we need to log to `stderr`.
+        // Most editors can't handle ANSI escape codes in their logfiles.
         log.with_writer(std::io::stderr).with_ansi(false).init();
     } else {
         log.init();
     }
-    match args {
-        NeocmakeCli::Stdio => {
-            let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+
+    match args.command {
+        Command::Stdio => {
+            let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stderr());
             let (service, socket) = LspService::new(Backend::new);
             Server::new(stdin, stdout, socket).serve(service).await;
         }
-        NeocmakeCli::Tcp { port } => {
-            let stream = {
-                if let Some(port) = port {
-                    let listener = TcpListener::bind(SocketAddr::new(
-                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                        port,
-                    ))
-                    .await
-                    .unwrap();
-                    let (stream, _) = listener.accept().await.unwrap();
-                    stream
-                } else {
-                    let listener = TcpListener::bind(SocketAddr::new(
-                        std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                        9257,
-                    ))
-                    .await
-                    .unwrap();
-                    let (stream, _) = listener.accept().await.unwrap();
-                    stream
-                }
-            };
-
+        Command::Tcp { port } => {
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await?;
+            let (stream, _) = listener.accept().await?;
             let (read, write) = tokio::io::split(stream);
-
             let (service, socket) = LspService::new(Backend::new);
             Server::new(read, write, socket).serve(service).await;
         }
-        NeocmakeCli::Tree { tree_path, tojson } => {
-            match scansubs::get_treedir(&tree_path) {
-                Some(tree) => {
-                    if tojson {
-                        println!("{}", serde_json::to_string(&tree).unwrap())
-                    } else {
-                        println!("{tree}")
-                    }
-                }
-                None => println!("Nothing find"),
-            };
-        }
-        NeocmakeCli::Search { package, tojson } => {
-            if tojson {
-                println!("{}", search::search_result_tojson(package.as_str()));
-            } else {
-                println!("{}", search::search_result(package.as_str()));
-            }
-        }
-        NeocmakeCli::Format {
-            format_paths,
-            hasoverride,
+        Command::Format {
+            files: paths,
+            inplace,
         } => {
-            use std::path::Path;
-
-            use ignore::Walk;
             let EditConfigSetting {
                 use_space,
                 indent_size,
                 insert_final_newline,
             } = editconfig_setting().unwrap_or_default();
-            let format_file = |format_file: &Path| {
-                let mut file = match std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(hasoverride)
-                    .open(format_file)
-                {
-                    Ok(file) => file,
-                    Err(e) => {
-                        println!("cannot read file {} :{e}", format_file.display());
-                        return;
-                    }
-                };
-                let mut buf = String::new();
-                if let Err(e) = file.read_to_string(&mut buf) {
-                    println!("cannot read {} : error {}", format_file.display(), e);
-                    return;
-                }
-                match formatting::get_format_cli(&buf, indent_size, use_space, insert_final_newline)
-                {
-                    Some(context) => {
-                        if hasoverride {
-                            if let Err(e) = file.set_len(0) {
-                                println!("Cannot clear the file: {e}");
-                            };
-                            if let Err(e) = file.seek(std::io::SeekFrom::End(0)) {
-                                println!("Cannot jump to end: {e}");
-                            };
-                            let Ok(_) = file.write_all(context.as_bytes()) else {
-                                println!("cannot write in {}", format_file.display());
-                                return;
-                            };
-                            let _ = file.flush();
-                        } else {
-                            println!("{context}")
-                        }
-                    }
-                    None => {
-                        println!("There is error in file: {}", format_file.display());
-                    }
-                }
-            };
 
-            for format_path in format_paths {
-                let toformatpath = Path::new(format_path.as_str());
-                if !toformatpath.exists() {
+            for path in paths {
+                if !path.exists() {
+                    tracing::warn!("Failed to format '{}': path doesn't exist", path.display());
                     continue;
                 }
-                if toformatpath.is_file() {
-                    format_file(toformatpath);
-                } else {
-                    for results in Walk::new(&format_path).flatten() {
-                        let file_path = results.path();
-                        if file_path.is_dir() {
-                            continue;
-                        }
-                        if file_path.ends_with("CMakeLists.txt")
-                            || file_path.extension().is_some_and(|ex| ex == "cmake")
+                if path.is_file() {
+                    format_file(&path, inplace, use_space, indent_size, insert_final_newline)?;
+                } else if path.is_dir() {
+                    for entry in Walk::new(path).flatten() {
+                        let path = entry.path();
+                        if path.is_file()
+                            && (path
+                                .file_name()
+                                .is_some_and(|name| name == "CMakeLists.txt")
+                                || path.extension().is_some_and(|ext| ext == "cmake"))
                         {
-                            format_file(file_path);
+                            format_file(
+                                path,
+                                inplace,
+                                use_space,
+                                indent_size,
+                                insert_final_newline,
+                            )?;
                         }
+                        // FIXME: Does this ignore recursive directories??
                     }
                 }
             }
         }
+        Command::Search { module, json } => {
+            if json {
+                println!("{}", search::search_result_tojson(&module)?);
+            } else {
+                println!("{}", search::search_result(&module)?);
+            };
+        }
+        Command::Tree { path, json } => {
+            // If `path` is a directory try to resolve a CMakeLists.txt file.
+            let path = if path.is_dir() {
+                path.read_dir()?
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.path())
+                    .find(|path| {
+                        path.file_name()
+                            .is_some_and(|name| name == "CMakeLists.txt")
+                    })
+                    .context(format!(
+                        "Failed to find 'CMakeLists.txt' in {}",
+                        path.display()
+                    ))?
+            } else {
+                path
+            };
+            match scansubs::get_treedir(&path) {
+                Some(tree) => {
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&tree)?);
+                    } else {
+                        print!("{tree}")
+                    }
+                }
+                None => println!("Nothing found"),
+            }
+        }
     }
+
+    Ok(())
 }
 
 #[cfg(test)]

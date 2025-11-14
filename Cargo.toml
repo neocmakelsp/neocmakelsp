@@ -11,9 +11,8 @@ rust-version = "1.89.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anstyle = "1.0.11"
 anyhow = "1.0.99"
-clap = { version = "4.5.47", features = ["derive", "color"] }
+clap = { version = "4.5.47", features = ["derive"] }
 clap_complete = { version = "4.5.58", features = ["unstable-dynamic"] }
 cli-table = "0.5.0"
 dirs = "6.0.0"
