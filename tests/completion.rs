@@ -1,12 +1,10 @@
 #![cfg(unix)]
 
-use std::process::Command;
-
-use assert_cmd::cargo::CommandCargoExt;
+use assert_cmd::cargo::cargo_bin_cmd;
 use regex::{Captures, Regex};
 
 fn compare_shell_completions(shell: &str, completion_script: &str) {
-    let mut command = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
+    let mut command = cargo_bin_cmd!();
     command.env("COMPLETE", shell);
 
     let binary = command.get_program().to_str().unwrap().to_string();
