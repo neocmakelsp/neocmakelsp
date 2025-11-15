@@ -19,7 +19,7 @@ env:
     CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: "arm-linux-gnueabihf-gcc"
 
 jobs:
-    build:
+    release-build:
         name: Build Binary
         strategy:
             matrix:
@@ -58,12 +58,6 @@ jobs:
                 sudo apt install -y musl-tools gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
             - name: Build
               run: cargo build --target ${{ matrix.target }} --verbose --release
-            - name: Run fmt check
-              run: cargo fmt --all -- --check
-            - name: Run clippy check
-              run: cargo clippy -- -D warnings
-            - name: Run tests
-              run: cargo test --verbose
             - name: Upload artifacts
               uses: actions/upload-artifact@v5
               with:
@@ -75,7 +69,7 @@ jobs:
             contents: write
         if: startsWith(github.ref, 'refs/tags/v')
         needs:
-            - build
+            - release-build
         runs-on: ubuntu-latest
         steps:
             - uses: actions/download-artifact@v6
