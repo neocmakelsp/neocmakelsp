@@ -1,9 +1,11 @@
-#[allow(unused)]
-fn compare_shell_completions(shell: &str, completion_script: &str) {
-    use std::process::Command;
+#![cfg(unix)]
 
-    use assert_cmd::cargo::CommandCargoExt;
-    use regex::{Captures, Regex};
+use std::process::Command;
+
+use assert_cmd::cargo::CommandCargoExt;
+use regex::{Captures, Regex};
+
+fn compare_shell_completions(shell: &str, completion_script: &str) {
     let mut command = Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap();
     command.env("COMPLETE", shell);
 
@@ -26,13 +28,11 @@ fn compare_shell_completions(shell: &str, completion_script: &str) {
     assert_eq!(output, completion_script);
 }
 
-#[cfg(unix)]
 #[test]
 fn verify_bash_completions() {
     compare_shell_completions("bash", include_str!("../completions/bash/neocmakelsp"));
 }
 
-#[cfg(unix)]
 #[test]
 fn verify_zsh_completions() {
     compare_shell_completions("zsh", include_str!("../completions/zsh/_neocmakelsp"));
