@@ -1,99 +1,96 @@
-name: Build
+---
+name: Release
+
+permissions:
+  contents: write
 
 on:
-    push:
-        branches:
-            - master
-        tags:
-            - v*
-    pull_request:
-        branches:
-            - master
-
-concurrency:
-    group: ${{ github.ref }}
-    cancel-in-progress: true
+  push:
+    tags:
+      - v[0-9]+.*
 
 env:
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: "aarch64-linux-gnu-gcc"
-    CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: "arm-linux-gnueabihf-gcc"
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
 
 jobs:
-    release-build:
-        name: Build Binary
-        strategy:
-            matrix:
-                include:
-                    - os: macos-latest
-                      target: aarch64-apple-darwin
-                      artifact_name: neocmakelsp
-                    - os: macos-13
-                      target: x86_64-apple-darwin
-                      artifact_name: neocmakelsp
-                    # Build on Ubuntu 22.04 to link against glibc 2.35.
-                    # Ubuntu 24.04 ships glibc 2.39.
-                    - os: ubuntu-22.04
-                      target: x86_64-unknown-linux-gnu
-                      artifact_name: neocmakelsp
-                    - os: ubuntu-22.04
-                      target: x86_64-unknown-linux-musl
-                      artifact_name: neocmakelsp
-                    - os: ubuntu-22.04
-                      target: aarch64-unknown-linux-gnu
-                      artifact_name: neocmakelsp
-                    - os: windows-latest
-                      target: x86_64-pc-windows-msvc
-                      artifact_name: neocmakelsp.exe
+  create-release:
+    if: github.repository_owner == 'neocmakelsp'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          branch: master
+          changelog: CHANGELOG.md
+          draft: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-        runs-on: ${{ matrix.os }}
-        steps:
-            - uses: actions/checkout@v5
-            - uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: ${{ matrix.target }}
-            - name: Install linux dependencies
-              if: ${{ startsWith(matrix.os, 'ubuntu-') }}
-              run: |
-                sudo apt update
-                sudo apt install -y musl-tools gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
-            - name: Build
-              run: cargo build --target ${{ matrix.target }} --verbose --release
-            - name: Upload artifacts
-              uses: actions/upload-artifact@v5
-              with:
-                  path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-                  name: ${{ matrix.target }}
+  upload-assets:
+    if: github.repository_name == 'neocmakelsp'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            build-target: aarch64-unknown-linux-gnu.2.27
+            build-tool: cargo-zigbuild
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            build-target: aarch64-unknown-linux-musl
+            build-tool: cargo-zigbuild
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            build-target: x86_64-unknown-linux-gnu.2.27
+            build-tool: cargo-zigbuild
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            build-target: x86_64-unknown-linux-musl
+            build-tool: cargo-zigbuild
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+            build-target: x86_64-pc-windows-msvc
+            build-tool: cargo
+          - target: x86_64-pc-windows-msvc
+            os: windows-11-arm
+            build-target: aarch64-pc-windows-msvc
+            build-tool: cargo
+          - target: universal-apple-darwin
+            os: macos-14
+            build-target: universal-apple-darwin
+            build-tool: cargo
+      fail-fast: false
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: neocmakelsp
+          build-tool: ${{ matrix.build-tool }}
+          target: ${{ matrix.build-target }}
+          checksum: sha256
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CARGO_PROFILE_RELEASE_LTO: true
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
-    release:
-        permissions:
-            contents: write
-        if: startsWith(github.ref, 'refs/tags/v')
-        needs:
-            - release-build
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/download-artifact@v6
-            - name: Show files
-              run: |
-                  pwd
-                  find
-            - name: Copy files
-              run: |
-                  mkdir out
-                  mv aarch64-apple-darwin/neocmakelsp out/neocmakelsp-aarch64-apple-darwin
-                  mv x86_64-apple-darwin/neocmakelsp out/neocmakelsp-x86_64-apple-darwin
-                  mv x86_64-pc-windows-msvc/neocmakelsp.exe out/neocmakelsp-x86_64-pc-windows-msvc.exe
-                  mv x86_64-unknown-linux-gnu/neocmakelsp out/neocmakelsp-x86_64-unknown-linux-gnu
-                  mv x86_64-unknown-linux-musl/neocmakelsp out/neocmakelsp-x86_64-unknown-linux-musl
-                  mv aarch64-unknown-linux-gnu/neocmakelsp out/neocmakelsp-aarch64-unknown-linux-gnu
-                  cd out
-                  sha256sum * > sha256sum
-            - name: Release
-              uses: softprops/action-gh-release@v2
-              with:
-                  files: out/*
-                  draft: true
-            - uses: actions/checkout@v5
-            - uses: dtolnay/rust-toolchain@stable
-            - name: Publish to crate
-              run: cargo publish --token ${{ secrets.CRATE_TOKEN }}
+  publish-release:
+    if: github.repository_name == 'neocmakelsp'
+    runs-on: ubuntu-24.04
+    needs: upload-assets
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATE_TOKEN }}
+      - name: Publish github release
+        run: |
+          if [[ $(echo "${GTIHUB_REF#refs/tags/v}" | grep '-' > /dev/null) ]]; then
+            gh release edit "${GITHUB_REF#refs/tags/}" --prerelease
+          fi
+          gh release edit "${GITHUB_REF#refs/tags/}" --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
