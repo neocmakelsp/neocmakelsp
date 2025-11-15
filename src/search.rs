@@ -1,10 +1,13 @@
+use anyhow::Result;
 use cli_table::format::Justify;
 use cli_table::{Cell, CellStruct, Style, Table};
+use regex::Regex;
 
 use crate::utils::{CACHE_CMAKE_PACKAGES, CMakePackage};
-pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
-    let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
-    CACHE_CMAKE_PACKAGES
+
+pub fn search_result(tosearch: &str) -> Result<cli_table::TableDisplay> {
+    let tofind = Regex::new(&tosearch.to_lowercase())?;
+    Ok(CACHE_CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name.to_lowercase()))
         .map(|source| match &source.version {
@@ -27,43 +30,46 @@ pub fn search_result(tosearch: &str) -> cli_table::TableDisplay {
             "Version".cell().justify(Justify::Center).bold(true),
         ])
         .bold(true)
-        .display()
-        .unwrap()
+        .display()?)
 }
 
-pub fn search_result_tojson(tosearch: &str) -> String {
-    let tofind = regex::Regex::new(&tosearch.to_lowercase()).unwrap();
+pub fn search_result_tojson(tosearch: &str) -> Result<String> {
+    let tofind = Regex::new(&tosearch.to_lowercase())?;
     let output: Vec<CMakePackage> = CACHE_CMAKE_PACKAGES
         .iter()
         .filter(|source| tofind.is_match(&source.name.to_lowercase()))
         .cloned()
         .collect();
-    serde_json::to_string(&output).unwrap()
+    Ok(serde_json::to_string(&output)?)
 }
 
 #[cfg(test)]
 mod search_test {
     use super::*;
     use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
+
     #[test]
     fn search_result_test_1() {
-        let search_result = search_result_tojson("bash");
+        let search_result = search_result_tojson("bash").unwrap();
         let data = CACHE_CMAKE_PACKAGES_WITHKEYS
             .get("bash-completion-fake")
             .unwrap();
         let result_json = serde_json::to_string(&vec![data]).unwrap();
         assert_eq!(search_result, result_json);
     }
+
     #[test]
     fn search_result_test_2() {
-        let search_result = search_result_tojson("zzzz");
+        let search_result = search_result_tojson("zzzz").unwrap();
         let result_json = r#"[]"#;
         assert_eq!(search_result, result_json);
     }
+
     #[test]
-    fn search_cli_pass_test() {
-        search_result("bash");
-        search_result("ttt");
-        search_result("eee");
+    fn search_cli_pass_test() -> Result<()> {
+        search_result("bash")?;
+        search_result("ttt")?;
+        search_result("eee")?;
+        Ok(())
     }
 }

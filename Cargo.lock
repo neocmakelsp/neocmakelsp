@@ -718,7 +718,6 @@ dependencies = [
 name = "neocmakelsp"
 version = "0.8.26"
 dependencies = [
- "anstyle",
  "anyhow",
  "assert_cmd",
  "clap",
