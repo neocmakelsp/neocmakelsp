@@ -1,9 +1,47 @@
 ---
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
 
 jobs:
+  test:
+    name: Lint and test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macos-15
+          - ubuntu-24.04
+          - windows-2025
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Lint (clippy)
+        run: cargo clippy --all-targets
+      - name: Lint (rustfmt)
+        run: cargo fmt --check
+      - name: Test
+        run: cargo test --all-targets
+
   typos:
     runs-on: ubuntu-24.04
     steps:
