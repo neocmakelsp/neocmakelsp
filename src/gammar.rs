@@ -63,7 +63,7 @@ pub fn checkerror<P: AsRef<Path>>(
         for item in v.inner {
             error_info.inner.push(item);
         }
-    };
+    }
 
     result
 }

@@ -93,7 +93,7 @@ pub fn get_node_content<'a>(source: &[&'a str], node: &Node) -> Vec<&'a str> {
             assert_eq!(row, row_end);
             // NOTE: like ")" this kind should check again
             if y != 0 {
-                content.append(&mut source[row][..y].split(' ').collect())
+                content.append(&mut source[row][..y].split(' ').collect());
             }
         }
     }
@@ -210,7 +210,7 @@ fn env_arg_test() {
     assert_eq!(
         "/tmp/wezterm",
         replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
-    )
+    );
 }
 
 #[test]

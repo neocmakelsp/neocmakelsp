@@ -109,7 +109,7 @@ fn scan_node<P: AsRef<Path>>(
                             .unwrap()
                             .join(name)
                             .join("CMakeLists.txt");
-                        bufs.push(subpath.to_path_buf())
+                        bufs.push(subpath.to_path_buf());
                     }
                 } else if command_name.to_lowercase() == "include" && node.child_count() >= 4 {
                     let ids = node.child(2).unwrap();
@@ -127,9 +127,9 @@ fn scan_node<P: AsRef<Path>>(
                         let mut cmake_buf_path = PathBuf::from(name);
 
                         if !cmake_buf_path.is_absolute() {
-                            cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path)
+                            cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path);
                         }
-                        cmake_bufs.push(cmake_buf_path)
+                        cmake_bufs.push(cmake_buf_path);
                     }
                 }
             }
@@ -159,7 +159,7 @@ impl fmt::Display for TreeDir {
                 for dir in dirs {
                     let message = dir.to_string();
                     for mes in message.lines() {
-                        writeln!(f, "  -> {mes}")?
+                        writeln!(f, "  -> {mes}")?;
                     }
                 }
                 Ok(())
@@ -282,5 +282,5 @@ fn test_tree_dir() {
                 subdirs: None,
             }])
         }
-    )
+    );
 }

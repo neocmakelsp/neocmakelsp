@@ -148,7 +148,7 @@ fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
                     }
                     _ => akey.to_string(),
                 }
-            };
+            }
 
             CompletionItem {
                 label: akey.to_string(),

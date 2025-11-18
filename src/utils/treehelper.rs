@@ -100,7 +100,7 @@ pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) 
                 .is_some_and(|message| !BLACK_POS_STRING.contains(message))
             {
                 return mabepos;
-            };
+            }
         }
         // if is the same line
         if child.start_position().row == child.end_position().row
@@ -232,7 +232,7 @@ fn location_range_contain(location: Point, range_node: Node) -> bool {
     let range_end_position = range_node.end_position();
     if range_end_position.row < location.row || range_start_position.row > location.row {
         return false;
-    };
+    }
 
     if range_start_position.row == location.row && range_start_position.column > location.column {
         return false;
@@ -397,7 +397,7 @@ fn get_pos_type_inner<'a>(
                     match currenttype {
                         PositionType::Unknown => {}
                         _ => return currenttype,
-                    };
+                    }
                 }
                 PositionType::Unknown
                 | PositionType::Comment
@@ -577,5 +577,5 @@ endmacro()
     assert_eq!(
         get_pos_type(Point { row: 17, column: 8 }, input, source,),
         PositionType::FunOrMacroIdentifier
-    )
+    );
 }
