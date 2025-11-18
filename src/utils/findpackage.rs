@@ -31,7 +31,7 @@ use packagemac as cmakepackage;
 use tower_lsp::lsp_types::Uri;
 pub use vcpkg::*;
 
-use super::{CMakePackage, CMakePackageFrom, PackageType, remove_quotation};
+use super::{CMakePackage, CMakePackageFrom, PackageType};
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
@@ -101,7 +101,7 @@ fn query_cmake_prefixes() -> Option<Vec<String>> {
         .lines()
         .find(|line| line.starts_with("CMAKE_SYSTEM_PREFIX_PATH"))?;
     let (_, prefix_paths) = line.split_once(" ")?;
-    let prefix_paths = remove_quotation(prefix_paths);
+    let prefix_paths = prefix_paths.trim_matches('"');
     // FIXME: This likely contains duplicate entries of '/usr/local' on most systems
     // This could be solved by using Itertools::unique()
     let prefix_paths: Vec<String> = prefix_paths.split(";").map(String::from).collect();
@@ -300,7 +300,7 @@ fn get_version(source: &str) -> Option<String> {
                         let x = version.start_position().column;
                         let y = version.end_position().column;
                         let version = &newsource[h][x..y];
-                        return Some(remove_quotation(version).to_string());
+                        return Some(version.trim_matches('"').to_string());
                     }
                 }
             }

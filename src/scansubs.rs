@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::{remove_quotation, remove_quotation_and_replace_placeholders};
+use crate::utils::remove_quotation_and_replace_placeholders;
 use crate::{CMakeNodeKinds, complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
@@ -224,7 +224,7 @@ fn get_subdir_from_tree(
                     let x = ids.start_position().column;
                     let y = ids.end_position().column;
                     let name = &source[h][x..y];
-                    let name = remove_quotation(name);
+                    let name = name.trim_matches('"');
                     let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
                     if subpath.exists() {
                         output.push(subpath);

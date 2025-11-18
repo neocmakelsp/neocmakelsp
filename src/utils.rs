@@ -138,14 +138,7 @@ Core Gui Widget
 }
 
 pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
-    replace_placeholders(remove_quotation(origin_template))
-}
-
-pub fn remove_quotation(origin: &str) -> &str {
-    origin
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .unwrap_or(origin)
+    replace_placeholders(origin_template.trim_matches('"'))
 }
 
 pub fn replace_placeholders(template: &str) -> Option<String> {
@@ -211,14 +204,6 @@ fn env_arg_test() {
         "/tmp/wezterm",
         replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
     );
-}
-
-#[test]
-fn brank_remove_test() {
-    let testa = "\"abc\"";
-    let target_str = "abc";
-    assert_eq!(remove_quotation(testa), target_str);
-    assert_eq!(remove_quotation(target_str), target_str);
 }
 
 #[test]
