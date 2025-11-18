@@ -1,39 +1,45 @@
-#[cfg(any(
-    target_os = "linux",
-    target_os = "android",
-    target_os = "freebsd",
-    target_os = "openbsd"
-))]
+#[cfg(not(target_os = "windows"))]
 mod packageunix;
-mod vcpkg;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "android",
-    target_os = "freebsd",
-    target_os = "openbsd"
-))]
-use packageunix as cmakepackage;
 #[cfg(target_os = "windows")]
 mod packagewin;
-#[cfg(target_os = "windows")]
-use packagewin as cmakepackage;
+mod vcpkg;
 
-#[cfg(target_os = "macos")]
-mod packagemac;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
 
 pub use cmakepackage::*;
-#[cfg(target_os = "macos")]
-use packagemac as cmakepackage;
 use tower_lsp::lsp_types::Uri;
-pub use vcpkg::*;
 
+#[cfg(not(target_os = "windows"))]
+use self::packageunix as cmakepackage;
+#[cfg(target_os = "windows")]
+use self::packagewin as cmakepackage;
+pub use self::vcpkg::*;
 use super::{CMakePackage, CMakePackageFrom, PackageType};
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
+const LIBS: &[Cow<'_, str>] = &[
+    Cow::Borrowed("lib"),
+    Cow::Borrowed("lib32"),
+    Cow::Borrowed("lib64"),
+    Cow::Borrowed("share"),
+];
+
+/// Used to query system information like platform specific paths.
+static CMAKE_SYSTEM_INFORMATION: LazyLock<Option<String>> = LazyLock::new(|| {
+    let output = Command::new("cmake")
+        .arg("--system-information")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8(output.stdout).ok()
+});
 
 fn handle_config_package(filename: &str) -> Option<&str> {
     if let Some(tryfirst) = filename.strip_suffix("-config.cmake") {
@@ -92,14 +98,11 @@ fn query_cmake_prefixes_or(default: Vec<String>) -> Vec<String> {
 }
 
 fn query_cmake_prefixes() -> Option<Vec<String>> {
-    let command = Command::new("cmake")
-        .arg("--system-information")
-        .output()
-        .ok()?;
-    let output = String::from_utf8_lossy(&command.stdout);
-    let line = output
-        .lines()
-        .find(|line| line.starts_with("CMAKE_SYSTEM_PREFIX_PATH"))?;
+    let line = CMAKE_SYSTEM_INFORMATION.as_ref().and_then(|output| {
+        output
+            .lines()
+            .find(|line| line.starts_with("CMAKE_SYSTEM_PREFIX_PATH"))
+    })?;
     let (_, prefix_paths) = line.split_once(" ")?;
     let prefix_paths = prefix_paths.trim_matches('"');
     // FIXME: This likely contains duplicate entries of '/usr/local' on most systems
@@ -113,12 +116,30 @@ fn query_cmake_prefixes() -> Option<Vec<String>> {
     }
 }
 
+/// Returns the value of `CMAKE_LIBRARY_ARCHITECTURE` reported by `cmake --system-information`, if
+/// it's set.
+fn get_library_architecture() -> Option<String> {
+    CMAKE_SYSTEM_INFORMATION
+        .as_ref()
+        .and_then(|output| {
+            output
+                .lines()
+                .find(|line| line.starts_with("CMAKE_LIBRARY_ARCHITECTURE"))
+        })
+        .and_then(|line| line.split_whitespace().nth(1))
+        .map(|line| line.trim_matches('"'))
+        .map(str::to_owned)
+}
+
 fn get_available_libs(prefixes: &[String]) -> Vec<PathBuf> {
+    let lib_arch = get_library_architecture().map(|arch| Cow::Owned(format!("lib/{arch}")));
     prefixes
         .iter()
-        .flat_map(|prefix| {
-            LIBS.into_iter()
-                .map(|lib| Path::new(prefix).join(lib).join("cmake"))
+        .map(Path::new)
+        .flat_map(|path| {
+            LIBS.iter()
+                .chain(lib_arch.iter())
+                .map(|lib| path.join(lib.as_ref()).join("cmake"))
                 .filter(|path| path.exists())
         })
         .collect()

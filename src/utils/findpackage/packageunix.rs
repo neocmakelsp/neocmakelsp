@@ -10,10 +10,6 @@ use super::{
 use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
-// here is the logic of findpackage on linux
-//
-pub(super) const LIBS: [&str; 5] = ["lib", "lib32", "lib64", "share", "lib/x86_64-linux-gnu"];
-
 pub(super) fn get_env_prefix() -> Option<String> {
     if cfg!(target_os = "android") {
         std::env::var("PREFIX").ok()
@@ -37,13 +33,13 @@ pub(super) fn get_cmake_message_with_prefixes(
             let mut tojump: Vec<PathBuf> = vec![];
             let mut version: Option<String> = None;
             let mut ispackage = false;
-            for f in files.flatten() {
-                tojump.push(f.canonicalize().unwrap());
-                if CMAKECONFIG.is_match(f.to_str().unwrap()) {
+            for file in files.flatten() {
+                tojump.push(file.canonicalize().unwrap());
+                if CMAKECONFIG.is_match(file.to_str().unwrap()) {
                     ispackage = true;
                 }
-                if CMAKECONFIGVERSION.is_match(f.to_str().unwrap())
-                    && let Ok(context) = fs::read_to_string(&f)
+                if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
+                    && let Ok(context) = fs::read_to_string(&file)
                 {
                     version = get_version(&context);
                 }
@@ -93,7 +89,7 @@ pub(super) fn get_cmake_message_with_prefixes(
             let mut version: Option<String> = None;
             let mut tojump: Vec<PathBuf> = vec![];
             let pathname = path.file_name().to_str().unwrap().to_string();
-            let package_path = Uri::from_file_path(path.path()).unwrap();
+            let location = Uri::from_file_path(path.path()).unwrap();
             let (packagetype, mut packagename) = {
                 if path.metadata().is_ok_and(|data| data.is_dir()) {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
@@ -105,12 +101,12 @@ pub(super) fn get_cmake_message_with_prefixes(
                             let path_name = path.file_name();
                             let filename = path_name.to_str().unwrap();
                             if CMAKEREGEX.is_match(filename) {
-                                tojump.push(filepath.clone());
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
                                     version = get_version(&context);
                                 }
+                                tojump.push(filepath);
                             }
                         }
                     }
@@ -139,7 +135,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 CMakePackage {
                     name: packagename,
                     packagetype,
-                    location: package_path,
+                    location,
                     version,
                     tojump,
                     from: CMakePackageFrom::System,
@@ -166,6 +162,7 @@ fn test_prefix() {
     assert!(!prefixes.is_empty());
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn test_package_search() {
     use std::fs;

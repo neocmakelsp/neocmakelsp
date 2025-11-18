@@ -10,8 +10,6 @@ use super::{
 use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
-pub(super) const LIBS: [&str; 4] = ["lib", "lib32", "lib64", "share"];
-
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
 
