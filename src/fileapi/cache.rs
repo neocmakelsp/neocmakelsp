@@ -68,5 +68,5 @@ fn gen_completion_test() {
             kind: Some(CompletionItemKind::VALUE),
             ..Default::default()
         }
-    )
+    );
 }

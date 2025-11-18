@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
                 println!("{}", search::search_result_tojson(&module)?);
             } else {
                 println!("{}", search::search_result(&module)?);
-            };
+            }
         }
         Command::Tree { path, json } => {
             // If `path` is a directory try to resolve a CMakeLists.txt file.
@@ -216,7 +216,7 @@ async fn main() -> Result<()> {
                     if json {
                         println!("{}", serde_json::to_string_pretty(&tree)?);
                     } else {
-                        print!("{tree}")
+                        print!("{tree}");
                     }
                 }
                 None => println!("Nothing found"),
@@ -261,7 +261,7 @@ indent_size = 4
                 indent_size: 1,
                 insert_final_newline: false
             })
-        )
+        );
     }
     #[test]
     fn tst_editconfig_space() {
@@ -286,7 +286,7 @@ indent_size = 4
                 indent_size: 2,
                 insert_final_newline: false
             })
-        )
+        );
     }
     #[test]
     fn tst_editconfig_lastline() {
@@ -312,6 +312,6 @@ indent_size = 4
                 indent_size: 2,
                 insert_final_newline: true
             })
-        )
+        );
     }
 }

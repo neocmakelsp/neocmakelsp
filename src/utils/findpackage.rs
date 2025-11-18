@@ -164,7 +164,7 @@ fn special_package_pattern_tst() {
     assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
 
     let unmatched_pattern = "QuaZip-Qt5";
-    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern))
+    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
 }
 
 // match file xx.cmake and CMakeLists.txt

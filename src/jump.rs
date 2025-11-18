@@ -337,8 +337,8 @@ fn reference_inner<P: AsRef<Path>>(
                         start: child.start_position().to_position(),
                         end: child.end_position().to_position(),
                     },
-                })
-            };
+                });
+            }
         }
     }
     if definitions.is_empty() {
@@ -719,7 +719,7 @@ mod jump_test {
                     },
                 }
             }]
-        )
+        );
     }
 
     #[tokio::test]
@@ -799,7 +799,7 @@ add_subdirectory(abcd_test)
                     },
                 }
             }]
-        )
+        );
     }
 }
 

@@ -39,7 +39,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
     for child in node.children(&mut walk) {
         match child.kind() {
             CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                document_link_search_inner(source, child, links, current_parent)
+                document_link_search_inner(source, child, links, current_parent);
             }
             CMakeNodeKinds::NORMAL_COMMAND => {
                 let h = child.start_position().row;
@@ -95,7 +95,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                             target: Some(Uri::from_file_path(file_path).unwrap()),
                             tooltip: None,
                             data: None,
-                        })
+                        });
                     }
                     continue;
                 }
@@ -152,7 +152,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                     target: Some(Uri::from_file_path(final_uri).unwrap()),
                     tooltip,
                     data: None,
-                })
+                });
             }
             _ => {}
         }
@@ -275,5 +275,5 @@ add_subdirectory(abcd_test)
                 data: None
             },
         ]
-    )
+    );
 }

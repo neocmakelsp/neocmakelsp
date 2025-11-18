@@ -875,7 +875,7 @@ Example using both :command:`configure_package_config_file` and
    check_required_components(Foo)
 #]=======================================================================]
         "#;
-    assert_eq!(rst_doc_read(doc, "FileExample.cmake").len(), 2)
+    assert_eq!(rst_doc_read(doc, "FileExample.cmake").len(), 2);
 }
 
 #[test]
