@@ -131,7 +131,10 @@ pub async fn getcomplete<P: AsRef<Path>>(
     let current_point = location.to_point();
     let postype = get_pos_type(current_point, tree.root_node(), source);
     match postype {
-        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
+        PositionType::VarOrFun
+        | PositionType::TargetLink
+        | PositionType::TargetInclude
+        | PositionType::ArgumentOrList => {
             let mut cached_completion = get_cached_completion(local_path).await;
             if !cached_completion.is_empty() {
                 complete.append(&mut cached_completion);
@@ -153,7 +156,9 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 complete.append(&mut message);
             }
 
-            if let Ok(messages) = &*BUILTIN_COMMAND {
+            if let Ok(messages) = &*BUILTIN_COMMAND
+                && !matches!(postype, PositionType::ArgumentOrList)
+            {
                 complete.append(&mut messages.clone());
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {
@@ -197,7 +202,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
     }
 }
 
-/// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude
+/// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude | ArgumentOrList
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
@@ -214,7 +219,10 @@ fn getsubcomplete<P: AsRef<Path>>(
 ) -> Option<Vec<CompletionItem>> {
     assert!(matches!(
         postype,
-        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
+        PositionType::VarOrFun
+            | PositionType::TargetLink
+            | PositionType::TargetInclude
+            | PositionType::ArgumentOrList
     ));
     let local_path = local_path.as_ref();
     if let Some(location) = location
