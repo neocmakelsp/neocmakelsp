@@ -1,5 +1,12 @@
 # Neocmakelsp
 
+## 0.9.0
+
+- Fix: argument list did not have completiontions
+- Feat: switch to rust specific release actions
+- Feat: update MSRV to 1.90
+- Breaking changes: add toml formatting rules
+
 ## 0.8.30
 
 - This version use the forked lsp-types, bump the dependence of
