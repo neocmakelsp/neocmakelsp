@@ -27,7 +27,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   upload-assets:
-    if: github.repository_name == 'neocmakelsp'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -77,7 +76,6 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
 
   publish-release:
-    if: github.repository_name == 'neocmakelsp'
     runs-on: ubuntu-24.04
     needs: upload-assets
     steps:
