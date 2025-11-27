@@ -301,8 +301,8 @@ fn string_from_two_valid_points(source: Vec<&str>, start: &Point, end: &Point) -
     let mut span = String::new();
 
     span += &source[start.row][start.column..];
-    for row in start.row + 1..end.row {
-        span += &source[row];
+    for row in source.iter().take(end.row).skip(start.row + 1) {
+        span += row;
     }
     span += &source[end.row][..end.column];
 
@@ -446,6 +446,10 @@ fn tst_version() {
     let projectversion = "SET(PACKAGE_VERSION 5.11)";
     assert_eq!(get_version(projectversion), Some("5.11".to_string()));
     let projectversion = "set(PACKAGE_VERSION \"1.3.14
+\")";
+    assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
+    let projectversion = "set(PACKAGE_VERSION \"1.3.14
+
 \")";
     assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
     let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
