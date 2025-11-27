@@ -12,6 +12,7 @@ use std::sync::LazyLock;
 
 pub use cmakepackage::*;
 use tower_lsp::lsp_types::Uri;
+use tree_sitter::Point;
 
 #[cfg(not(target_os = "windows"))]
 use self::packageunix as cmakepackage;
@@ -292,6 +293,22 @@ pub static CACHE_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> = LazyLock::new(get
 pub static CACHE_CMAKE_PACKAGES_WITHKEYS: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_packages_withkeys);
 
+fn string_from_two_valid_points(source: Vec<&str>, start: &Point, end: &Point) -> String {
+    if start.row == end.row {
+        return source[start.row][start.column..end.column].into();
+    }
+
+    let mut span = String::new();
+
+    span += &source[start.row][start.column..];
+    for row in source.iter().take(end.row).skip(start.row + 1) {
+        span += row;
+    }
+    span += &source[end.row][..end.column];
+
+    span
+}
+
 fn get_version(source: &str) -> Option<String> {
     let newsource: Vec<&str> = source.lines().collect();
     let mut parse = tree_sitter::Parser::new();
@@ -317,11 +334,16 @@ fn get_version(source: &str) -> Option<String> {
                 if x != y {
                     let name = &newsource[h][x..y];
                     if name == "PACKAGE_VERSION" {
-                        let h = version.start_position().row;
-                        let x = version.start_position().column;
-                        let y = version.end_position().column;
-                        let version = &newsource[h][x..y];
-                        return Some(version.trim_matches('"').to_string());
+                        let version_string = string_from_two_valid_points(
+                            newsource,
+                            &version.start_position(),
+                            &version.end_position(),
+                        );
+                        return Some(
+                            version_string
+                                .trim_matches(|c| c == '"' || c == '\n' || c == ' ')
+                                .to_string(),
+                        );
                     }
                 }
             }
@@ -423,6 +445,13 @@ fn tst_version() {
     assert_eq!(get_version(projectversion), Some("5.11".to_string()));
     let projectversion = "SET(PACKAGE_VERSION 5.11)";
     assert_eq!(get_version(projectversion), Some("5.11".to_string()));
+    let projectversion = "set(PACKAGE_VERSION \"1.3.14
+\")";
+    assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
+    let projectversion = "set(PACKAGE_VERSION \"1.3.14
+
+\")";
+    assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
     let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
     assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
 }
