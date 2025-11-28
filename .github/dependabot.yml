@@ -26,8 +26,13 @@ updates:
         patterns:
           - "polars"
           - "polars-*"
+    cooldown:
+      default-days: 7
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "wednesday"
+    cooldown:
+      default-days: 7
+
