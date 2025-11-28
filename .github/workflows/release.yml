@@ -77,13 +77,18 @@ jobs:
 
   publish-release:
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write # required for OIDC token exchange
     needs: upload-assets
     steps:
       - uses: actions/checkout@v5
+      - name: Obtain crates.io token
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
       - name: Publish to crates.io
         run: cargo publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATE_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
       - name: Publish github release
         run: |
           if [[ $(echo "${GTIHUB_REF#refs/tags/v}" | grep '-' > /dev/null) ]]; then
