@@ -1,0 +1,26 @@
+---
+name: GitHub Actions Security Analysis
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: Run zizmor
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write # for uploading results to the Security tab
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: zizmorecore/zizmore-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0
