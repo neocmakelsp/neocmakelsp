@@ -1,13 +1,16 @@
 ---
 name: Release
 
-permissions:
-  contents: write
+permissions: {}
 
 on:
   push:
     tags:
       - v[0-9]+.*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,9 +20,13 @@ jobs:
   create-release:
     if: github.repository_owner == 'neocmakelsp'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # required to create release
     steps:
-      - uses: actions/checkout@v5
-      - uses: taiki-e/create-gh-release-action@v1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: taiki-e/create-gh-release-action@26b80501670402f1999aff4b934e1574ef2d3705 # v1.9.1
         with:
           branch: master
           changelog: CHANGELOG.md
@@ -28,6 +35,8 @@ jobs:
 
   upload-assets:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # required to upload assets
     strategy:
       matrix:
         include:
@@ -62,9 +71,11 @@ jobs:
       fail-fast: false
     needs: create-release
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - uses: taiki-e/upload-rust-binary-action@3962470d6e7f1993108411bc3f75a135ec67fc8c # v1.27.0
         with:
           bin: neocmakelsp
           build-tool: ${{ matrix.build-tool }}
@@ -77,13 +88,21 @@ jobs:
 
   publish-release:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # required to create release
+      id-token: write # required for OIDC token exchange
     needs: upload-assets
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+      - name: Obtain crates.io token
+        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
+        id: auth
       - name: Publish to crates.io
         run: cargo publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATE_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
       - name: Publish github release
         run: |
           if [[ $(echo "${GTIHUB_REF#refs/tags/v}" | grep '-' > /dev/null) ]]; then

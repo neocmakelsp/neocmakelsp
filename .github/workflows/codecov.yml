@@ -1,46 +1,44 @@
+---
 name: Test Coverage
+
+permissions: {}
 
 on:
   push:
-    branches: [ "master" ]
+    branches:
+      - master
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  coverage:
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@stable
-      with:
-        components: llvm-tools-preview
-    - name: Install grcov
-      run: if [[ ! -e ~/.cargo/bin/grcov ]]; then cargo install grcov; fi
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-      env:
-        RUSTFLAGS: '-C instrument-coverage'
-        LLVM_PROFILE_FILE: 'report-%p-%m.profraw'
-    - name: rust-grcov
-      # You may pin to the exact commit or the version.
-      # uses: actions-rs/grcov@bb47b1ed7883a1502fa6875d562727ace2511248
-      run: grcov . --binary-path target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../**' --ignore '/*' -o coverage.lcov
-    - name: Codecov
-      # You may pin to the exact commit or the version.
-      # uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
-      uses: codecov/codecov-action@v5
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      with:
-        # Repository upload token - get it from codecov.io. Required only for private repositories
-        # token: # optional
-        # Specify whether the Codecov output should be verbose
-        verbose: true
-        fail_ci_if_error: true
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+      - uses: taiki-e/install-action@b4b80945859e8ef89a9732a0f46499a443b196fe # v2.62.59
+        with:
+          tool: cargo-tarpaulin
+      - name: Run instrumented tests
+        run: cargo tarpaulin --all-targets --skip-clean --out xml
+        env:
+          RUST_LOG: cargo_tarpaulin=error
+      - name: Upload codecov
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
+        with:
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

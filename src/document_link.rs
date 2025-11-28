@@ -179,7 +179,9 @@ fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Optio
 // called `Result::unwrap()` on an `Err` value: Error("invalid escape", line: 16, column: 27)
 // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 // Now disable it on windows.
+// NOTE: Test is also flaky on Linux and reliably fails with tarpaulin.
 #[cfg(not(windows))]
+#[cfg_attr(tarpaulin, ignore)]
 #[test]
 fn tst_document_link_search() {
     use std::fs;
