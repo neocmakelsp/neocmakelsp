@@ -1,13 +1,16 @@
 ---
 name: Release
 
-permissions:
-  contents: write
+permissions: {}
 
 on:
   push:
     tags:
       - v[0-9]+.*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,8 +20,12 @@ jobs:
   create-release:
     if: github.repository_owner == 'neocmakelsp'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # required to create release
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: taiki-e/create-gh-release-action@v1
         with:
           branch: master
@@ -28,6 +35,8 @@ jobs:
 
   upload-assets:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write # required to upload assets
     strategy:
       matrix:
         include:
@@ -63,6 +72,8 @@ jobs:
     needs: create-release
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -78,10 +89,13 @@ jobs:
   publish-release:
     runs-on: ubuntu-24.04
     permissions:
+      contents: write # required to create release
       id-token: write # required for OIDC token exchange
     needs: upload-assets
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Obtain crates.io token
         uses: rust-lang/crates-io-auth-action@v1
         id: auth
