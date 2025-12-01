@@ -2,27 +2,22 @@ use std::path::{Path, PathBuf};
 
 use tower_lsp::lsp_types::{DocumentLink, Position, Range};
 
-use crate::Uri;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
 };
+use crate::{Document, Uri};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
 const NEED_TO_CHECK_EXTENSION: &[&str] = &[".h", ".hpp", ".c", ".cpp", ".cmake"];
 
-pub fn document_link_search<P: AsRef<Path>>(
-    source: &str,
-    current_file: P,
-) -> Option<Vec<DocumentLink>> {
+pub fn document_link_search(document: &Document) -> Option<Vec<DocumentLink>> {
+    let source = document.source();
+    let root = document.tree().root_node();
+    let parent = document.path().parent()?;
     let mut links = vec![];
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None)?;
-    let file_parent = current_file.as_ref().parent()?;
-    document_link_search_inner(source, thetree.root_node(), &mut links, &file_parent);
+    document_link_search_inner(source, root, &mut links, &parent);
     if links.is_empty() {
         return None;
     }
@@ -163,6 +158,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     use crate::fileapi::cache::Cache;
     use crate::fileapi::set_cache_data;
 

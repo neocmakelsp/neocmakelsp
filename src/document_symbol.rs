@@ -13,8 +13,8 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_include_directories",
 ];
 
-pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
-    let line = context.lines().count();
+pub async fn get_symbol(client: &Client, source: &str) -> Option<DocumentSymbolResponse> {
+    let line = source.lines().count();
     if line > 10000 {
         client
             .log_message(MessageType::INFO, "use simple ast")
@@ -22,8 +22,8 @@ pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbol
     }
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(context, None)?;
-    get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
+    let tree = parse.parse(source, None)?;
+    get_sub_symbol(tree.root_node(), source.as_bytes(), line > 10000)
         .map(DocumentSymbolResponse::Nested)
 }
 

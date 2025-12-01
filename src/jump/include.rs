@@ -62,14 +62,8 @@ pub fn scanner_include_defs(
     {
         return Some(complete_items.clone());
     }
-    let content = fs::read_to_string(path).ok()?;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&content, None)?;
     let result_data = getsubdef(
-        thetree.root_node(),
-        &content,
-        path,
+        document,
         postype,
         include_files,
         complete_packages,

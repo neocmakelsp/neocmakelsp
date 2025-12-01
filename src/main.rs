@@ -15,6 +15,7 @@ mod cli;
 mod complete;
 mod config;
 mod consts;
+mod document;
 mod document_link;
 mod document_symbol;
 mod fileapi;
@@ -35,6 +36,7 @@ use std::sync::OnceLock;
 use tower_lsp::lsp_types::Uri;
 
 use crate::cli::{Cli, Command};
+pub use crate::document::{Document, DocumentCache};
 use crate::formatting::format_file;
 
 #[derive(Debug)]
@@ -55,7 +57,7 @@ impl Default for BackendInitInfo {
 #[derive(Debug)]
 struct Backend {
     client: Client,
-    documents: DashMap<Uri, String>,
+    documents: DashMap<Uri, Document>,
     /// Storage the message of buffers
     init_info: OnceLock<BackendInitInfo>,
     root_path: OnceLock<Option<PathBuf>>,
