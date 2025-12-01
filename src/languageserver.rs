@@ -17,6 +17,7 @@ use self::config::Config;
 use super::Backend;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document::{self, Document};
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::gammar::{ErrorInformation, LintConfigInfo, checkerror};
@@ -33,14 +34,14 @@ static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 
 pub(crate) async fn get_or_update_buffer_contents<P: AsRef<Path>>(
     path: P,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> std::io::Result<String> {
     let uri = Uri::from_file_path(&path).unwrap();
-    if let Some(text) = documents.get(&uri) {
-        return Ok(text.to_string());
+    if let Some(document) = documents.get(&uri) {
+        return Ok(document.text.to_string());
     }
     let text = tokio::fs::read_to_string(&path).await?;
-    documents.insert(uri, text.clone());
+    documents.insert(uri.clone(), Document::new(text.clone(), uri).unwrap());
     Ok(text)
 }
 
@@ -152,10 +153,10 @@ impl Backend {
     async fn update_diagnostics(&self) {
         for item in &self.documents {
             let uri = item.key();
-            let text = item.value();
+            let document = item.value();
             self.publish_diagnostics(
                 uri.clone(),
-                text,
+                &document.text,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: true,
@@ -507,7 +508,8 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let TextDocumentItem { uri, text, .. } = params.text_document;
-        self.documents.insert(uri.clone(), text.clone());
+        let document = Document::new(text.clone(), uri.clone()).unwrap();
+        self.documents.insert(uri.clone(), document);
 
         let path = match uri.to_file_path() {
             Ok(path) => path,
@@ -545,18 +547,27 @@ impl LanguageServer for Backend {
         };
 
         let uri = params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         let line = params.range.start.line;
-        Ok(quick_fix::lint_fix_action(&text, line, toolong, uri))
+        let text = document.text.as_str();
+        Ok(quick_fix::lint_fix_action(text, line, toolong, uri))
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.content_changes.into_iter().next().unwrap().text;
-        self.documents.insert(uri.clone(), text);
-        let text = self.documents.get(&uri).unwrap();
+        let uri = params.text_document.uri.clone();
+        let text = params
+            .content_changes
+            .into_iter()
+            .next()
+            .unwrap()
+            .clone()
+            .text;
+        self.documents.insert(
+            uri.clone(),
+            Document::new(text.clone(), uri.clone()).unwrap(),
+        );
         if text.lines().count() < 500 {
             self.publish_diagnostics(
                 uri.clone(),
@@ -577,7 +588,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         let has_root = self.root_path().is_some();
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             self.client
                 .log_message(MessageType::INFO, "file saved!")
                 .await;
@@ -590,10 +601,13 @@ impl LanguageServer for Backend {
                 return;
             }
         };
+
+        let text = document.text.as_str();
+
         if has_root {
             scansubs::scan_dir(&file_path, false).await;
-            complete::update_cache(&file_path, &text).await;
-            jump::update_cache(&file_path, &text).await;
+            complete::update_cache(&file_path, text).await;
+            jump::update_cache(&file_path, text).await;
         }
         self.publish_diagnostics(
             uri,
@@ -613,12 +627,11 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
+        let text = &document.text;
+        let tree = &document.tree;
         let output = hover::get_hovered_doc(position, tree.root_node(), &text).await;
         match output {
             Some(context) => Ok(Some(Hover {
@@ -646,18 +659,23 @@ impl LanguageServer for Backend {
             1
         };
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
-        match self.documents.get(&uri) {
-            Some(text) => Ok(getformat(
-                self.root_path().map(|p| p.as_path()),
-                &text,
-                &self.client,
-                space_line,
-                input.options.insert_spaces,
-                insert_final_newline,
-            )
-            .await),
-            None => Ok(None),
-        }
+
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        let root_path = self.root_path().map(PathBuf::as_path);
+        let source = document.text.as_str();
+        let client = &self.client;
+        let use_space = input.options.insert_spaces;
+        Ok(getformat(
+            root_path,
+            source,
+            client,
+            space_line,
+            use_space,
+            insert_final_newline,
+        )
+        .await)
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -680,13 +698,17 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        let Some(text) = self.documents.get(&uri) else {
+
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
+        let source = document.text.as_str();
+        let client = &self.client;
+
         Ok(complete::getcomplete(
-            &text,
+            source,
             location,
-            &self.client,
+            client,
             &file_path,
             self.init_info().scan_cmake_in_package,
             &self.documents,

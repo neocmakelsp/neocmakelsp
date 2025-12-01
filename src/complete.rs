@@ -14,6 +14,7 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document::Document;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
@@ -125,13 +126,10 @@ pub async fn getcomplete<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     local_path: P,
     find_cmake_in_package: bool,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Option<CompletionResponse> {
     let local_path = local_path.as_ref();
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None);
-    let tree = thetree.unwrap();
+    let tree = documents.get()
     let mut complete: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
