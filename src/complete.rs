@@ -6,13 +6,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
+use dashmap::DashMap;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType, Position,
+    Uri,
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::languageserver::get_or_update_buffer_context;
+use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
 use crate::utils::{
@@ -91,7 +93,10 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
     result_data
 }
 
-pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionItem> {
+pub async fn get_cached_completion<P: AsRef<Path>>(
+    path: P,
+    documents: &DashMap<Uri, String>,
+) -> Vec<CompletionItem> {
     let mut path = path.as_ref().to_path_buf();
     let mut completions = Vec::new();
 
@@ -101,7 +106,7 @@ pub async fn get_cached_completion<P: AsRef<Path>>(path: P) -> Vec<CompletionIte
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
             completions.append(&mut data.clone());
-        } else if let Ok(context) = get_or_update_buffer_context(parent).await {
+        } else if let Ok(context) = get_or_update_buffer_contents(parent, documents).await {
             drop(complete_cache);
             completions.append(&mut update_cache(parent, context.as_str()).await);
             path.clone_from(parent);
@@ -120,6 +125,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     local_path: P,
     find_cmake_in_package: bool,
+    documents: &DashMap<Uri, String>,
 ) -> Option<CompletionResponse> {
     let local_path = local_path.as_ref();
     let mut parse = tree_sitter::Parser::new();
@@ -135,7 +141,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
         | PositionType::TargetLink
         | PositionType::TargetInclude
         | PositionType::ArgumentOrList => {
-            let mut cached_completion = get_cached_completion(local_path).await;
+            let mut cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
                 complete.append(&mut cached_completion);
             }
@@ -176,7 +182,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
             complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
-            let mut cached_completion = get_cached_completion(local_path).await;
+            let mut cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
                 complete.append(&mut cached_completion);
             }

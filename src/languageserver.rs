@@ -1,13 +1,13 @@
 mod config;
 #[cfg(test)]
 mod test;
-use std::collections::HashMap;
+
 use std::path::{Path, PathBuf};
 use std::process::exit;
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock, RwLock};
 
-use tokio::sync::Mutex;
+use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
@@ -27,22 +27,23 @@ use crate::{
     BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
     rename, scansubs, semantic_token, utils,
 };
-pub static BUFFERS_CACHE: LazyLock<Arc<Mutex<HashMap<lsp_types::Uri, String>>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
-
-pub async fn get_or_update_buffer_context<P: AsRef<Path>>(path: P) -> std::io::Result<String> {
-    let uri = lsp_types::Uri::from_file_path(&path).unwrap();
-    let mut buffer_cache = BUFFERS_CACHE.lock().await;
-    if let Some(context) = buffer_cache.get(&uri) {
-        return Ok(context.clone());
-    }
-    let context = tokio::fs::read_to_string(&path).await?;
-    buffer_cache.insert(uri, context.clone());
-    Ok(context)
-}
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
+
+pub(crate) async fn get_or_update_buffer_contents<P: AsRef<Path>>(
+    path: P,
+    documents: &DashMap<Uri, String>,
+) -> std::io::Result<String> {
+    let uri = Uri::from_file_path(&path).unwrap();
+    if let Some(text) = documents.get(&uri) {
+        return Ok(text.to_string());
+    }
+    let text = tokio::fs::read_to_string(&path).await?;
+    documents.insert(uri, text.clone());
+    Ok(text)
+}
+
 fn set_client_text_document(text_document: Option<TextDocumentClientCapabilities>) {
     let mut data = CLIENT_CAPABILITIES.write().unwrap();
     *data = text_document;
@@ -95,7 +96,7 @@ impl Backend {
             .all(|component| component != Component::ParentDir)
     }
 
-    async fn publish_diagnostics(&self, uri: Uri, context: String, lint_info: LintConfigInfo) {
+    async fn publish_diagnostics(&self, uri: Uri, context: &str, lint_info: LintConfigInfo) {
         let Ok(file_path) = uri.to_file_path() else {
             tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
@@ -111,7 +112,7 @@ impl Backend {
             return;
         }
 
-        let gammererror = checkerror(&file_path, &context, lint_info);
+        let gammererror = checkerror(&file_path, context, lint_info);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for ErrorInformation {
@@ -147,12 +148,14 @@ impl Backend {
             self.client.publish_diagnostics(uri, vec![], None).await;
         }
     }
+
     async fn update_diagnostics(&self) {
-        let storemap = BUFFERS_CACHE.lock().await;
-        for (uri, context) in storemap.iter() {
+        for item in &self.documents {
+            let uri = item.key();
+            let text = item.value();
             self.publish_diagnostics(
                 uri.clone(),
-                context.to_string(),
+                text,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: true,
@@ -502,28 +505,23 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn did_open(&self, input: DidOpenTextDocumentParams) {
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let uri = input.text_document.uri.clone();
-        let context = input.text_document.text;
-        let mut storemap = BUFFERS_CACHE.lock().await;
-        storemap.entry(uri.clone()).or_insert(context.clone());
-        drop(storemap);
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let TextDocumentItem { uri, text, .. } = params.text_document;
+        self.documents.insert(uri.clone(), text.clone());
 
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
             Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
+                tracing::error!("Can't create path from {}", uri.as_str());
                 return;
             }
         };
 
-        complete::update_cache(&file_path, &context).await;
-        jump::update_cache(&file_path, &context).await;
+        complete::update_cache(&path, &text).await;
+        jump::update_cache(&path, &text).await;
         self.publish_diagnostics(
             uri,
-            context,
+            &text,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: true,
@@ -532,7 +530,7 @@ impl LanguageServer for Backend {
         .await;
 
         self.client
-            .log_message(MessageType::INFO, "file opened!")
+            .log_message(MessageType::INFO, format!("Opened file {}", path.display()))
             .await;
     }
 
@@ -547,27 +545,22 @@ impl LanguageServer for Backend {
         };
 
         let uri = params.text_document.uri;
-        let storemap = BUFFERS_CACHE.lock().await;
-
-        let Some(context) = storemap.get(&uri) else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-
         let line = params.range.start.line;
-        Ok(quick_fix::lint_fix_action(context, line, toolong, uri))
+        Ok(quick_fix::lint_fix_action(&text, line, toolong, uri))
     }
 
-    async fn did_change(&self, input: DidChangeTextDocumentParams) {
-        // create a parse
-        let uri = input.text_document.uri.clone();
-        let context = input.content_changes[0].text.clone();
-        let mut storemap = BUFFERS_CACHE.lock().await;
-        storemap.insert(uri.clone(), context.clone());
-        drop(storemap);
-        if context.lines().count() < 500 {
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let text = params.content_changes.into_iter().next().unwrap().text;
+        self.documents.insert(uri.clone(), text);
+        let text = self.documents.get(&uri).unwrap();
+        if text.lines().count() < 500 {
             self.publish_diagnostics(
-                uri,
-                context,
+                uri.clone(),
+                &text,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: false,
@@ -576,40 +569,35 @@ impl LanguageServer for Backend {
             .await;
         }
         self.client
-            .log_message(
-                MessageType::INFO,
-                &format!("update file: {:?}", input.text_document.uri),
-            )
+            .log_message(MessageType::INFO, &format!("update file: {}", uri.as_str()))
             .await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
-        let storemap = BUFFERS_CACHE.lock().await;
 
         let has_root = self.root_path().is_some();
-        let Some(context) = storemap.get(&uri).cloned() else {
+        let Some(text) = self.documents.get(&uri) else {
             self.client
                 .log_message(MessageType::INFO, "file saved!")
                 .await;
             return;
         };
-        drop(storemap);
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
             Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
+                tracing::error!("Cannot get file_path from {}", uri.as_str());
                 return;
             }
         };
         if has_root {
             scansubs::scan_dir(&file_path, false).await;
-            complete::update_cache(&file_path, &context).await;
-            jump::update_cache(&file_path, &context).await;
+            complete::update_cache(&file_path, &text).await;
+            jump::update_cache(&file_path, &text).await;
         }
         self.publish_diagnostics(
             uri,
-            context.to_string(),
+            &text,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: CONFIG.enable_external_cmake_lint,
@@ -625,16 +613,13 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let storemap = BUFFERS_CACHE.lock().await;
-        let Some(context) = storemap.get(&uri).cloned() else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        drop(storemap);
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let thetree = parse.parse(context.clone(), None);
-        let tree = thetree.unwrap();
-        let output = hover::get_hovered_doc(position, tree.root_node(), &context).await;
+        let tree = parse.parse(text.value(), None).unwrap();
+        let output = hover::get_hovered_doc(position, tree.root_node(), &text).await;
         match output {
             Some(context) => Ok(Some(Hover {
                 contents: HoverContents::Scalar(MarkedString::String(context)),
@@ -655,17 +640,16 @@ impl LanguageServer for Backend {
             )
             .await;
         let uri = input.text_document.uri;
-        let storemap = BUFFERS_CACHE.lock().await;
         let space_line = if input.options.insert_spaces {
             input.options.tab_size
         } else {
             1
         };
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
-        match storemap.get(&uri) {
-            Some(context) => Ok(getformat(
+        match self.documents.get(&uri) {
+            Some(text) => Ok(getformat(
                 self.root_path().map(|p| p.as_path()),
-                context,
+                &text,
                 &self.client,
                 space_line,
                 input.options.insert_spaces,
@@ -689,37 +673,33 @@ impl LanguageServer for Backend {
         self.client.log_message(MessageType::INFO, "Complete").await;
         let location = input.text_document_position.position;
         let uri = input.text_document_position.text_document.uri;
-        let storemap = BUFFERS_CACHE.lock().await;
-        let urlconent = storemap.get(&uri).cloned();
-        drop(storemap);
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
             Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
+                tracing::error!("Cannot get file_path from {}", uri.as_str());
                 return Err(LspError::internal_error());
             }
         };
-        match urlconent {
-            Some(context) => Ok(complete::getcomplete(
-                &context,
-                location,
-                &self.client,
-                &file_path,
-                self.init_info().scan_cmake_in_package,
-            )
-            .await),
-            None => Ok(None),
-        }
+        let Some(text) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        Ok(complete::getcomplete(
+            &text,
+            location,
+            &self.client,
+            &file_path,
+            self.init_info().scan_cmake_in_package,
+            &self.documents,
+        )
+        .await)
     }
 
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let storemap = BUFFERS_CACHE.lock().await;
-        let Some(context) = storemap.get(&uri).cloned() else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        drop(storemap);
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
             Err(_) => {
@@ -729,11 +709,12 @@ impl LanguageServer for Backend {
         };
         Ok(jump::godef(
             location,
-            context.as_str(),
+            &text,
             &file_path,
             &self.client,
             false,
             false,
+            &self.documents,
         )
         .await)
     }
@@ -742,11 +723,9 @@ impl LanguageServer for Backend {
         let edited = input.new_name;
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let storemap = BUFFERS_CACHE.lock().await;
-        let Some(context) = storemap.get(&uri).cloned() else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        drop(storemap);
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
             Err(_) => {
@@ -754,7 +733,15 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        Ok(rename::rename(&edited, location, file_path, &self.client, &context).await)
+        Ok(rename::rename(
+            &edited,
+            location,
+            file_path,
+            &self.client,
+            &text,
+            &self.documents,
+        )
+        .await)
     }
 
     async fn goto_definition(
@@ -763,16 +750,13 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
         let location = input.text_document_position_params.position;
-        let storemap = BUFFERS_CACHE.lock().await;
-        let Some(context) = storemap.get(&uri).cloned() else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        drop(storemap);
 
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let thetree = parse.parse(context.clone(), None);
-        let tree = thetree.unwrap();
+        let tree = parse.parse(text.value(), None).unwrap();
         let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
         let file_path = match uri.to_file_path() {
@@ -782,7 +766,17 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        match jump::godef(location, &context, &file_path, &self.client, true, false).await {
+        match jump::godef(
+            location,
+            &text,
+            &file_path,
+            &self.client,
+            true,
+            false,
+            &self.documents,
+        )
+        .await
+        {
             Some(range) => Ok(Some(GotoDefinitionResponse::Link({
                 range
                     .iter()
@@ -806,10 +800,9 @@ impl LanguageServer for Backend {
         &self,
         input: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
-        let uri = input.text_document.uri.clone();
-        let storemap = BUFFERS_CACHE.lock().await;
-        match storemap.get(&uri) {
-            Some(context) => Ok(ast::getast(&self.client, context).await),
+        let uri = input.text_document.uri;
+        match self.documents.get(&uri) {
+            Some(text) => Ok(ast::getast(&self.client, &text).await),
             None => Ok(None),
         }
     }
@@ -820,9 +813,8 @@ impl LanguageServer for Backend {
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri.clone();
 
-        let storemap = BUFFERS_CACHE.lock().await;
-        match storemap.get(&uri) {
-            Some(context) => Ok(semantic_token::semantic_token(&self.client, context).await),
+        match self.documents.get(&uri) {
+            Some(text) => Ok(semantic_token::semantic_token(&self.client, &text).await),
             None => Ok(None),
         }
     }
@@ -836,10 +828,9 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        let storemap = BUFFERS_CACHE.lock().await;
-        let Some(context) = storemap.get(&uri) else {
+        let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        Ok(document_link::document_link_search(context, file_path))
+        Ok(document_link::document_link_search(&text, file_path))
     }
 }

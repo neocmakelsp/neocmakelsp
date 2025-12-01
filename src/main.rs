@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser};
+use dashmap::DashMap;
 use ignore::Walk;
 use ini::Ini;
 use tower_lsp::{Client, LspService, Server};
@@ -53,8 +54,8 @@ impl Default for BackendInitInfo {
 
 #[derive(Debug)]
 struct Backend {
-    /// client
     client: Client,
+    documents: DashMap<Uri, String>,
     /// Storage the message of buffers
     init_info: OnceLock<BackendInitInfo>,
     root_path: OnceLock<Option<PathBuf>>,
@@ -64,6 +65,7 @@ impl Backend {
     fn new(client: Client) -> Self {
         Self {
             client,
+            documents: DashMap::new(),
             init_info: OnceLock::new(),
             root_path: OnceLock::new(),
         }
