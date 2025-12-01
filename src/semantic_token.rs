@@ -1,12 +1,10 @@
 use std::sync::LazyLock;
 
-use tower_lsp::Client;
 use tower_lsp::lsp_types::{
     SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult,
 };
 
-use crate::CMakeNodeKinds;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::{CMakeNodeKinds, Document};
 static NUMBERREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
 
@@ -32,26 +30,20 @@ fn get_token_position(tokentype: SemanticTokenType) -> u32 {
         .unwrap() as u32
 }
 
-pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticTokensResult> {
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None);
-    let tree = thetree?;
+pub async fn semantic_token(document: &Document) -> Option<SemanticTokensResult> {
+    let source = document.source();
+    let root = document.tree().root_node();
+    let lines = source.lines().collect::<Vec<_>>();
+
     Some(SemanticTokensResult::Tokens(SemanticTokens {
         result_id: None,
-        data: sub_tokens(
-            tree.root_node(),
-            &context.lines().collect(),
-            &mut 0,
-            &mut 0,
-            false,
-        ),
+        data: sub_tokens(root, &lines, &mut 0, &mut 0, false),
     }))
 }
 
 fn sub_tokens(
     input: tree_sitter::Node,
-    source: &Vec<&str>,
+    source: &[&str],
     preline: &mut u32,
     prestart: &mut u32,
     is_if: bool,
@@ -433,6 +425,7 @@ fn sub_tokens(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
     #[test]
     fn test_number() {
@@ -449,7 +442,7 @@ mod tests {
             result_id: None,
             data: sub_tokens(
                 tree.root_node(),
-                &context.lines().collect(),
+                &context.lines().collect::<Vec<_>>(),
                 &mut 0,
                 &mut 0,
                 false,
