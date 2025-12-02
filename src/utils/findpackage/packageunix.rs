@@ -151,81 +151,83 @@ pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_message);
 
-#[test]
-fn test_prefix() {
+#[cfg(test)]
+mod tests {
+    #[cfg(target_os = "linux")]
+    use {super::*, std::fs, std::fs::File, std::io::Write, tempfile::tempdir};
+
     use crate::utils::findpackage::CMAKE_PREFIXES;
-    let prefix = "/data/data/com.termux/files/usr".to_string();
-    unsafe { std::env::set_var("PREFIX", &prefix) };
-    let prefixes = &*CMAKE_PREFIXES;
 
-    // since now we use the prefix by cmake first, so...
-    assert!(!prefixes.is_empty());
-}
+    #[test]
+    fn test_prefix() {
+        let prefix = "/data/data/com.termux/files/usr".to_string();
+        unsafe { std::env::set_var("PREFIX", &prefix) };
+        let prefixes = &*CMAKE_PREFIXES;
 
-#[cfg(target_os = "linux")]
-#[test]
-fn test_package_search() {
-    use std::fs;
-    use std::fs::File;
-    use std::io::Write;
+        // since now we use the prefix by cmake first, so...
+        assert!(!prefixes.is_empty());
+    }
 
-    use tempfile::tempdir;
-    let dir = tempdir().unwrap();
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn test_package_search() {
+        let dir = tempdir().unwrap();
 
-    let share_dir = dir.path().join("share");
-    let cmake_dir = share_dir.join("cmake");
-    let vulkan_dir = cmake_dir.join("VulkanHeaders");
-    fs::create_dir_all(&vulkan_dir).unwrap();
-    let vulkan_config_cmake = vulkan_dir.join("VulkanHeadersConfig.cmake");
+        let share_dir = dir.path().join("share");
+        let cmake_dir = share_dir.join("cmake");
+        let vulkan_dir = cmake_dir.join("VulkanHeaders");
+        fs::create_dir_all(&vulkan_dir).unwrap();
+        let vulkan_config_cmake = vulkan_dir.join("VulkanHeadersConfig.cmake");
 
-    File::create(&vulkan_config_cmake).unwrap();
-    let vulkan_config_version_cmake = vulkan_dir.join("VulkanHeadersConfigVersion.cmake");
-    let mut vulkan_config_version_file = File::create(&vulkan_config_version_cmake).unwrap();
-    writeln!(
-        vulkan_config_version_file,
-        r#"set(PACKAGE_VERSION "1.3.295")"#
-    )
-    .unwrap();
+        File::create(&vulkan_config_cmake).unwrap();
+        let vulkan_config_version_cmake = vulkan_dir.join("VulkanHeadersConfigVersion.cmake");
+        let mut vulkan_config_version_file = File::create(&vulkan_config_version_cmake).unwrap();
+        writeln!(
+            vulkan_config_version_file,
+            r#"set(PACKAGE_VERSION "1.3.295")"#
+        )
+        .unwrap();
 
-    let ecm_dir = share_dir.join("ECM").join("cmake");
-    fs::create_dir_all(&ecm_dir).unwrap();
-    let ecm_config_cmake = ecm_dir.join("ECMConfig.cmake");
-    File::create(&ecm_config_cmake).unwrap();
-    let ecm_config_version_cmake = ecm_dir.join("ECMConfigVersion.cmake");
-    let mut ecm_config_version_file = File::create(&ecm_config_version_cmake).unwrap();
-    writeln!(ecm_config_version_file, r#"set(PACKAGE_VERSION "6.5.0")"#).unwrap();
+        let ecm_dir = share_dir.join("ECM").join("cmake");
+        fs::create_dir_all(&ecm_dir).unwrap();
+        let ecm_config_cmake = ecm_dir.join("ECMConfig.cmake");
+        File::create(&ecm_config_cmake).unwrap();
+        let ecm_config_version_cmake = ecm_dir.join("ECMConfigVersion.cmake");
+        let mut ecm_config_version_file = File::create(&ecm_config_version_cmake).unwrap();
+        writeln!(ecm_config_version_file, r#"set(PACKAGE_VERSION "6.5.0")"#).unwrap();
 
-    let prefix = dir
-        .path()
-        .canonicalize()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+        let prefix = dir
+            .path()
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
-    let target = HashMap::from_iter([
-        (
-            "VulkanHeaders".to_string(),
-            CMakePackage {
-                name: "VulkanHeaders".to_string(),
-                packagetype: PackageType::Dir,
-                location: Uri::from_file_path(vulkan_dir).unwrap(),
-                version: Some("1.3.295".to_string()),
-                tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
-                from: CMakePackageFrom::System,
-            },
-        ),
-        (
-            "ECM".to_string(),
-            CMakePackage {
-                name: "ECM".to_string(),
-                packagetype: PackageType::Dir,
-                location: Uri::from_file_path(ecm_dir).unwrap(),
-                version: Some("6.5.0".to_string()),
-                tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
-                from: CMakePackageFrom::System,
-            },
-        ),
-    ]);
-    assert_eq!(get_cmake_message_with_prefixes(&vec![prefix]), target);
+        let target = HashMap::from_iter([
+            (
+                "VulkanHeaders".to_string(),
+                CMakePackage {
+                    name: "VulkanHeaders".to_string(),
+                    packagetype: PackageType::Dir,
+                    location: Uri::from_file_path(vulkan_dir).unwrap(),
+                    version: Some("1.3.295".to_string()),
+                    tojump: vec![vulkan_config_cmake, vulkan_config_version_cmake],
+                    from: CMakePackageFrom::System,
+                },
+            ),
+            (
+                "ECM".to_string(),
+                CMakePackage {
+                    name: "ECM".to_string(),
+                    packagetype: PackageType::Dir,
+                    location: Uri::from_file_path(ecm_dir).unwrap(),
+                    version: Some("6.5.0".to_string()),
+                    tojump: vec![ecm_config_cmake, ecm_config_version_cmake],
+                    from: CMakePackageFrom::System,
+                },
+            ),
+        ]);
+        assert_eq!(get_cmake_message_with_prefixes(&vec![prefix]), target);
+    }
 }

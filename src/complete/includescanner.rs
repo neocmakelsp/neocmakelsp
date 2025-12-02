@@ -89,16 +89,17 @@ pub fn scanner_package_complete(
 }
 
 #[cfg(test)]
-mod include_scan_test {
+mod tests {
+    use std::fs::File;
+    use std::io::Write;
+
+    use tempfile::tempdir;
+    use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
+
     use super::*;
+
     #[test]
     fn test_complete_scan_1() {
-        use std::fs::File;
-        use std::io::Write;
-
-        use tempfile::tempdir;
-        use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
-
         let file_info_0 = r#"
 include(another.cmake)
     "#;
@@ -185,12 +186,6 @@ endfunction()
 
     #[test]
     fn test_complete_scan_2() {
-        use std::fs::File;
-        use std::io::Write;
-
-        use tempfile::tempdir;
-        use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
-
         let file_info_0 = r#"
 include("another.cmake")
     "#;

@@ -8,14 +8,6 @@ static NOT_FOUND_LIBRARY: LazyLock<regex::Regex> = LazyLock::new(|| {
 
 static ERROR_PACKAGES: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
-#[test]
-fn failedtest() {
-    let a = "ss_DIR:PATH=ss_DIR-NOTFOUND";
-    assert!(NOT_FOUND_LIBRARY.is_match(a));
-    let cap = NOT_FOUND_LIBRARY.captures(a).unwrap();
-    assert_eq!("ss", &cap["library"]);
-}
-
 pub fn refresh_error_packages<P: AsRef<Path>>(cmake_cache: P) -> Option<Vec<String>> {
     use std::fs;
     let mut toswap_packages: Vec<String> = Vec::new();
@@ -45,25 +37,38 @@ pub fn get_error_packages() -> Vec<String> {
     packages.to_vec()
 }
 
-#[test]
-fn tst_cache_packages() {
-    use std::fs::File;
-    use std::io::Write;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    use tempfile::tempdir;
-    let dir = tempdir().unwrap();
-    let error_cmake = dir.path().join("CMakeCache.txt");
-    let cache_info = r"
+    #[test]
+    fn failedtest() {
+        let a = "ss_DIR:PATH=ss_DIR-NOTFOUND";
+        assert!(NOT_FOUND_LIBRARY.is_match(a));
+        let cap = NOT_FOUND_LIBRARY.captures(a).unwrap();
+        assert_eq!("ss", &cap["library"]);
+    }
+
+    #[test]
+    fn test_cache_packages() {
+        use std::fs::File;
+        use std::io::Write;
+
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        let error_cmake = dir.path().join("CMakeCache.txt");
+        let cache_info = r"
 ss_DIR:PATH=ss_DIR-NOTFOUND
 ";
-    let mut cache_file = File::create(&error_cmake).unwrap();
-    writeln!(cache_file, "{}", cache_info).unwrap();
-    let origin = refresh_error_packages(error_cmake).unwrap();
-    assert!(origin.is_empty());
-    let error_packages = get_error_packages();
-    assert_eq!(error_packages, vec!["ss"]);
-    let cleared_packages = clear_error_packages().unwrap();
-    assert_eq!(cleared_packages, vec!["ss"]);
-    let error_packages_after = get_error_packages();
-    assert!(error_packages_after.is_empty());
+        let mut cache_file = File::create(&error_cmake).unwrap();
+        writeln!(cache_file, "{}", cache_info).unwrap();
+        let origin = refresh_error_packages(error_cmake).unwrap();
+        assert!(origin.is_empty());
+        let error_packages = get_error_packages();
+        assert_eq!(error_packages, vec!["ss"]);
+        let cleared_packages = clear_error_packages().unwrap();
+        assert_eq!(cleared_packages, vec!["ss"]);
+        let error_packages_after = get_error_packages();
+        assert!(error_packages_after.is_empty());
+    }
 }

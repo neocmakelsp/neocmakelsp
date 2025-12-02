@@ -10,10 +10,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
 
-pub use cmakepackage::*;
 use tower_lsp::lsp_types::Uri;
 use tree_sitter::Point;
 
+pub use self::cmakepackage::*;
 #[cfg(not(target_os = "windows"))]
 use self::packageunix as cmakepackage;
 #[cfg(target_os = "windows")]
@@ -47,13 +47,6 @@ fn handle_config_package(filename: &str) -> Option<&str> {
         return Some(tryfirst);
     }
     filename.strip_suffix("Config.cmake")
-}
-
-#[test]
-fn handle_config_package_tst() {
-    let test_file = "libaec-config.cmake";
-    let tst_file = handle_config_package(test_file).unwrap();
-    assert_eq!(tst_file, "libaec");
 }
 
 static SPECIAL_PACKAGE_PATTERN: LazyLock<regex::Regex> =
@@ -149,44 +142,6 @@ fn get_available_libs(prefixes: &[String]) -> Vec<PathBuf> {
 #[inline]
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     get_cmake_message_with_prefixes(&CMAKE_PREFIXES)
-}
-
-#[test]
-fn special_package_pattern_tst() {
-    let matched_pattern = "boost_atomic-1.86.0";
-    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
-    assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic");
-    assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
-
-    let matched_pattern = "QuaZip-Qt5-1.4";
-    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
-    assert_eq!(captures.get(1).unwrap().as_str(), "QuaZip-Qt5");
-    assert_eq!(captures.get(2).unwrap().as_str(), "1.4");
-
-    let matched_pattern = "boost_atomic2-1.86.0";
-    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
-    assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic2");
-    assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
-
-    let matched_pattern = "mongoc-1.0";
-    assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
-    let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
-    assert_eq!(captures.get(1).unwrap().as_str(), "mongoc");
-    assert_eq!(captures.get(2).unwrap().as_str(), "1.0");
-
-    let unmatched_pattern = "Qt5Core";
-
-    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
-
-    let unmatched_pattern = "libjpeg-turbo";
-
-    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
-
-    let unmatched_pattern = "QuaZip-Qt5";
-    assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
 }
 
 // match file xx.cmake and CMakeLists.txt
@@ -352,6 +307,7 @@ fn get_version(source: &str) -> Option<String> {
 
     None
 }
+
 #[cfg(unix)]
 pub mod packagepkgconfig {
     use std::collections::HashMap;
@@ -425,33 +381,85 @@ pub mod packagepkgconfig {
         LazyLock::new(get_pkg_config_packages);
 }
 
-#[test]
-fn regextest() {
-    assert!(CMAKEREGEX.is_match("CMakeLists.txt"));
-    assert!(!CMAKEREGEX.is_match("CMakeLists.txtb"));
-    assert!(CMAKEREGEX.is_match("DtkCoreConfig.cmake"));
-    assert!(!CMAKEREGEX.is_match("DtkCoreConfig.cmakeb"));
-}
-#[test]
-fn configtest() {
-    assert!(CMAKECONFIG.is_match("DtkCoreConfig.cmake"));
-    assert!(CMAKECONFIG.is_match("DtkCore-config.cmake"));
-    assert!(CMAKECONFIG.is_match("/usr/share/ECM/cmake/ECMConfig.cmake"));
-    assert!(!CMAKECONFIG.is_match("DtkCoreconfig.cmake"));
-}
-#[test]
-fn tst_version() {
-    let projectversion = "set(PACKAGE_VERSION 5.11)";
-    assert_eq!(get_version(projectversion), Some("5.11".to_string()));
-    let projectversion = "SET(PACKAGE_VERSION 5.11)";
-    assert_eq!(get_version(projectversion), Some("5.11".to_string()));
-    let projectversion = "set(PACKAGE_VERSION \"1.3.14
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handle_config_package_test() {
+        let test_file = "libaec-config.cmake";
+        let test_file = handle_config_package(test_file).unwrap();
+        assert_eq!(test_file, "libaec");
+    }
+
+    #[test]
+    fn special_package_pattern_test() {
+        let matched_pattern = "boost_atomic-1.86.0";
+        assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+        let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic");
+        assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
+
+        let matched_pattern = "QuaZip-Qt5-1.4";
+        assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+        let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "QuaZip-Qt5");
+        assert_eq!(captures.get(2).unwrap().as_str(), "1.4");
+
+        let matched_pattern = "boost_atomic2-1.86.0";
+        assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+        let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "boost_atomic2");
+        assert_eq!(captures.get(2).unwrap().as_str(), "1.86.0");
+
+        let matched_pattern = "mongoc-1.0";
+        assert!(SPECIAL_PACKAGE_PATTERN.is_match(matched_pattern));
+        let captures = SPECIAL_PACKAGE_PATTERN.captures(matched_pattern).unwrap();
+        assert_eq!(captures.get(1).unwrap().as_str(), "mongoc");
+        assert_eq!(captures.get(2).unwrap().as_str(), "1.0");
+
+        let unmatched_pattern = "Qt5Core";
+
+        assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
+
+        let unmatched_pattern = "libjpeg-turbo";
+
+        assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
+
+        let unmatched_pattern = "QuaZip-Qt5";
+        assert!(!SPECIAL_PACKAGE_PATTERN.is_match(unmatched_pattern));
+    }
+
+    #[test]
+    fn regextest() {
+        assert!(CMAKEREGEX.is_match("CMakeLists.txt"));
+        assert!(!CMAKEREGEX.is_match("CMakeLists.txtb"));
+        assert!(CMAKEREGEX.is_match("DtkCoreConfig.cmake"));
+        assert!(!CMAKEREGEX.is_match("DtkCoreConfig.cmakeb"));
+    }
+
+    #[test]
+    fn configtest() {
+        assert!(CMAKECONFIG.is_match("DtkCoreConfig.cmake"));
+        assert!(CMAKECONFIG.is_match("DtkCore-config.cmake"));
+        assert!(CMAKECONFIG.is_match("/usr/share/ECM/cmake/ECMConfig.cmake"));
+        assert!(!CMAKECONFIG.is_match("DtkCoreconfig.cmake"));
+    }
+
+    #[test]
+    fn test_version() {
+        let projectversion = "set(PACKAGE_VERSION 5.11)";
+        assert_eq!(get_version(projectversion), Some("5.11".to_string()));
+        let projectversion = "SET(PACKAGE_VERSION 5.11)";
+        assert_eq!(get_version(projectversion), Some("5.11".to_string()));
+        let projectversion = "set(PACKAGE_VERSION \"1.3.14
 \")";
-    assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
-    let projectversion = "set(PACKAGE_VERSION \"1.3.14
+        assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
+        let projectversion = "set(PACKAGE_VERSION \"1.3.14
 
 \")";
-    assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
-    let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
-    assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
+        assert_eq!(get_version(projectversion), Some("1.3.14".to_string()));
+        let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
+        assert_eq!(get_version(qmlversion), Some("5.15.6".to_string()));
+    }
 }

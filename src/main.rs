@@ -232,14 +232,15 @@ async fn main() -> Result<()> {
 }
 
 #[cfg(test)]
-mod editorconfig_test {
+mod tests {
     use std::io::prelude::*;
 
     use tempfile::NamedTempFile;
 
-    use super::{EditConfigSetting, editconfig_setting_read};
+    use super::*;
+
     #[test]
-    fn tst_editconfig_tab() {
+    fn test_editorconfig_tab() {
         let mut temp_file = NamedTempFile::new().unwrap();
         let content = r#"
 root = true
@@ -267,8 +268,9 @@ indent_size = 4
             })
         );
     }
+
     #[test]
-    fn tst_editconfig_space() {
+    fn test_editorconfig_space() {
         let mut temp_file = NamedTempFile::new().unwrap();
         let content = r#"
 root = true
@@ -292,8 +294,9 @@ indent_size = 4
             })
         );
     }
+
     #[test]
-    fn tst_editconfig_lastline() {
+    fn test_editorconfig_lastline() {
         let mut temp_file = NamedTempFile::new().unwrap();
         let content = r#"
 root = true

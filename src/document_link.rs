@@ -175,28 +175,30 @@ fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Optio
 }
 
 // FIXME: unit test failed on windows
-// thread 'document_link::tst_document_link_search' panicked at src\document_link.rs:156:67:
+// thread 'document_link::test_document_link_search' panicked at src\document_link.rs:156:67:
 // called `Result::unwrap()` on an `Err` value: Error("invalid escape", line: 16, column: 27)
 // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 // Now disable it on windows.
-// NOTE: Test is also flaky on Linux and reliably fails with tarpaulin.
-#[cfg(not(windows))]
-#[cfg_attr(tarpaulin, ignore)]
-#[test]
-fn tst_document_link_search() {
+#[cfg(all(test, not(windows)))]
+mod tests {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
 
     use tempfile::tempdir;
 
+    use super::*;
     use crate::fileapi::cache::Cache;
     use crate::fileapi::set_cache_data;
 
-    let dir = tempdir().unwrap();
+    // NOTE: Test is also flaky on Linux and reliably fails with tarpaulin.
+    #[cfg_attr(tarpaulin, ignore)]
+    #[test]
+    fn test_document_link_search() {
+        let dir = tempdir().unwrap();
 
-    let json_value = format!(
-        "{{
+        let json_value = format!(
+            "{{
     \"kind\" : \"cache\",
     \"version\" :
     {{
@@ -215,11 +217,11 @@ fn tst_document_link_search() {
         }}
     ]
     }}",
-        dir.path().display()
-    );
-    let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
-    set_cache_data(template_cache);
-    let jump_file_src = r#"
+            dir.path().display()
+        );
+        let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
+        set_cache_data(template_cache);
+        let jump_file_src = r#"
 set(ABCD 1234)
 message(INFO "${ABCD}")
 set(ROOT_DIR "ABCD" STRING CACHE "ROOTDIR")
@@ -227,55 +229,56 @@ include("${ROOT_DIR}/hello.cmake")
 add_subdirectory(abcd_test)
 "#;
 
-    let top_cmake = dir.path().join("CMakeLists.txt");
-    let hello_cmake = dir.path().join("hello.cmake");
-    File::create_new(&hello_cmake).unwrap();
-    let mut top_file = File::create_new(&top_cmake).unwrap();
-    top_file.write_all(jump_file_src.as_bytes()).unwrap();
-    let subdir = dir.path().join("abcd_test");
-    fs::create_dir_all(&subdir).unwrap();
-    let subdir_file = subdir.join("CMakeLists.txt");
-    File::create_new(&subdir_file).unwrap();
-    let mut links = vec![];
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(jump_file_src, None).unwrap();
-    let documents: Vec<&str> = jump_file_src.lines().collect();
-    document_link_search_inner(&documents, thetree.root_node(), &mut links, &dir.path());
+        let top_cmake = dir.path().join("CMakeLists.txt");
+        let hello_cmake = dir.path().join("hello.cmake");
+        File::create_new(&hello_cmake).unwrap();
+        let mut top_file = File::create_new(&top_cmake).unwrap();
+        top_file.write_all(jump_file_src.as_bytes()).unwrap();
+        let subdir = dir.path().join("abcd_test");
+        fs::create_dir_all(&subdir).unwrap();
+        let subdir_file = subdir.join("CMakeLists.txt");
+        File::create_new(&subdir_file).unwrap();
+        let mut links = vec![];
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(jump_file_src, None).unwrap();
+        let documents: Vec<&str> = jump_file_src.lines().collect();
+        document_link_search_inner(&documents, thetree.root_node(), &mut links, &dir.path());
 
-    assert_eq!(
-        links,
-        vec![
-            DocumentLink {
-                range: Range {
-                    start: Position {
-                        line: 4,
-                        character: 8
+        assert_eq!(
+            links,
+            vec![
+                DocumentLink {
+                    range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 8
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 33
+                        }
                     },
-                    end: Position {
-                        line: 4,
-                        character: 33
-                    }
+                    target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
+                    tooltip: Some(format!("link: {}", hello_cmake.display())),
+                    data: None
                 },
-                target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
-                tooltip: Some(format!("link: {}", hello_cmake.display())),
-                data: None
-            },
-            DocumentLink {
-                range: Range {
-                    start: Position {
-                        line: 5,
-                        character: 17
+                DocumentLink {
+                    range: Range {
+                        start: Position {
+                            line: 5,
+                            character: 17
+                        },
+                        end: Position {
+                            line: 5,
+                            character: 26
+                        }
                     },
-                    end: Position {
-                        line: 5,
-                        character: 26
-                    }
+                    target: Some(Uri::from_file_path(&subdir_file).unwrap()),
+                    tooltip: Some(format!("link: {}", subdir_file.display())),
+                    data: None
                 },
-                target: Some(Uri::from_file_path(&subdir_file).unwrap()),
-                tooltip: Some(format!("link: {}", subdir_file.display())),
-                data: None
-            },
-        ]
-    );
+            ]
+        );
+    }
 }

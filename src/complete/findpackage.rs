@@ -99,56 +99,6 @@ pub(super) fn completion_items_with_prefix(space: &str) -> Vec<CompletionItem> {
     data
 }
 
-#[test]
-fn test_prefix() {
-    use std::path::Path;
-
-    use crate::Uri;
-    use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
-    let data = completion_items_with_prefix("bash");
-
-    let data_package = CMakePackage {
-        name: "bash-completion-fake".to_string(),
-        packagetype: PackageType::Dir,
-        #[cfg(unix)]
-        location: Uri::from_file_path("/usr/share/bash-completion").unwrap(),
-        #[cfg(not(unix))]
-        location: Uri::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
-        version: None,
-        #[cfg(unix)]
-        tojump: vec![
-            Path::new("/usr/share/bash-completion/bash_completion-fake-config.cmake").to_path_buf(),
-        ],
-        #[cfg(not(unix))]
-        tojump: vec![
-            Path::new(r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake")
-                .to_path_buf(),
-        ],
-        from: CMakePackageFrom::System,
-    };
-    let result_item = CompletionItem {
-        label: "-completion-fake".to_string(),
-        kind: Some(CompletionItemKind::MODULE),
-        detail: Some("Module".to_string()),
-        documentation: Some(Documentation::String(match &data_package.version {
-            None => format!(
-                "name: {}\nFiletype: {}\nFrom: {}\n",
-                data_package.name, data_package.packagetype, data_package.from
-            ),
-            Some(version) => format!(
-                "name: {}\nFiletype: {}\nFrom: {}\nversion: {}",
-                data_package.name, data_package.packagetype, data_package.from, version
-            ),
-        })),
-        ..Default::default()
-    };
-
-    let mut result_data = vec![result_item];
-    result_data.append(&mut FIND_PACKAGE_SPACE_KEYWORDS.clone());
-
-    assert_eq!(data, result_data);
-}
-
 #[cfg(unix)]
 pub static PKGCONFIG_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
     let mut data: Vec<CompletionItem> = crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES
@@ -168,3 +118,59 @@ pub static PKGCONFIG_SOURCE: LazyLock<Vec<CompletionItem>> = LazyLock::new(|| {
     data.append(&mut PKGCONFIG_KEYWORDS.clone());
     data
 });
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+    use crate::Uri;
+    use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+
+    #[test]
+    fn test_prefix() {
+        let data = completion_items_with_prefix("bash");
+
+        let data_package = CMakePackage {
+            name: "bash-completion-fake".to_string(),
+            packagetype: PackageType::Dir,
+            #[cfg(unix)]
+            location: Uri::from_file_path("/usr/share/bash-completion").unwrap(),
+            #[cfg(not(unix))]
+            location: Uri::from_file_path(r"C:\Develop\bash-completion-fake").unwrap(),
+            version: None,
+            #[cfg(unix)]
+            tojump: vec![
+                Path::new("/usr/share/bash-completion/bash_completion-fake-config.cmake")
+                    .to_path_buf(),
+            ],
+            #[cfg(not(unix))]
+            tojump: vec![
+                Path::new(r"C:\Develop\bash-completion-fake\bash-completion-fake-config.cmake")
+                    .to_path_buf(),
+            ],
+            from: CMakePackageFrom::System,
+        };
+        let result_item = CompletionItem {
+            label: "-completion-fake".to_string(),
+            kind: Some(CompletionItemKind::MODULE),
+            detail: Some("Module".to_string()),
+            documentation: Some(Documentation::String(match &data_package.version {
+                None => format!(
+                    "name: {}\nFiletype: {}\nFrom: {}\n",
+                    data_package.name, data_package.packagetype, data_package.from
+                ),
+                Some(version) => format!(
+                    "name: {}\nFiletype: {}\nFrom: {}\nversion: {}",
+                    data_package.name, data_package.packagetype, data_package.from, version
+                ),
+            })),
+            ..Default::default()
+        };
+
+        let mut result_data = vec![result_item];
+        result_data.append(&mut FIND_PACKAGE_SPACE_KEYWORDS.clone());
+
+        assert_eq!(data, result_data);
+    }
+}

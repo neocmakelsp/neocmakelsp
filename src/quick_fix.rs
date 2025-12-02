@@ -14,14 +14,6 @@ use crate::utils::treehelper::ToPosition;
 static LINT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"((?<length>\d+)/(?<max>\d+))"#).unwrap());
 
-#[test]
-fn lint_regex_text() {
-    let information = "[C0301] Line too long (92/80)";
-    let caps = LINT_REGEX.captures(information).unwrap();
-    assert_eq!(&caps["length"], "92");
-    assert_eq!(&caps["max"], "80");
-}
-
 pub fn lint_fix_action(
     context: &str,
     line: u32,
@@ -122,4 +114,17 @@ fn sub_lint_fix_action(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lint_regex_text() {
+        let information = "[C0301] Line too long (92/80)";
+        let caps = LINT_REGEX.captures(information).unwrap();
+        assert_eq!(&caps["length"], "92");
+        assert_eq!(&caps["max"], "80");
+    }
 }
