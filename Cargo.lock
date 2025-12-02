@@ -653,6 +653,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "cli-table",
+ "dashmap",
  "dirs",
  "glob",
  "ignore",

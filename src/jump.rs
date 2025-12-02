@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
+use dashmap::DashMap;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
-use crate::languageserver::get_or_update_buffer_context;
+use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
@@ -87,7 +88,11 @@ pub struct ReferenceInfo {
     loc: Location,
 }
 
-pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<ReferenceInfo> {
+pub async fn get_cached_def<P: AsRef<Path>>(
+    path: P,
+    key: &str,
+    documents: &DashMap<Uri, String>,
+) -> Option<ReferenceInfo> {
     let mut path = path.as_ref().to_path_buf();
 
     let tree_map = TREE_MAP.lock().await;
@@ -105,7 +110,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
         });
     }
     drop(jump_cache);
-    if let Ok(context) = get_or_update_buffer_context(&path).await {
+    if let Ok(context) = get_or_update_buffer_contents(&path, documents).await {
         update_cache(&path, context.as_str()).await;
         let jump_cache = JUMP_CACHE.lock().await;
         if let Some(JumpCacheUnit {
@@ -135,7 +140,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(path: P, key: &str) -> Option<Refere
             });
         }
         drop(jump_cache);
-        if let Ok(context) = get_or_update_buffer_context(&path).await {
+        if let Ok(context) = get_or_update_buffer_contents(&path, documents).await {
             update_cache(&path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
             if let Some(JumpCacheUnit {
@@ -164,9 +169,18 @@ pub async fn godef<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     is_jump: bool,
     just_var_or_fun: bool,
+    documents: &DashMap<Uri, String>,
 ) -> Option<Vec<Location>> {
     let current_point = location.to_point();
-    let locations = godef_inner(current_point, source, originuri, is_jump, just_var_or_fun).await;
+    let locations = godef_inner(
+        current_point,
+        source,
+        originuri,
+        is_jump,
+        just_var_or_fun,
+        documents,
+    )
+    .await;
     if locations.is_none() {
         client
             .log_message(MessageType::INFO, "Not find any locations")
@@ -181,6 +195,7 @@ async fn godef_inner<P: AsRef<Path>>(
     originuri: P,
     is_jump: bool,
     just_var_or_fun: bool,
+    documents: &DashMap<Uri, String>,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
@@ -209,7 +224,7 @@ async fn godef_inner<P: AsRef<Path>>(
             let ReferenceInfo {
                 loc: jump_cache,
                 is_function,
-            } = get_cached_def(&originuri, tofind).await?;
+            } = get_cached_def(&originuri, tofind, documents).await?;
             if is_jump {
                 return Some(vec![jump_cache]);
             }
@@ -700,6 +715,7 @@ mod jump_test {
             &top_cmake,
             true,
             false,
+            &DashMap::default(),
         )
         .await
         .unwrap();
@@ -754,6 +770,7 @@ add_subdirectory(abcd_test)
             &top_cmake,
             true,
             false,
+            &DashMap::default(),
         )
         .await
         .unwrap();
@@ -780,6 +797,7 @@ add_subdirectory(abcd_test)
             &top_cmake,
             true,
             false,
+            &DashMap::default(),
         )
         .await
         .unwrap();
