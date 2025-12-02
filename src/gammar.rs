@@ -326,21 +326,37 @@ fn checkerror_inner<P: AsRef<Path>>(
     }
 }
 
-#[cfg(not(windows))]
-#[test]
-fn tst_gammar_check() {
+// Used to check if root_node has error
+fn scanner_include_error<P: AsRef<Path>>(path: P) -> bool {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return true;
+    };
+    let mut parse = tree_sitter::Parser::new();
+    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+    let Some(tree) = parse.parse(content, None) else {
+        return true;
+    };
+    tree.root_node().has_error()
+}
+
+#[cfg(test)]
+mod tests {
     use std::fs::File;
     use std::io::Write;
 
     use tempfile::tempdir;
 
-    use crate::fileapi::cache::Cache;
-    use crate::fileapi::set_cache_data;
+    use super::*;
+    #[cfg(not(windows))]
+    use crate::fileapi::{cache, set_cache_data};
 
-    let dir = tempdir().unwrap();
+    #[cfg(not(windows))]
+    #[test]
+    fn test_gammar_check() {
+        let dir = tempdir().unwrap();
 
-    let json_value = format!(
-        "{{
+        let json_value = format!(
+            "{{
     \"kind\" : \"cache\",
     \"version\" :
     {{
@@ -359,171 +375,154 @@ fn tst_gammar_check() {
         }}
     ]
     }}",
-        dir.path().display()
-    );
-    let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
-    set_cache_data(template_cache);
-    let gammar_file_src = r#"
+            dir.path().display()
+        );
+        let template_cache: cache::Cache = serde_json::from_str(&json_value).unwrap();
+        set_cache_data(template_cache);
+        let gammar_file_src = r#"
 include("${ROOT_DIR}/hello.cmake")
 include("${ROOT_DIR}/hello_unexist.cmake")
 add_subdirectory("${ROOT_DIR}")
 add_subdirectory("unexist_subdir")
 "#;
-    let top_cmake = dir.path().join("CMakeList.txt");
-    let mut top_cmake_file = File::create(&top_cmake).unwrap();
-    writeln!(top_cmake_file, "{}", gammar_file_src).unwrap();
+        let top_cmake = dir.path().join("CMakeList.txt");
+        let mut top_cmake_file = File::create(&top_cmake).unwrap();
+        writeln!(top_cmake_file, "{}", gammar_file_src).unwrap();
 
-    let hello_cmake = dir.path().join("hello.cmake");
-    File::create(hello_cmake).unwrap();
+        let hello_cmake = dir.path().join("hello.cmake");
+        File::create(hello_cmake).unwrap();
 
-    let hello_cmake_error = dir.path().join("hello_unexist.cmake");
+        let hello_cmake_error = dir.path().join("hello_unexist.cmake");
 
-    let unexist_subdir = dir.path().join("unexist_subdir");
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(gammar_file_src, None).unwrap();
+        let unexist_subdir = dir.path().join("unexist_subdir");
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(gammar_file_src, None).unwrap();
 
-    let check_result = checkerror_inner(
-        top_cmake,
-        &gammar_file_src.lines().collect(),
-        thetree.root_node(),
-        false,
-    )
-    .unwrap();
+        let check_result = checkerror_inner(
+            top_cmake,
+            &gammar_file_src.lines().collect(),
+            thetree.root_node(),
+            false,
+        )
+        .unwrap();
 
-    assert_eq!(
-        *check_result,
-        vec![
-            ErrorInformation {
-                start_point: Point { row: 2, column: 8 },
-                end_point: Point { row: 2, column: 41 },
-                message: format!(
-                    "File \"{}\" does not exist or is inaccessible",
-                    hello_cmake_error.display()
-                ),
-                severity: Some(DiagnosticSeverity::WARNING)
-            },
-            ErrorInformation {
-                start_point: Point { row: 4, column: 17 },
-                end_point: Point { row: 4, column: 33 },
-                message: format!(
-                    "Directory \"{}\" does not exist or is inaccessible",
-                    unexist_subdir.display()
-                ),
-                severity: Some(DiagnosticSeverity::WARNING)
-            },
-        ]
-    );
-}
+        assert_eq!(
+            *check_result,
+            vec![
+                ErrorInformation {
+                    start_point: Point { row: 2, column: 8 },
+                    end_point: Point { row: 2, column: 41 },
+                    message: format!(
+                        "File \"{}\" does not exist or is inaccessible",
+                        hello_cmake_error.display()
+                    ),
+                    severity: Some(DiagnosticSeverity::WARNING)
+                },
+                ErrorInformation {
+                    start_point: Point { row: 4, column: 17 },
+                    end_point: Point { row: 4, column: 33 },
+                    message: format!(
+                        "Directory \"{}\" does not exist or is inaccessible",
+                        unexist_subdir.display()
+                    ),
+                    severity: Some(DiagnosticSeverity::WARNING)
+                },
+            ]
+        );
+    }
 
-// Used to check if root_node has error
-fn scanner_include_error<P: AsRef<Path>>(path: P) -> bool {
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return true;
-    };
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let Some(tree) = parse.parse(content, None) else {
-        return true;
-    };
-    tree.root_node().has_error()
-}
+    #[test]
+    fn include_error_test() {
+        let dir = tempdir().unwrap();
 
-#[test]
-fn include_error_tst() {
-    use std::fs::File;
-    use std::io::Write;
+        let bad_cmake = dir.path().join("test.cmake");
 
-    use tempfile::tempdir;
-
-    let dir = tempdir().unwrap();
-
-    let bad_cmake = dir.path().join("test.cmake");
-
-    let bad_context = r#"
+        let bad_context = r#"
 include((()
 "#;
-    let mut bad_file = File::create(&bad_cmake).unwrap();
+        let mut bad_file = File::create(&bad_cmake).unwrap();
 
-    writeln!(bad_file, "{}", bad_context).unwrap();
+        writeln!(bad_file, "{}", bad_context).unwrap();
 
-    assert!(scanner_include_error(bad_cmake));
+        assert!(scanner_include_error(bad_cmake));
 
-    let good_cmake = dir.path().join("test2.cmake");
+        let good_cmake = dir.path().join("test2.cmake");
 
-    let good_context = r#"
+        let good_context = r#"
 include(abcd.text)
 "#;
-    let mut good_file = File::create(&good_cmake).unwrap();
+        let mut good_file = File::create(&good_cmake).unwrap();
 
-    writeln!(good_file, "{}", good_context).unwrap();
+        writeln!(good_file, "{}", good_context).unwrap();
 
-    assert!(!scanner_include_error(good_cmake));
-}
+        assert!(!scanner_include_error(good_cmake));
+    }
 
-#[test]
-fn gammer_passed_check_1() {
-    let source = include_str!("../assets_for_test/gammar/include_check.cmake");
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None).unwrap();
+    #[test]
+    fn gammer_passed_check_1() {
+        let source = include_str!("../assets_for_test/gammar/include_check.cmake");
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(source, None).unwrap();
 
-    let input = thetree.root_node();
-    assert_eq!(
-        checkerror_inner(
-            std::path::Path::new("."),
-            &source.lines().collect(),
-            input,
-            true,
-        ),
-        Some(ErrorInfo {
-            inner: vec![ErrorInformation {
-                start_point: input.start_position(),
-                end_point: input.end_position(),
-                message: "Grammar error".to_string(),
-                severity: None,
-            }]
-        })
-    );
-}
+        let input = thetree.root_node();
+        assert_eq!(
+            checkerror_inner(
+                std::path::Path::new("."),
+                &source.lines().collect(),
+                input,
+                true,
+            ),
+            Some(ErrorInfo {
+                inner: vec![ErrorInformation {
+                    start_point: input.start_position(),
+                    end_point: input.end_position(),
+                    message: "Grammar error".to_string(),
+                    severity: None,
+                }]
+            })
+        );
+    }
 
-#[test]
-fn gammer_passed_check_2() {
-    let source = include_str!("../assets_for_test/gammar/pass_test.cmake");
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None).unwrap();
+    #[test]
+    fn gammer_passed_check_2() {
+        let source = include_str!("../assets_for_test/gammar/pass_test.cmake");
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(source, None).unwrap();
 
-    assert!(
-        checkerror_inner(
-            std::path::Path::new("."),
-            &source.lines().collect(),
-            thetree.root_node(),
-            true,
-        )
-        .is_none()
-    );
-}
+        assert!(
+            checkerror_inner(
+                std::path::Path::new("."),
+                &source.lines().collect(),
+                thetree.root_node(),
+                true,
+            )
+            .is_none()
+        );
+    }
 
-#[test]
-fn test_lint_regex() {
-    let input = r#"aa.cmake:38,00: [C0305] too many newlines between statements
+    #[test]
+    fn test_lint_regex() {
+        let input = r#"aa.cmake:38,00: [C0305] too many newlines between statements
 aa.cmake:46: [C0301] Line too long (84/80)
 aa.cmake:51,00: [C0111] Missing docstring on function or macro declaration
 aa.cmake:55: [C0301] Line too long (133/80)
 aa.cmake:56: [C0301] Line too long (143/80)
 aa.cmake:57: [C0301] Line too long (145/80)"#;
-    let re = regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap();
-    for s in input.split('\n') {
-        let m = re.captures(s).unwrap();
-        assert!(m.name("line").is_some() && m.name("message").is_some());
-        let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
-        let column = if let Some(m) = m.name("column") {
-            m.as_str().parse().unwrap()
-        } else {
-            0
-        };
-        let message = m.name("message").unwrap().as_str().to_owned();
-        println!("{row}:{column} -- {message}");
+        let re = regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap();
+        for s in input.split('\n') {
+            let m = re.captures(s).unwrap();
+            assert!(m.name("line").is_some() && m.name("message").is_some());
+            let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
+            let column = if let Some(m) = m.name("column") {
+                m.as_str().parse().unwrap()
+            } else {
+                0
+            };
+            let message = m.name("message").unwrap().as_str().to_owned();
+            println!("{row}:{column} -- {message}");
+        }
     }
 }

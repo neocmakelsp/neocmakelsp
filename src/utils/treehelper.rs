@@ -57,32 +57,6 @@ pub fn position_to_point(input: Position) -> Point {
     }
 }
 
-#[test]
-fn test_change() {
-    let point = Point {
-        row: 10,
-        column: 10,
-    };
-    assert_eq!(
-        Position {
-            line: 10,
-            character: 10
-        },
-        point.to_position()
-    );
-    let position = Position {
-        line: 10,
-        character: 10,
-    };
-    assert_eq!(
-        Point {
-            row: 10,
-            column: 10
-        },
-        position.to_point()
-    );
-}
-
 /// get the position of the string
 pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) -> Option<&'a str> {
     let mut course = root.walk();
@@ -418,22 +392,52 @@ fn get_pos_type_inner<'a>(
     PositionType::Unknown
 }
 
-#[test]
-fn tst_line_comment() {
+#[cfg(test)]
+mod tests {
+    use super::*;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    let source = "set(A \"
-A#ss\" #sss)";
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
-    assert!(!contain_comment(Point { row: 1, column: 1 }, input));
-    assert!(contain_comment(Point { row: 1, column: 8 }, input));
-}
 
-#[test]
-fn test_point_string() {
-    let source = r#"
+    #[test]
+    fn test_change() {
+        let point = Point {
+            row: 10,
+            column: 10,
+        };
+        assert_eq!(
+            Position {
+                line: 10,
+                character: 10
+            },
+            point.to_position()
+        );
+        let position = Position {
+            line: 10,
+            character: 10,
+        };
+        assert_eq!(
+            Point {
+                row: 10,
+                column: 10
+            },
+            position.to_point()
+        );
+    }
+
+    #[test]
+    fn test_line_comment() {
+        let source = "set(A \"
+A#ss\" #sss)";
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        assert!(!contain_comment(Point { row: 1, column: 1 }, input));
+        assert!(contain_comment(Point { row: 1, column: 8 }, input));
+    }
+
+    #[test]
+    fn test_point_string() {
+        let source = r#"
 # it is a comment
 set(ABC "abcd")
 set(EFT "${ABC}eft")
@@ -447,23 +451,25 @@ target_link_libraries(ABC PUBLIC
 )
 include("abcd/efg.cmake")
     "#;
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
-    let source_lines = source.lines().collect();
-    let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
-    assert_eq!(pos_str_1, "ABC");
-    let pos_str_2 = get_point_string(Point { row: 3, column: 12 }, input, &source_lines).unwrap();
-    assert_eq!(pos_str_2, "ABC");
-    let pos_str_3 = get_point_string(Point { row: 3, column: 16 }, input, &source_lines).unwrap();
-    assert_eq!(pos_str_3, "${ABC}eft");
-}
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let source_lines = source.lines().collect();
+        let pos_str_1 =
+            get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
+        assert_eq!(pos_str_1, "ABC");
+        let pos_str_2 =
+            get_point_string(Point { row: 3, column: 12 }, input, &source_lines).unwrap();
+        assert_eq!(pos_str_2, "ABC");
+        let pos_str_3 =
+            get_point_string(Point { row: 3, column: 16 }, input, &source_lines).unwrap();
+        assert_eq!(pos_str_3, "${ABC}eft");
+    }
 
-#[test]
-fn tst_postype() {
-    let source = r#"
+    #[test]
+    fn test_postype() {
+        let source = r#"
 # it is a comment
 set(ABC "abcd")
 function(abc)
@@ -483,99 +489,99 @@ find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
     "#;
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
 
-    assert_eq!(
-        get_pos_type(Point { row: 1, column: 3 }, input, source,),
-        PositionType::Comment
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 2, column: 4 }, input, source,),
-        PositionType::VarOrFun
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 3, column: 5 }, input, source,),
-        PositionType::VarOrFun
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 5, column: 15 }, input, source,),
-        PositionType::FindPackage
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 5, column: 1 }, input, source,),
-        PositionType::VarOrFun
-    );
-    #[cfg(unix)]
-    assert_eq!(
-        get_pos_type(Point { row: 6, column: 22 }, input, source,),
-        PositionType::FindPkgConfig
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 8, column: 2 }, input, source,),
-        PositionType::TargetLink
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 8, column: 4 }, input, source,),
-        PositionType::VarOrFun
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 9, column: 6 }, input, source,),
-        PositionType::VarOrFun
-    );
-    assert_eq!(
-        get_pos_type(
-            Point {
-                row: 11,
-                column: 11
-            },
-            input,
-            source,
-        ),
-        PositionType::Include
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 13, column: 3 }, input, source,),
-        PositionType::Comment
-    );
-    assert_eq!(
-        get_pos_type(
-            Point {
-                row: 15,
-                column: 30
-            },
-            input,
-            source,
-        ),
-        PositionType::FindPackageSpace("Qt5")
-    );
-    assert_eq!(
-        get_pos_type(
-            Point {
-                row: 15,
-                column: 15
-            },
-            input,
-            source,
-        ),
-        PositionType::FindPackage
-    );
-    assert_eq!(
-        get_pos_type(
-            Point {
-                row: 16,
-                column: 21
-            },
-            input,
-            source,
-        ),
-        PositionType::FindPackage
-    );
-    assert_eq!(
-        get_pos_type(Point { row: 17, column: 8 }, input, source,),
-        PositionType::FunOrMacroIdentifier
-    );
+        assert_eq!(
+            get_pos_type(Point { row: 1, column: 3 }, input, source,),
+            PositionType::Comment
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 2, column: 4 }, input, source,),
+            PositionType::VarOrFun
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 3, column: 5 }, input, source,),
+            PositionType::VarOrFun
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 5, column: 15 }, input, source,),
+            PositionType::FindPackage
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 5, column: 1 }, input, source,),
+            PositionType::VarOrFun
+        );
+        #[cfg(unix)]
+        assert_eq!(
+            get_pos_type(Point { row: 6, column: 22 }, input, source,),
+            PositionType::FindPkgConfig
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 8, column: 2 }, input, source,),
+            PositionType::TargetLink
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 8, column: 4 }, input, source,),
+            PositionType::VarOrFun
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 9, column: 6 }, input, source,),
+            PositionType::VarOrFun
+        );
+        assert_eq!(
+            get_pos_type(
+                Point {
+                    row: 11,
+                    column: 11
+                },
+                input,
+                source,
+            ),
+            PositionType::Include
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 13, column: 3 }, input, source,),
+            PositionType::Comment
+        );
+        assert_eq!(
+            get_pos_type(
+                Point {
+                    row: 15,
+                    column: 30
+                },
+                input,
+                source,
+            ),
+            PositionType::FindPackageSpace("Qt5")
+        );
+        assert_eq!(
+            get_pos_type(
+                Point {
+                    row: 15,
+                    column: 15
+                },
+                input,
+                source,
+            ),
+            PositionType::FindPackage
+        );
+        assert_eq!(
+            get_pos_type(
+                Point {
+                    row: 16,
+                    column: 21
+                },
+                input,
+                source,
+            ),
+            PositionType::FindPackage
+        );
+        assert_eq!(
+            get_pos_type(Point { row: 17, column: 8 }, input, source,),
+            PositionType::FunOrMacroIdentifier
+        );
+    }
 }

@@ -3,7 +3,6 @@ use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
 
-/// builtin Commands and vars
 use anyhow::Result;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
@@ -73,23 +72,6 @@ fn convert_to_lsp_snippet(input: &str) -> String {
     result.push_str(&input[last_pos..]);
 
     result
-}
-
-#[test]
-fn tst_convert_to_lsp_snippet() {
-    let snippet_example = r#"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
-                  TEST | VARIABLE | CACHED_VARIABLE>
-                  PROPERTY <name> [INHERITED]
-                  [BRIEF_DOCS <brief-doc> [docs...]]
-                  [FULL_DOCS <full-doc> [docs...]]
-                  [INITIALIZE_FROM_VARIABLE <variable>])"#;
-    let snippet_result = convert_to_lsp_snippet(snippet_example);
-    let snippet_target = r#"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
-                  PROPERTY ${2:<name>} [INHERITED]
-                  [BRIEF_DOCS ${3:<brief-doc>} [docs...]]
-                  [FULL_DOCS ${4:<full-doc>} [docs...]]
-                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])"#;
-    assert_eq!(snippet_result, snippet_target);
 }
 
 fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
@@ -238,10 +220,28 @@ pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new
 mod tests {
     use std::iter::zip;
 
-    use super::gen_builtin_commands;
+    use super::*;
     use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
+
     #[test]
-    fn tst_regex() {
+    fn test_convert_to_lsp_snippet() {
+        let snippet_example = r#"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
+                  TEST | VARIABLE | CACHED_VARIABLE>
+                  PROPERTY <name> [INHERITED]
+                  [BRIEF_DOCS <brief-doc> [docs...]]
+                  [FULL_DOCS <full-doc> [docs...]]
+                  [INITIALIZE_FROM_VARIABLE <variable>])"#;
+        let snippet_result = convert_to_lsp_snippet(snippet_example);
+        let snippet_target = r#"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
+                  PROPERTY ${2:<name>} [INHERITED]
+                  [BRIEF_DOCS ${3:<brief-doc>} [docs...]]
+                  [FULL_DOCS ${4:<full-doc>} [docs...]]
+                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])"#;
+        assert_eq!(snippet_result, snippet_target);
+    }
+
+    #[test]
+    fn test_regex() {
         let re = regex::Regex::new(r"-+").unwrap();
         assert!(re.is_match("---------"));
         assert!(re.is_match("-------------------"));
@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn tst_cmake_command_builtin() {
+    fn test_cmake_command_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
 
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn tst_cmake_variables_builtin() {
+    fn test_cmake_variables_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_variables.txt");
 
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn tst_cmake_modules_builtin() {
+    fn test_cmake_modules_builtin() {
         // NOTE: In case the command fails, ignore test
         let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
 

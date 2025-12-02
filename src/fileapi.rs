@@ -113,8 +113,8 @@ impl QueryJson {
 }
 
 #[cfg(test)]
-mod api_test {
-    use super::{Cache, QueryJson};
+mod tests {
+    use super::*;
 
     #[test]
     fn test_serde() {

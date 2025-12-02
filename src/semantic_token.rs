@@ -430,14 +430,16 @@ fn sub_tokens(
     res
 }
 
-#[test]
-fn test_number() {
-    assert!(NUMBERREGEX.is_match("1.1"));
-    assert!(NUMBERREGEX.is_match("222"));
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_hl() {
+    #[test]
+    fn test_number() {
+        assert!(NUMBERREGEX.is_match("1.1"));
+        assert!(NUMBERREGEX.is_match("222"));
+    }
+
     fn semantic_token_test(context: &str) -> Option<SemanticTokensResult> {
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
@@ -454,7 +456,11 @@ fn test_hl() {
             ),
         }))
     }
-    semantic_token_test(include_str!(
-        "../assets_for_test/highlight/bracket_argument.cmake"
-    ));
+
+    #[test]
+    fn test_hl() {
+        semantic_token_test(include_str!(
+            "../assets_for_test/highlight/bracket_argument.cmake"
+        ));
+    }
 }

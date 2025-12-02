@@ -3,7 +3,6 @@ use tower_lsp::{Client, lsp_types};
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-/// Get the tree of ast
 use crate::utils::treehelper::ToPosition;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
@@ -232,8 +231,9 @@ fn getsubast(
 }
 
 #[cfg(test)]
-mod ast_test {
+mod tests {
     use super::*;
+
     #[test]
     fn test_ast_1() {
         let context = include_str!("../assets_for_test/ast_test/bast_test.cmake");

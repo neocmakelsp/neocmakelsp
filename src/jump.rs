@@ -684,20 +684,19 @@ fn get_cmake_package_defs(
     Some(complete_infos)
 }
 #[cfg(test)]
-mod jump_test {
+mod tests {
+    use std::fs;
+    use std::fs::File;
+    use std::io::Write;
+
+    use tempfile::tempdir;
     use tower_lsp::lsp_types;
     use tree_sitter::Point;
 
     use super::*;
 
     #[tokio::test]
-    async fn tst_jump_subdir() {
-        use std::fs;
-        use std::fs::File;
-        use std::io::Write;
-
-        use tempfile::tempdir;
-
+    async fn test_jump_subdir() {
         let jump_file_src = r#"add_subdirectory(abcd_test)"#;
 
         let dir = tempdir().unwrap();
@@ -739,14 +738,7 @@ mod jump_test {
     }
 
     #[tokio::test]
-    async fn tst_jump_variable() {
-        use std::fs;
-        use std::fs::File;
-        use std::io::Write;
-
-        use tempfile::tempdir;
-        use tower_lsp::lsp_types;
-
+    async fn test_jump_variable() {
         let jump_file_src = r#"
 set(ABCD 1234)
 message(INFO "${ABCD}")
@@ -819,75 +811,70 @@ add_subdirectory(abcd_test)
             }]
         );
     }
-}
 
-#[test]
-fn test_sub_def() {
-    use std::fs::File;
-    use std::io::Write;
+    #[test]
+    fn test_sub_def() {
+        let dir = tempdir().unwrap();
+        let top_cmake_path = dir.path().join("CMakeLists.txt");
 
-    use tempfile::tempdir;
-    use tower_lsp::lsp_types;
-    let dir = tempdir().unwrap();
-    let top_cmake_path = dir.path().join("CMakeLists.txt");
-
-    let mut cmake_file = File::create_new(&top_cmake_path).unwrap();
-    let top_cmake_context = r#"
+        let mut cmake_file = File::create_new(&top_cmake_path).unwrap();
+        let top_cmake_context = r#"
 include(abcd_test.cmake)
 "#;
-    writeln!(cmake_file, "{}", top_cmake_context).unwrap();
-    let include_cmake_path = dir.path().join("abcd_test.cmake");
-    let mut include_cmake = File::create_new(&include_cmake_path).unwrap();
-    let include_cmake_context = r#"
+        writeln!(cmake_file, "{}", top_cmake_context).unwrap();
+        let include_cmake_path = dir.path().join("abcd_test.cmake");
+        let mut include_cmake = File::create_new(&include_cmake_path).unwrap();
+        let include_cmake_context = r#"
 set(ABCD "abcd")
 include(efg_test.cmake)
 "#;
-    writeln!(include_cmake, "{}", include_cmake_context).unwrap();
+        writeln!(include_cmake, "{}", include_cmake_context).unwrap();
 
-    // NOTE: this is used to test if the include cache append will work
-    let include_cmake_path_2 = dir.path().join("efg_test.cmake");
-    File::create(&include_cmake_path_2).unwrap();
+        // NOTE: this is used to test if the include cache append will work
+        let include_cmake_path_2 = dir.path().join("efg_test.cmake");
+        File::create(&include_cmake_path_2).unwrap();
 
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(top_cmake_context, None).unwrap();
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(top_cmake_context, None).unwrap();
 
-    let mut include_files = vec![];
-    let data = getsubdef(
-        thetree.root_node(),
-        &top_cmake_context.lines().collect(),
-        &top_cmake_path,
-        PositionType::VarOrFun,
-        &mut include_files,
-        &mut vec![],
-        true,
-        false,
-    )
-    .unwrap();
+        let mut include_files = vec![];
+        let data = getsubdef(
+            thetree.root_node(),
+            &top_cmake_context.lines().collect(),
+            &top_cmake_path,
+            PositionType::VarOrFun,
+            &mut include_files,
+            &mut vec![],
+            true,
+            false,
+        )
+        .unwrap();
 
-    assert_eq!(
-        data,
-        vec![CacheDataUnit {
-            key: "ABCD".to_string(),
-            location: Location {
-                uri: Uri::from_file_path(&include_cmake_path).unwrap(),
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
-                        line: 1,
-                        character: 4
+        assert_eq!(
+            data,
+            vec![CacheDataUnit {
+                key: "ABCD".to_string(),
+                location: Location {
+                    uri: Uri::from_file_path(&include_cmake_path).unwrap(),
+                    range: lsp_types::Range {
+                        start: lsp_types::Position {
+                            line: 1,
+                            character: 4
+                        },
+                        end: lsp_types::Position {
+                            line: 1,
+                            character: 8
+                        }
                     },
-                    end: lsp_types::Position {
-                        line: 1,
-                        character: 8
-                    }
                 },
-            },
-            document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
-            is_function: false
-        }]
-    );
-    assert_eq!(
-        include_files,
-        vec![include_cmake_path_2, include_cmake_path]
-    );
+                document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
+                is_function: false
+            }]
+        );
+        assert_eq!(
+            include_files,
+            vec![include_cmake_path_2, include_cmake_path]
+        );
+    }
 }

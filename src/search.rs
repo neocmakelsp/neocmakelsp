@@ -44,7 +44,7 @@ pub fn search_result_tojson(tosearch: &str) -> Result<String> {
 }
 
 #[cfg(test)]
-mod search_test {
+mod tests {
     use super::*;
     use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
 

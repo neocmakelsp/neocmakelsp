@@ -1,5 +1,4 @@
 use lsp_types::Position;
-/// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
 use tree_sitter::Node;
 
@@ -96,28 +95,33 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     Some(cached_info)
 }
 
-#[tokio::test]
-async fn tst_hover() {
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+#[cfg(test)]
+mod tests {
+    use super::*;
     use crate::utils::{FindPackageFunsFake, FindPackageFunsTrait};
 
-    let fake_data = FindPackageFunsFake.get_cmake_packages_withkeys();
-    let fake_package = fake_data.get("bash-completion-fake").unwrap();
-    let content = r#"
+    #[tokio::test]
+    async fn test_hover() {
+        let fake_data = FindPackageFunsFake.get_cmake_packages_withkeys();
+        let fake_package = fake_data.get("bash-completion-fake").unwrap();
+        let content = r#"
 find_package(bash-completion-fake)
     "#;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(content, None).unwrap();
-    let document = get_hovered_doc(
-        Position {
-            line: 1,
-            character: 15,
-        },
-        thetree.root_node(),
-        content,
-    )
-    .await
-    .unwrap();
-    assert_eq!(document, cmakepackage_document_fmt(fake_package));
+        let mut parse = tree_sitter::Parser::new();
+        parse
+            .set_language(&tree_sitter_cmake::LANGUAGE.into())
+            .unwrap();
+        let thetree = parse.parse(content, None).unwrap();
+        let document = get_hovered_doc(
+            Position {
+                line: 1,
+                character: 15,
+            },
+            thetree.root_node(),
+            content,
+        )
+        .await
+        .unwrap();
+        assert_eq!(document, cmakepackage_document_fmt(fake_package));
+    }
 }

@@ -1,11 +1,16 @@
 mod findpackage;
 pub mod treehelper;
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::Uri;
+use tree_sitter::Node;
+
+pub use self::findpackage::*;
+use crate::fileapi;
 
 static PLACE_HODER_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\$\{(\w+)\}").unwrap());
@@ -52,19 +57,8 @@ pub struct CMakePackage {
     pub from: CMakePackageFrom,
 }
 
-pub use findpackage::*;
-use tree_sitter::Node;
-
-use crate::fileapi;
-
 pub fn include_is_module(file_name: &str) -> bool {
     !file_name.ends_with(".cmake")
-}
-
-#[test]
-fn ut_ismodule() {
-    assert!(include_is_module("GNUInstall"));
-    assert!(!include_is_module("test.cmake"));
 }
 
 // get the content and split all argument to vector
@@ -98,43 +92,6 @@ pub fn get_node_content<'a>(source: &[&'a str], node: &Node) -> Vec<&'a str> {
         }
     }
     content
-}
-
-#[test]
-fn get_node_content_tst_1() {
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
-    let argumentlist = input.child(0).unwrap().child(2).unwrap();
-    let lines: Vec<&str> = source.lines().collect();
-    let content = get_node_content(&lines, &argumentlist);
-    assert_eq!(
-        content,
-        vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
-    );
-}
-
-#[test]
-fn get_node_content_tst_2() {
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-    let source = r#"findpackage(Qt5
-COMPONENTS CONFIG
-Core Gui Widget
-)"#;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(source, None).unwrap();
-    let input = tree.root_node();
-    let argumentlist = input.child(0).unwrap().child(2).unwrap();
-    let lines: Vec<&str> = source.lines().collect();
-    let content = get_node_content(&lines, &argumentlist);
-    assert_eq!(
-        content,
-        vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
-    );
 }
 
 pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
@@ -195,36 +152,6 @@ fn replace_placeholders_with_hashmap(
     Some(result)
 }
 
-#[test]
-fn env_arg_test() {
-    unsafe {
-        std::env::set_var("TempDir", "/tmp");
-    }
-    assert_eq!(
-        "/tmp/wezterm",
-        replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
-    );
-}
-
-#[test]
-fn replace_placeholders_tst() {
-    let mut values = HashMap::new();
-    values.insert("ROOT_DIR".to_string(), "/usr".to_string());
-
-    let template = "${ROOT_DIR}/abc";
-
-    assert_eq!(
-        replace_placeholders_with_hashmap(template, &values),
-        Some("/usr/abc".to_string())
-    );
-
-    let template = "/home/abc";
-    assert_eq!(
-        replace_placeholders_with_hashmap(template, &values),
-        Some("/home/abc".to_string())
-    );
-}
-
 // FIXME: I do not know the way to gen module_pattern on windows
 #[allow(unused_variables)]
 pub fn gen_module_pattern(subpath: &str) -> Option<String> {
@@ -272,44 +199,6 @@ impl LineCommentTmp<'_> {
     }
 }
 
-#[test]
-fn test_comment() {
-    let linecomment = LineCommentTmp {
-        end_y: 0,
-        comments: vec!["# Abcd", "#   EFGH"],
-    };
-    assert_eq!(linecomment.comment(), "Abcd\nEFGH");
-}
-
-#[test]
-fn test_module_pattern() {
-    #[cfg(unix)]
-    #[cfg(not(target_os = "android"))]
-    assert_eq!(
-        gen_module_pattern("GNUInstallDirs"),
-        Some("/usr/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
-    );
-    #[cfg(target_os = "android")]
-    {
-        unsafe { std::env::set_var("PREFIX", "/data/data/com.termux/files/usr") };
-        assert_eq!(
-            gen_module_pattern("GNUInstallDirs"),
-            Some(
-                "/data/data/com.termux/files/usr/share/cmake*/Modules/GNUInstallDirs.cmake"
-                    .to_string()
-            )
-        );
-    }
-    #[cfg(not(unix))]
-    {
-        unsafe { std::env::set_var("MSYSTEM_PREFIX", "C:/msys64") };
-        assert_eq!(
-            gen_module_pattern("GNUInstallDirs"),
-            Some("C:/msys64/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
-        );
-    }
-}
-
 const LIBRARIES_END: &str = "_LIBRARIES";
 const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
 
@@ -323,12 +212,127 @@ pub fn get_the_packagename(package: &str) -> &str {
     package
 }
 
-#[test]
-fn package_name_check_tst() {
-    let package_names = ["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
-    let output: Vec<&str> = package_names
-        .iter()
-        .map(|name| get_the_packagename(name))
-        .collect();
-    assert_eq!(output, vec!["abc", "def", "ghi"]);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
+    #[test]
+    fn ut_ismodule() {
+        assert!(include_is_module("GNUInstall"));
+        assert!(!include_is_module("test.cmake"));
+    }
+
+    #[test]
+    fn get_node_content_test_1() {
+        let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let argumentlist = input.child(0).unwrap().child(2).unwrap();
+        let lines: Vec<&str> = source.lines().collect();
+        let content = get_node_content(&lines, &argumentlist);
+        assert_eq!(
+            content,
+            vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
+        );
+    }
+
+    #[test]
+    fn get_node_content_test_2() {
+        let source = r#"findpackage(Qt5
+COMPONENTS CONFIG
+Core Gui Widget
+)"#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let argumentlist = input.child(0).unwrap().child(2).unwrap();
+        let lines: Vec<&str> = source.lines().collect();
+        let content = get_node_content(&lines, &argumentlist);
+        assert_eq!(
+            content,
+            vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
+        );
+    }
+
+    #[test]
+    fn env_arg_test() {
+        unsafe {
+            std::env::set_var("TempDir", "/tmp");
+        }
+        assert_eq!(
+            "/tmp/wezterm",
+            replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
+        );
+    }
+
+    #[test]
+    fn replace_placeholders_test() {
+        let mut values = HashMap::new();
+        values.insert("ROOT_DIR".to_string(), "/usr".to_string());
+
+        let template = "${ROOT_DIR}/abc";
+
+        assert_eq!(
+            replace_placeholders_with_hashmap(template, &values),
+            Some("/usr/abc".to_string())
+        );
+
+        let template = "/home/abc";
+        assert_eq!(
+            replace_placeholders_with_hashmap(template, &values),
+            Some("/home/abc".to_string())
+        );
+    }
+
+    #[test]
+    fn test_comment() {
+        let linecomment = LineCommentTmp {
+            end_y: 0,
+            comments: vec!["# Abcd", "#   EFGH"],
+        };
+        assert_eq!(linecomment.comment(), "Abcd\nEFGH");
+    }
+
+    #[test]
+    fn test_module_pattern() {
+        #[cfg(unix)]
+        #[cfg(not(target_os = "android"))]
+        assert_eq!(
+            gen_module_pattern("GNUInstallDirs"),
+            Some("/usr/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
+        );
+        #[cfg(target_os = "android")]
+        {
+            unsafe { std::env::set_var("PREFIX", "/data/data/com.termux/files/usr") };
+            assert_eq!(
+                gen_module_pattern("GNUInstallDirs"),
+                Some(
+                    "/data/data/com.termux/files/usr/share/cmake*/Modules/GNUInstallDirs.cmake"
+                        .to_string()
+                )
+            );
+        }
+        #[cfg(not(unix))]
+        {
+            unsafe { std::env::set_var("MSYSTEM_PREFIX", "C:/msys64") };
+            assert_eq!(
+                gen_module_pattern("GNUInstallDirs"),
+                Some("C:/msys64/share/cmake*/Modules/GNUInstallDirs.cmake".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn package_name_check_test() {
+        let package_names = ["abc", "def_LIBRARIES", "ghi_INCLUDE_DIRS"];
+        let output: Vec<&str> = package_names
+            .iter()
+            .map(|name| get_the_packagename(name))
+            .collect();
+        assert_eq!(output, vec!["abc", "def", "ghi"]);
+    }
 }

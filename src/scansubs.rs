@@ -236,51 +236,52 @@ fn get_subdir_from_tree(
     output
 }
 
-#[tokio::test]
-async fn test_scan_sub() {
+#[cfg(test)]
+mod tests {
     use std::fs;
     use std::fs::File;
     use std::io::Write;
 
     use tempfile::tempdir;
-    let dir = tempdir().unwrap();
-    let top_cmake = dir.path().join("CMakeLists.txt");
-    let mut top_file = File::create_new(&top_cmake).unwrap();
-    writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
-    let subdir = dir.path().join("abcd_test");
-    fs::create_dir_all(&subdir).unwrap();
-    let subdir_file = subdir.join("CMakeLists.txt");
-    File::create_new(&subdir_file).unwrap();
-    let bufs = scan_dir(&top_cmake, false).await;
-    assert_eq!(bufs, vec![subdir_file.clone()]);
-    let cache_data = TREE_MAP.lock().await;
-    assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));
-}
 
-#[test]
-fn test_tree_dir() {
-    use std::fs;
-    use std::fs::File;
-    use std::io::Write;
+    use super::*;
 
-    use tempfile::tempdir;
-    let dir = tempdir().unwrap();
-    let top_cmake = dir.path().join("CMakeLists.txt");
-    let mut top_file = File::create_new(&top_cmake).unwrap();
-    writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
-    let subdir = dir.path().join("abcd_test");
-    fs::create_dir_all(&subdir).unwrap();
-    let subdir_file = subdir.join("CMakeLists.txt");
-    File::create_new(&subdir_file).unwrap();
-    let tree_dir = get_treedir(&top_cmake).unwrap();
-    assert_eq!(
-        tree_dir,
-        TreeDir {
-            current_file: top_cmake,
-            subdirs: Some(vec![TreeDir {
-                current_file: subdir_file,
-                subdirs: None,
-            }])
-        }
-    );
+    #[tokio::test]
+    async fn test_scan_sub() {
+        let dir = tempdir().unwrap();
+        let top_cmake = dir.path().join("CMakeLists.txt");
+        let mut top_file = File::create_new(&top_cmake).unwrap();
+        writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
+        let subdir = dir.path().join("abcd_test");
+        fs::create_dir_all(&subdir).unwrap();
+        let subdir_file = subdir.join("CMakeLists.txt");
+        File::create_new(&subdir_file).unwrap();
+        let bufs = scan_dir(&top_cmake, false).await;
+        assert_eq!(bufs, vec![subdir_file.clone()]);
+        let cache_data = TREE_MAP.lock().await;
+        assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));
+    }
+
+    #[test]
+    fn test_tree_dir() {
+        let dir = tempdir().unwrap();
+        let top_cmake = dir.path().join("CMakeLists.txt");
+        let mut top_file = File::create_new(&top_cmake).unwrap();
+        writeln!(top_file, r#"add_subdirectory("abcd_test")"#).unwrap();
+        let subdir = dir.path().join("abcd_test");
+        fs::create_dir_all(&subdir).unwrap();
+        let subdir_file = subdir.join("CMakeLists.txt");
+        File::create_new(&subdir_file).unwrap();
+        let tree_dir = get_treedir(&top_cmake).unwrap();
+        assert_eq!(
+            tree_dir,
+            TreeDir {
+                current_file: top_cmake,
+                subdirs: Some(vec![TreeDir {
+                    current_file: subdir_file,
+                    subdirs: None,
+                }])
+            }
+        );
+    }
 }
