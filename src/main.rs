@@ -1,21 +1,9 @@
-use std::net::Ipv4Addr;
-use std::path::{Path, PathBuf};
-
-use anyhow::{Context, Result};
-use clap::{CommandFactory, Parser};
-use dashmap::DashMap;
-use ignore::Walk;
-use ini::Ini;
-use tower_lsp::{Client, LspService, Server};
-mod treesitter_nodetypes;
-
-use tokio::net::TcpListener;
-use treesitter_nodetypes as CMakeNodeKinds;
 mod ast;
 mod cli;
 mod complete;
 mod config;
 mod consts;
+mod document;
 mod document_link;
 mod fileapi;
 mod filewatcher;
@@ -25,52 +13,27 @@ mod hover;
 mod jump;
 mod languageserver;
 mod quick_fix;
-mod rename;
 mod scansubs;
 mod search;
 mod semantic_token;
+mod treesitter_nodetypes;
 mod utils;
-use std::sync::OnceLock;
 
+use std::net::Ipv4Addr;
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use clap::{CommandFactory, Parser};
+use ignore::Walk;
+use ini::Ini;
+use tokio::net::TcpListener;
 use tower_lsp::lsp_types::Uri;
+use tower_lsp::{LspService, Server};
+use treesitter_nodetypes as CMakeNodeKinds;
 
 use crate::cli::{Cli, Command};
 use crate::formatting::format_file;
-
-#[derive(Debug)]
-struct BackendInitInfo {
-    pub scan_cmake_in_package: bool,
-    pub enable_lint: bool,
-}
-
-impl Default for BackendInitInfo {
-    fn default() -> Self {
-        Self {
-            scan_cmake_in_package: true,
-            enable_lint: true,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Backend {
-    client: Client,
-    documents: DashMap<Uri, String>,
-    /// Storage the message of buffers
-    init_info: OnceLock<BackendInitInfo>,
-    root_path: OnceLock<Option<PathBuf>>,
-}
-
-impl Backend {
-    fn new(client: Client) -> Self {
-        Self {
-            client,
-            documents: DashMap::new(),
-            init_info: OnceLock::new(),
-            root_path: OnceLock::new(),
-        }
-    }
-}
+use crate::languageserver::Backend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EditConfigSetting {

@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
+use crate::document::Document;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
@@ -91,7 +92,7 @@ pub struct ReferenceInfo {
 pub async fn get_cached_def<P: AsRef<Path>>(
     path: P,
     key: &str,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Option<ReferenceInfo> {
     let mut path = path.as_ref().to_path_buf();
 
@@ -169,7 +170,7 @@ pub async fn godef<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     is_jump: bool,
     just_var_or_fun: bool,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Option<Vec<Location>> {
     let current_point = location.to_point();
     let locations = godef_inner(
@@ -195,7 +196,7 @@ async fn godef_inner<P: AsRef<Path>>(
     originuri: P,
     is_jump: bool,
     just_var_or_fun: bool,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Option<Vec<Location>> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

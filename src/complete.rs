@@ -14,6 +14,7 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document::Document;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
@@ -95,7 +96,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
 
 pub async fn get_cached_completion<P: AsRef<Path>>(
     path: P,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Vec<CompletionItem> {
     let mut path = path.as_ref().to_path_buf();
     let mut completions = Vec::new();
@@ -125,17 +126,16 @@ pub async fn getcomplete<P: AsRef<Path>>(
     client: &tower_lsp::Client,
     local_path: P,
     find_cmake_in_package: bool,
-    documents: &DashMap<Uri, String>,
+    documents: &DashMap<Uri, Document>,
 ) -> Option<CompletionResponse> {
     let local_path = local_path.as_ref();
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None);
-    let tree = thetree.unwrap();
-    let mut complete: Vec<CompletionItem> = vec![];
+    let uri = Uri::from_file_path(local_path).unwrap();
+    let document = documents.get(&uri)?;
+    let tree = document.tree.root_node();
 
+    let mut complete: Vec<CompletionItem> = vec![];
     let current_point = location.to_point();
-    let postype = get_pos_type(current_point, tree.root_node(), source);
+    let postype = get_pos_type(current_point, tree, source);
     match postype {
         PositionType::VarOrFun
         | PositionType::TargetLink
@@ -149,7 +149,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 complete.append(&mut cmake_cache);
             }
             if let Some(mut message) = getsubcomplete(
-                tree.root_node(),
+                tree,
                 &source.lines().collect(),
                 Path::new(local_path),
                 postype,

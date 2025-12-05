@@ -1,22 +1,20 @@
 mod config;
-#[cfg(test)]
-mod test;
+mod rename;
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::exit;
-use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{OnceLock, RwLock};
 
+use anyhow::Context;
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
-use tower_lsp::{LanguageServer, lsp_types};
-use tree_sitter::Parser;
+use tower_lsp::{Client, LanguageServer, lsp_types};
 
 use self::config::Config;
-use super::Backend;
 use crate::config::CONFIG;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document::Document;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::gammar::{ErrorInformation, LintConfigInfo, checkerror};
@@ -24,8 +22,8 @@ use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
-    rename, scansubs, semantic_token, utils,
+    ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix, scansubs,
+    semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -33,14 +31,15 @@ static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 
 pub(crate) async fn get_or_update_buffer_contents<P: AsRef<Path>>(
     path: P,
-    documents: &DashMap<Uri, String>,
-) -> std::io::Result<String> {
+    documents: &DashMap<Uri, Document>,
+) -> anyhow::Result<String> {
     let uri = Uri::from_file_path(&path).unwrap();
-    if let Some(text) = documents.get(&uri) {
-        return Ok(text.to_string());
+    if let Some(document) = documents.get(&uri) {
+        return Ok(document.text.to_string());
     }
     let text = tokio::fs::read_to_string(&path).await?;
-    documents.insert(uri, text.clone());
+    let document = Document::new(text.clone(), uri.clone()).context("Failed to parse document")?;
+    documents.insert(uri, document);
     Ok(text)
 }
 
@@ -72,6 +71,41 @@ pub fn to_use_snippet() -> bool {
     }
 }
 
+#[derive(Debug)]
+struct BackendInitInfo {
+    pub scan_cmake_in_package: bool,
+    pub enable_lint: bool,
+}
+
+impl Default for BackendInitInfo {
+    fn default() -> Self {
+        Self {
+            scan_cmake_in_package: true,
+            enable_lint: true,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Backend {
+    client: Client,
+    documents: DashMap<Uri, Document>,
+    /// Storage the message of buffers
+    init_info: OnceLock<BackendInitInfo>,
+    root_path: OnceLock<Option<PathBuf>>,
+}
+
+impl Backend {
+    pub(crate) fn new(client: Client) -> Self {
+        Self {
+            client,
+            documents: DashMap::new(),
+            init_info: OnceLock::new(),
+            root_path: OnceLock::new(),
+        }
+    }
+}
+
 impl Backend {
     fn root_path(&self) -> Option<&PathBuf> {
         self.root_path.get_or_init(|| None).as_ref()
@@ -91,7 +125,6 @@ impl Backend {
         let Some(diff) = pathdiff::diff_paths(path, root_path) else {
             return false;
         };
-        use std::path::Component;
         diff.components()
             .all(|component| component != Component::ParentDir)
     }
@@ -152,10 +185,10 @@ impl Backend {
     async fn update_diagnostics(&self) {
         for item in &self.documents {
             let uri = item.key();
-            let text = item.value();
+            let document = item.value();
             self.publish_diagnostics(
                 uri.clone(),
-                text,
+                &document.text,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: true,
@@ -507,8 +540,7 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let TextDocumentItem { uri, text, .. } = params.text_document;
-        self.documents.insert(uri.clone(), text.clone());
-
+        self.update_document(uri.clone(), text.clone()).await;
         let path = match uri.to_file_path() {
             Ok(path) => path,
             Err(_) => {
@@ -545,18 +577,22 @@ impl LanguageServer for Backend {
         };
 
         let uri = params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         let line = params.range.start.line;
-        Ok(quick_fix::lint_fix_action(&text, line, toolong, uri))
+        Ok(quick_fix::lint_fix_action(
+            &document.text,
+            line,
+            toolong,
+            uri,
+        ))
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.content_changes.into_iter().next().unwrap().text;
-        self.documents.insert(uri.clone(), text);
-        let text = self.documents.get(&uri).unwrap();
+        self.update_document(uri.clone(), text.clone()).await;
         if text.lines().count() < 500 {
             self.publish_diagnostics(
                 uri.clone(),
@@ -577,7 +613,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         let has_root = self.root_path().is_some();
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             self.client
                 .log_message(MessageType::INFO, "file saved!")
                 .await;
@@ -592,12 +628,12 @@ impl LanguageServer for Backend {
         };
         if has_root {
             scansubs::scan_dir(&file_path, false).await;
-            complete::update_cache(&file_path, &text).await;
-            jump::update_cache(&file_path, &text).await;
+            complete::update_cache(&file_path, &document.text).await;
+            jump::update_cache(&file_path, &document.text).await;
         }
         self.publish_diagnostics(
             uri,
-            &text,
+            &document.text,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: CONFIG.enable_external_cmake_lint,
@@ -613,13 +649,11 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
-        let output = hover::get_hovered_doc(position, tree.root_node(), &text).await;
+        let output =
+            hover::get_hovered_doc(position, document.tree.root_node(), &document.text).await;
         match output {
             Some(context) => Ok(Some(Hover {
                 contents: HoverContents::Scalar(MarkedString::String(context)),
@@ -646,18 +680,19 @@ impl LanguageServer for Backend {
             1
         };
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
-        match self.documents.get(&uri) {
-            Some(text) => Ok(getformat(
-                self.root_path().map(|p| p.as_path()),
-                &text,
-                &self.client,
-                space_line,
-                input.options.insert_spaces,
-                insert_final_newline,
-            )
-            .await),
-            None => Ok(None),
-        }
+
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        Ok(getformat(
+            self.root_path().map(|p| p.as_path()),
+            &document.text,
+            &self.client,
+            space_line,
+            input.options.insert_spaces,
+            insert_final_newline,
+        )
+        .await)
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -680,11 +715,11 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         Ok(complete::getcomplete(
-            &text,
+            &document.text,
             location,
             &self.client,
             &file_path,
@@ -697,7 +732,7 @@ impl LanguageServer for Backend {
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         let file_path = match uri.to_file_path() {
@@ -709,7 +744,7 @@ impl LanguageServer for Backend {
         };
         Ok(jump::godef(
             location,
-            &text,
+            &document.text,
             &file_path,
             &self.client,
             false,
@@ -723,7 +758,7 @@ impl LanguageServer for Backend {
         let edited = input.new_name;
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         let file_path = match uri.to_file_path() {
@@ -733,15 +768,9 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        Ok(rename::rename(
-            &edited,
-            location,
-            file_path,
-            &self.client,
-            &text,
-            &self.documents,
-        )
-        .await)
+        Ok(self
+            .rename(&edited, location, file_path, &document.text)
+            .await)
     }
 
     async fn goto_definition(
@@ -750,14 +779,12 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
         let location = input.text_document_position_params.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
 
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
-        let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
+        let origin_selection_range =
+            treehelper::get_position_range(location, document.tree.root_node());
 
         let file_path = match uri.to_file_path() {
             Ok(file_path) => file_path,
@@ -768,7 +795,7 @@ impl LanguageServer for Backend {
         };
         match jump::godef(
             location,
-            &text,
+            &document.text,
             &file_path,
             &self.client,
             true,
@@ -801,10 +828,10 @@ impl LanguageServer for Backend {
         input: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri;
-        match self.documents.get(&uri) {
-            Some(text) => Ok(ast::getast(&self.client, &text).await),
-            None => Ok(None),
-        }
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        Ok(ast::getast(&self.client, &document.text).await)
     }
 
     async fn semantic_tokens_full(
@@ -812,11 +839,10 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri.clone();
-
-        match self.documents.get(&uri) {
-            Some(text) => Ok(semantic_token::semantic_token(&self.client, &text).await),
-            None => Ok(None),
-        }
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        Ok(semantic_token::semantic_token(&self.client, &document.text).await)
     }
 
     async fn document_link(&self, input: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
@@ -828,9 +854,169 @@ impl LanguageServer for Backend {
                 return Err(LspError::internal_error());
             }
         };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        Ok(document_link::document_link_search(&text, file_path))
+        Ok(document_link::document_link_search(
+            &document.text,
+            file_path,
+        ))
+    }
+}
+
+impl Backend {
+    async fn update_document(&self, uri: Uri, text: String) {
+        let Some(document) = Document::new(text, uri.clone()) else {
+            self.client
+                .log_message(
+                    MessageType::ERROR,
+                    format!("Failed to parse document {}", uri.as_str()),
+                )
+                .await;
+            return;
+        };
+        self.documents.insert(uri, document);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::Path;
+
+    use serde::Serialize;
+    use tempfile::tempdir;
+    use tower::Service;
+    use tower::util::ServiceExt;
+    use tower_lsp::jsonrpc::Request;
+    use tower_lsp::lsp_types::{
+        CompletionParams, CompletionResponse, DidOpenTextDocumentParams, InitializeParams,
+        InitializeResult, PartialResultParams, Position, SemanticTokensFullOptions,
+        SemanticTokensLegend, SemanticTokensOptions, SemanticTokensServerCapabilities,
+        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Uri,
+        WorkDoneProgressOptions, WorkDoneProgressParams, WorkspaceFolder,
+    };
+    use tower_lsp::{LanguageServer, LspService};
+
+    use super::*;
+    use crate::languageserver::Config;
+    use crate::semantic_token::LEGEND_TYPE;
+
+    fn create_request<T>(id: i64, init_param: T, method: &'static str) -> Request
+    where
+        T: Serialize,
+    {
+        Request::build(method)
+            .params(serde_json::to_value(&init_param).unwrap())
+            .id(id)
+            .finish()
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_init() {
+        let file_info =
+            "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()\r\nset(FF ${A} )";
+        let dir = tempdir().unwrap();
+        let root_cmake = dir.path().join("CMakeList.txt");
+        let mut file = File::create(&root_cmake).unwrap();
+        writeln!(file, "{}", &file_info).unwrap();
+
+        let (mut service, _) = LspService::new(Backend::new);
+
+        #[cfg(unix)]
+        let init_param = InitializeParams {
+            workspace_folders: Some(vec![WorkspaceFolder {
+                name: "main".to_string(),
+                uri: Uri::from_file_path("/tmp").unwrap(),
+            }]),
+            initialization_options: Some(
+                serde_json::to_value(Config {
+                    semantic_token: Some(true),
+                    ..Default::default()
+                })
+                .unwrap(),
+            ),
+            ..Default::default()
+        };
+        #[cfg(not(unix))]
+        let init_param = InitializeParams {
+            workspace_folders: Some(vec![WorkspaceFolder {
+                name: "main".to_string(),
+                uri: Uri::from_file_path(r"C:\\Windows\\System").unwrap(),
+            }]),
+            initialization_options: Some(
+                serde_json::to_value(Config {
+                    semantic_token: Some(true),
+                    ..Default::default()
+                })
+                .unwrap(),
+            ),
+            ..Default::default()
+        };
+
+        let request = create_request(1, init_param, "initialize");
+        let response = service.ready().await.unwrap().call(request).await.unwrap();
+
+        let init_result: InitializeResult =
+            serde_json::from_value(response.unwrap().result().unwrap().clone()).unwrap();
+
+        assert_eq!(
+            init_result.capabilities.semantic_tokens_provider,
+            Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+                SemanticTokensOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None
+                    },
+                    legend: SemanticTokensLegend {
+                        token_types: LEGEND_TYPE.into(),
+                        token_modifiers: [].to_vec()
+                    },
+                    range: None,
+                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                }
+            ))
+        );
+        let backend = service.inner();
+        #[cfg(unix)]
+        {
+            assert!(backend.path_in_project(Path::new("/tmp/helloworld/")));
+            assert!(!backend.path_in_project(Path::new("/home/helloworld/")));
+        }
+        #[cfg(not(unix))]
+        {
+            assert!(backend.path_in_project(Path::new(r"C:\\Windows\\System\\FolderA")));
+            assert!(!backend.path_in_project(Path::new(r"C:\\Windows")));
+        }
+
+        let test_url = Uri::from_file_path(root_cmake.clone()).unwrap();
+        let open_params = DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: test_url.clone(),
+                text: file_info.to_string(),
+                version: 0,
+                language_id: "cmake".to_string(),
+            },
+        };
+        backend.did_open(open_params).await;
+
+        let complete_param = CompletionParams {
+            text_document_position: TextDocumentPositionParams {
+                position: Position {
+                    line: 4,
+                    character: 10,
+                },
+                text_document: TextDocumentIdentifier { uri: test_url },
+            },
+            context: None,
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+        };
+        let request = create_request(3, complete_param, "textDocument/completion");
+        let response = service.ready().await.unwrap().call(request).await.unwrap();
+
+        let _complete_result: CompletionResponse =
+            serde_json::from_value(response.unwrap().result().unwrap().clone()).unwrap();
+        println!("{:?}", _complete_result);
     }
 }
