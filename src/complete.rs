@@ -483,7 +483,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 let mut support_component = false;
                                 let mut components_packages = Vec::new();
                                 for index in 1..argument_count {
-                                    let package_prefix_node = argumentlist.child(index).unwrap();
+                                    let package_prefix_node = argumentlist.child(index as u32).unwrap();
                                     let h = package_prefix_node.start_position().row;
                                     let x = package_prefix_node.start_position().column;
                                     let y = package_prefix_node.end_position().column;
