@@ -161,7 +161,7 @@ To use `neocmakelsp` with eglot:
 -   Format
 -   CodeAction
 -   document_link
--   GO TO Definitation
+-   GO TO Definition
     -   find_package
     -   include
 -   Search cli
@@ -244,7 +244,7 @@ init_options = {
     },
     scan_cmake_in_package = false, -- it will deeply check the cmake file which found when search cmake packages.
     semantic_token = false,
-    -- semantic_token heighlight. if you use treesitter highlight, it is suggested to set with false. it can be used to make better highlight for vscode which only has textmate highlight
+    -- semantic_token highlight. if you use treesitter highlight, it is suggested to set with false. it can be used to make better highlight for vscode which only has textmate highlight
 }
 
 ```
