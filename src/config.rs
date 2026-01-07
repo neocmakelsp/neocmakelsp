@@ -141,3 +141,40 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
 pub static CMAKE_LINT: LazyLock<LintSuggestion> =
     LazyLock::new(|| CONFIG.command_upcase.clone().into());
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn empty_config() {
+        let config_file = "";
+        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
+        let config: Config = config_file_config.into();
+        assert_eq!(config, Config::default());
+    }
+    #[test]
+    fn empty_args() {
+        let config_file = r#"
+[format]
+program = "cmake-format"
+"#;
+        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
+        let config: Config = config_file_config.into();
+        let args = config.format.get_args();
+        assert_eq!(config.format.program, Some("cmake-format".to_owned()));
+        assert_eq!(args.len(), 0);
+    }
+    #[test]
+    fn has_args() {
+        let config_file = r#"
+[format]
+program = "cmake-format"
+args = ["--hello"]
+"#;
+        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
+        let config: Config = config_file_config.into();
+        let args = config.format.get_args();
+        assert_eq!(config.format.program, Some("cmake-format".to_owned()));
+        assert_eq!(args, vec!["--hello"]);
+    }
+}
