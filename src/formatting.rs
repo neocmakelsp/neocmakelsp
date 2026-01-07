@@ -206,7 +206,10 @@ pub async fn getformat(
             Ok(new_source) => new_source,
         };
 
-        let lines = new_source.chars().filter(|c| *c == '\n').count();
+        let lines = std::cmp::max(
+            source.chars().filter(|c| *c == '\n').count(),
+            new_source.chars().filter(|c| *c == '\n').count(),
+        );
 
         return Some(vec![TextEdit {
             range: lsp_types::Range {
