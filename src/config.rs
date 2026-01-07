@@ -5,37 +5,28 @@ use dirs::config_dir;
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
-pub struct ConfigFile {
-    pub command_upcase: Option<String>,
-    pub enable_external_cmake_lint: Option<bool>,
-    pub line_max_words: Option<usize>,
-    pub format: Option<FormatConfig>,
-}
-
-#[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
+    #[serde(default = "default_command_upcase")]
     pub command_upcase: String,
+    #[serde(default = "default_external_cmake_lint")]
     pub enable_external_cmake_lint: bool,
+    #[serde(default = "default_max_words")]
     pub line_max_words: usize,
+    #[serde(default = "default_format")]
     pub format: FormatConfig,
 }
+fn default_command_upcase() -> String {
+    "ignore".to_owned()
+}
+const fn default_external_cmake_lint() -> bool {
+    false
+}
+const fn default_max_words() -> usize {
+    80
+}
 
-impl From<ConfigFile> for Config {
-    fn from(
-        ConfigFile {
-            command_upcase,
-            enable_external_cmake_lint,
-            line_max_words,
-            format,
-        }: ConfigFile,
-    ) -> Self {
-        Self {
-            command_upcase: command_upcase.unwrap_or("ignore".to_string()),
-            enable_external_cmake_lint: enable_external_cmake_lint.unwrap_or(false),
-            line_max_words: line_max_words.unwrap_or(80),
-            format: format.unwrap_or(FormatConfig::default()),
-        }
-    }
+fn default_format() -> FormatConfig {
+    FormatConfig::default()
 }
 
 impl Default for Config {
@@ -131,9 +122,9 @@ fn find_config_file() -> Option<PathBuf> {
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     if let Some(path) = find_config_file()
         && let Ok(buf) = std::fs::read_to_string(path)
-        && let Ok(config) = toml::from_str::<ConfigFile>(&buf)
+        && let Ok(config) = toml::from_str::<Config>(&buf)
     {
-        return config.into();
+        return config;
     }
 
     Config::default()
@@ -148,8 +139,7 @@ mod test {
     #[test]
     fn empty_config() {
         let config_file = "";
-        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
-        let config: Config = config_file_config.into();
+        let config: Config = toml::from_str(config_file).unwrap();
         assert_eq!(config, Config::default());
     }
     #[test]
@@ -158,8 +148,7 @@ mod test {
 [format]
 program = "cmake-format"
 "#;
-        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
-        let config: Config = config_file_config.into();
+        let config: Config = toml::from_str(config_file).unwrap();
         let args = config.format.get_args();
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
         assert_eq!(args.len(), 0);
@@ -171,8 +160,7 @@ program = "cmake-format"
 program = "cmake-format"
 args = ["--hello"]
 "#;
-        let config_file_config: ConfigFile = toml::from_str(config_file).unwrap();
-        let config: Config = config_file_config.into();
+        let config: Config = toml::from_str(config_file).unwrap();
         let args = config.format.get_args();
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
         assert_eq!(args, vec!["--hello"]);
