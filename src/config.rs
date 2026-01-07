@@ -5,11 +5,37 @@ use dirs::config_dir;
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
+pub struct ConfigFile {
+    pub command_upcase: Option<String>,
+    pub enable_external_cmake_lint: Option<bool>,
+    pub line_max_words: Option<usize>,
+    pub format: Option<FormatConfig>,
+}
+
+#[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
     pub command_upcase: String,
     pub enable_external_cmake_lint: bool,
     pub line_max_words: usize,
     pub format: FormatConfig,
+}
+
+impl From<ConfigFile> for Config {
+    fn from(
+        ConfigFile {
+            command_upcase,
+            enable_external_cmake_lint,
+            line_max_words,
+            format,
+        }: ConfigFile,
+    ) -> Self {
+        Self {
+            command_upcase: command_upcase.unwrap_or("ignore".to_string()),
+            enable_external_cmake_lint: enable_external_cmake_lint.unwrap_or(false),
+            line_max_words: line_max_words.unwrap_or(80),
+            format: format.unwrap_or(FormatConfig::default()),
+        }
+    }
 }
 
 impl Default for Config {
@@ -95,9 +121,9 @@ fn find_config_file() -> Option<PathBuf> {
 pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     if let Some(path) = find_config_file()
         && let Ok(buf) = std::fs::read_to_string(path)
-        && let Ok(config) = toml::from_str::<Config>(&buf)
+        && let Ok(config) = toml::from_str::<ConfigFile>(&buf)
     {
-        return config;
+        return config.into();
     }
 
     Config::default()
