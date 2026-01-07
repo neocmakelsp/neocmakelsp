@@ -91,7 +91,17 @@ impl Default for LintSuggestion {
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]
 pub struct FormatConfig {
     pub program: Option<String>,
-    pub args: Vec<String>,
+    args: Option<Vec<String>>,
+}
+
+impl FormatConfig {
+    pub fn get_args(&self) -> Vec<&str> {
+        let Some(args) = &self.args else {
+            return vec![];
+        };
+
+        args.iter().map(|arg| arg.as_str()).collect()
+    }
 }
 
 fn find_config_file() -> Option<PathBuf> {
