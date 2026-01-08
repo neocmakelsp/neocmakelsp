@@ -124,7 +124,9 @@ fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditCon
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    clap_complete::CompleteEnv::with_factory(Cli::command).complete();
+    clap_complete::CompleteEnv::with_factory(Cli::command)
+        .completer(env!("CARGO_BIN_NAME"))
+        .complete();
 
     let args = Cli::parse();
 
