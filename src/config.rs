@@ -6,10 +6,21 @@ use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
+    #[serde(default = "default_command_upcase")]
     pub command_upcase: String,
+    #[serde(default)]
     pub enable_external_cmake_lint: bool,
+    #[serde(default = "default_max_words")]
     pub line_max_words: usize,
+    #[serde(default)]
     pub format: FormatConfig,
+}
+fn default_command_upcase() -> String {
+    "ignore".to_owned()
+}
+
+const fn default_max_words() -> usize {
+    80
 }
 
 impl Default for Config {
@@ -65,7 +76,7 @@ impl Default for LintSuggestion {
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]
 pub struct FormatConfig {
     pub program: Option<String>,
-    pub args: Vec<String>,
+    pub args: Option<Vec<String>>,
 }
 
 fn find_config_file() -> Option<PathBuf> {
@@ -105,3 +116,37 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
 pub static CMAKE_LINT: LazyLock<LintSuggestion> =
     LazyLock::new(|| CONFIG.command_upcase.clone().into());
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn empty_config() {
+        let config_file = "";
+        let config: Config = toml::from_str(config_file).unwrap();
+        assert_eq!(config, Config::default());
+    }
+    #[test]
+    fn empty_args() {
+        let config_file = r#"
+[format]
+program = "cmake-format"
+"#;
+        let config: Config = toml::from_str(config_file).unwrap();
+        let args = config.format.args;
+        assert_eq!(config.format.program, Some("cmake-format".to_owned()));
+        assert_eq!(args, None);
+    }
+    #[test]
+    fn has_args() {
+        let config_file = r#"
+[format]
+program = "cmake-format"
+args = ["--hello"]
+"#;
+        let config: Config = toml::from_str(config_file).unwrap();
+        let args = config.format.args;
+        assert_eq!(config.format.program, Some("cmake-format".to_owned()));
+        assert_eq!(args, Some(vec!["--hello".to_owned()]));
+    }
+}
