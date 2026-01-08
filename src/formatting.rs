@@ -127,7 +127,9 @@ pub async fn getformat(
 ) -> Option<Vec<TextEdit>> {
     if let Some(program) = &CONFIG.format.program {
         let mut cmd = Command::new(program);
-        cmd.args(CONFIG.format.get_args());
+        if let Some(ref args) = CONFIG.format.args {
+            cmd.args(args);
+        }
         if let Some(root_path) = root_path {
             cmd.current_dir(root_path);
         }

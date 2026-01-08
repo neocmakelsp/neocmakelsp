@@ -8,25 +8,19 @@ use serde::Deserialize;
 pub struct Config {
     #[serde(default = "default_command_upcase")]
     pub command_upcase: String,
-    #[serde(default = "default_external_cmake_lint")]
+    #[serde(default)]
     pub enable_external_cmake_lint: bool,
     #[serde(default = "default_max_words")]
     pub line_max_words: usize,
-    #[serde(default = "default_format")]
+    #[serde(default)]
     pub format: FormatConfig,
 }
 fn default_command_upcase() -> String {
     "ignore".to_owned()
 }
-const fn default_external_cmake_lint() -> bool {
-    false
-}
+
 const fn default_max_words() -> usize {
     80
-}
-
-fn default_format() -> FormatConfig {
-    FormatConfig::default()
 }
 
 impl Default for Config {
@@ -82,17 +76,7 @@ impl Default for LintSuggestion {
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]
 pub struct FormatConfig {
     pub program: Option<String>,
-    args: Option<Vec<String>>,
-}
-
-impl FormatConfig {
-    pub fn get_args(&self) -> Vec<&str> {
-        let Some(args) = &self.args else {
-            return vec![];
-        };
-
-        args.iter().map(|arg| arg.as_str()).collect()
-    }
+    pub args: Option<Vec<String>>,
 }
 
 fn find_config_file() -> Option<PathBuf> {
@@ -149,9 +133,9 @@ mod test {
 program = "cmake-format"
 "#;
         let config: Config = toml::from_str(config_file).unwrap();
-        let args = config.format.get_args();
+        let args = config.format.args;
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
-        assert_eq!(args.len(), 0);
+        assert_eq!(args, None);
     }
     #[test]
     fn has_args() {
@@ -161,8 +145,8 @@ program = "cmake-format"
 args = ["--hello"]
 "#;
         let config: Config = toml::from_str(config_file).unwrap();
-        let args = config.format.get_args();
+        let args = config.format.args;
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
-        assert_eq!(args, vec!["--hello"]);
+        assert_eq!(args, Some(vec!["--hello".to_owned()]));
     }
 }
