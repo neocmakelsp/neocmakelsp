@@ -16,18 +16,16 @@ If you have any questions or want to help in other ways, feel free to join [out 
 
 # Table of Contents
 
-1. [Introduction](#install)
-2. [Features](#features)
-3. [Installation](#installation)
-4. [Editor Support](#editor-support)
+1. [Installation](#installation)
+2. [Documents](#documents)
+3. [Configuration](#configuration)
+4. [Features](#features)
+5. [Editor Support](#editor-support)
    - [Neovim Configuration](#neovim)
    - [Helix Configuration](#helix)
    - [Emacs Configuration](#emacs)
-5. [User Feedback](#user-feedback)
-   - [macOS Users](#user-feedback)
-   - [Windows Users](#user-feedback)
 6. [Visual Examples](#visual-examples)
-
+7. [User Feedback](#user-feedback)
 
 
 ## Installation
@@ -35,6 +33,29 @@ If you have any questions or want to help in other ways, feel free to join [out 
 ```bash
 cargo install neocmakelsp
 ```
+
+## Documents
+
+We have documents on https://neocmakelsp.github.io/docs.
+
+## Configuration
+
+The configuration file can either be named .neocmake.toml or .neocmakelint.toml and is resolved in the current project directory. If neither is found, a user configuration file in $XDG_CONFIG_DIR/neocmakelsp either named config.toml or lint.toml can be used.
+
+for example
+
+```toml
+command_upcase = "upcase" #"lowercase"
+enable_external_cmake_lint = true # true to use external cmake-lint
+line_max_words =  80
+
+[format]
+program = "gersemi"
+# Use two space indentation.
+args = ["--indent", "2"]
+```
+
+You can read https://neocmakelsp.github.io/docs for more details
 
 ## Editor Support
 
