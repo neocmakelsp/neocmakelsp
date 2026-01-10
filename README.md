@@ -17,7 +17,7 @@ If you have any questions or want to help in other ways, feel free to join [out 
 # Table of Contents
 
 1. [Installation](#installation)
-2. [Documents](#documents)
+2. [Documentation](#documentation)
 3. [Configuration](#configuration)
 4. [Features](#features)
 5. [Editor Support](#editor-support)
@@ -34,9 +34,9 @@ If you have any questions or want to help in other ways, feel free to join [out 
 cargo install neocmakelsp
 ```
 
-## Documents
+## Documentation
 
-We have documents on https://neocmakelsp.github.io/docs.
+A new documentation site can be found at https://neocmakelsp.github.io/docs.
 
 ## Configuration
 
