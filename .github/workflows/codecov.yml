@@ -7,9 +7,17 @@ on:
   push:
     branches:
       - master
+    paths:
+      - .github/workflows/codecov.yml
+      - src/**/*.rs
+      - tests/**/*.rs
   pull_request:
     branches:
       - master
+    paths:
+      - .github/workflows/codecov.yml
+      - src/**/*.rs
+      - tests/**/*.rs
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.event.pull_request.number || github.sha }}
