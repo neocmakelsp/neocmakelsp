@@ -45,7 +45,7 @@ The configuration file can either be named .neocmake.toml or .neocmakelint.toml 
 for example
 
 ```toml
-command_upcase = "upcase" #"lowercase"
+command_case = "lower_case" # or "upper_case"
 enable_external_cmake_lint = true # true to use external cmake-lint
 line_max_words =  80
 
@@ -55,7 +55,7 @@ program = "gersemi"
 args = ["--indent", "2"]
 ```
 
-You can read https://neocmakelsp.github.io/docs for more details
+You can read https://neocmakelsp.github.io/docs for more details.
 
 ## Editor Support
 
@@ -200,7 +200,7 @@ Lint is controlled by a configuration file. The configuration file can be at the
 * Windows: `{FOLDERID_RoamingAppData}/neocmakelsp/config.toml`
 
 ```toml
-command_upcase = "ignore" # "lowercase", "upcase"
+command_case = "lower_case" # or "upper_case"
 ```
 This will check the case of all commands.
 

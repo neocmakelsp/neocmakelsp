@@ -188,11 +188,15 @@ fn checkerror_inner<P: AsRef<Path>>(
         let x = ids.start_position().column;
         let y = ids.end_position().column;
         let name = &newsource[h][x..y];
-        if use_lint && !config::CMAKE_LINT.lint_match(name.chars().all(|a| a.is_uppercase())) {
+        if use_lint
+            && let Some(hint) = config::CONFIG
+                .command_case
+                .and_then(|lint| lint.check(name))
+        {
             output.push(ErrorInformation {
                 start_point: ids.start_position(),
                 end_point: ids.end_position(),
-                message: config::CMAKE_LINT.hint.clone(),
+                message: hint.to_owned(),
                 severity: Some(DiagnosticSeverity::HINT),
             });
         }
