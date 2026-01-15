@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use dirs::config_dir;
+use etcetera::{BaseStrategy, choose_base_strategy};
 use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
@@ -90,13 +90,14 @@ fn find_config_file() -> Option<PathBuf> {
         }
     }
 
-    if let Some(config_dir) = config_dir() {
-        for file in ["config.toml", "lint.toml"] {
-            let path = config_dir.join("neocmakelsp").join(file);
-            if path.exists() {
-                tracing::info!("Using user-level config file: {:?}", path);
-                return Some(path);
-            }
+    let strategy = choose_base_strategy().ok()?;
+    let config_dir = strategy.config_dir();
+
+    for file in ["config.toml", "lint.toml"] {
+        let path = config_dir.join("neocmakelsp").join(file);
+        if path.exists() {
+            tracing::info!("Using user-level config file: {:?}", path);
+            return Some(path);
         }
     }
 
