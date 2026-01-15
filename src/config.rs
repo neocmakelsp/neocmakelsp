@@ -146,10 +146,10 @@ mod tests {
 
     #[test]
     fn empty_args() {
-        let config_file = r#"
-[format]
-program = "cmake-format"
-"#;
+        let config_file = indoc::indoc! {r#"
+            [format]
+            program = "cmake-format"
+        "#};
         let config: Config = toml::from_str(config_file).unwrap();
         let args = config.format.args;
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
@@ -158,11 +158,11 @@ program = "cmake-format"
 
     #[test]
     fn has_args() {
-        let config_file = r#"
-[format]
-program = "cmake-format"
-args = ["--hello"]
-"#;
+        let config_file = indoc::indoc! {r#"
+            [format]
+            program = "cmake-format"
+            args = ["--hello"]
+        "#};
         let config: Config = toml::from_str(config_file).unwrap();
         let args = config.format.args;
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
