@@ -6,17 +6,17 @@ use serde::Deserialize;
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
-    #[serde(default = "default_command_upcase")]
-    pub command_upcase: String,
+    /// Check letter case of commands.
+    #[serde(default, alias = "command_upcase")]
+    pub command_case: Option<CommandCase>,
+    /// Use `cmake-lint` to provide more lints.
     #[serde(default)]
     pub enable_external_cmake_lint: bool,
+    /// Max line length.
     #[serde(default = "default_max_words")]
     pub line_max_words: usize,
     #[serde(default)]
     pub format: FormatConfig,
-}
-fn default_command_upcase() -> String {
-    "ignore".to_owned()
 }
 
 const fn default_max_words() -> usize {
@@ -26,49 +26,32 @@ const fn default_max_words() -> usize {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            command_upcase: "ignore".to_string(),
+            command_case: None,
             enable_external_cmake_lint: false,
-            line_max_words: 80,
+            line_max_words: default_max_words(),
             format: FormatConfig::default(),
         }
     }
 }
 
-pub struct LintSuggestion {
-    pub command_upcase: String,
-    pub hint: String,
+#[derive(Debug, Clone, Copy, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CommandCase {
+    #[serde(alias = "upcase", alias = "upper_case")]
+    Upper,
+    #[serde(alias = "lowercase", alias = "lower_case")]
+    Lower,
 }
 
-impl LintSuggestion {
-    pub fn lint_match(&self, upcase: bool) -> bool {
-        matches!(
-            (self.command_upcase.as_str(), upcase),
-            ("upcase", true) | ("lowercase", false) | ("ignore", _)
-        )
-    }
-}
+impl CommandCase {
+    pub(crate) fn check(&self, command: &str) -> Option<&'static str> {
+        let is_all_uppercase = command.chars().all(char::is_uppercase);
+        let is_all_lowercase = command.chars().all(char::is_lowercase);
 
-impl From<String> for LintSuggestion {
-    fn from(command_upcase: String) -> Self {
-        match command_upcase.as_str() {
-            "upcase" => Self {
-                command_upcase,
-                hint: "suggested to use upcase".to_owned(),
-            },
-            "lowercase" => Self {
-                command_upcase,
-                hint: "suggested to use lowercase".to_owned(),
-            },
-            _ => Self::default(),
-        }
-    }
-}
-
-impl Default for LintSuggestion {
-    fn default() -> Self {
-        Self {
-            command_upcase: "ignore".to_string(),
-            hint: "".to_owned(),
+        match (self, is_all_uppercase, is_all_lowercase) {
+            (CommandCase::Upper, false, _) => Some("command name should be uppercased"),
+            (CommandCase::Lower, _, false) => Some("command name should be lowercased"),
+            _ => None,
         }
     }
 }
@@ -115,18 +98,52 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     Config::default()
 });
 
-pub static CMAKE_LINT: LazyLock<LintSuggestion> =
-    LazyLock::new(|| CONFIG.command_upcase.clone().into());
-
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
+
+    #[test]
+    fn parses_case_config_names() {
+        let config = indoc::indoc! { r#"
+            command_upcase = "lower_case"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        let config = indoc::indoc! { r#"
+            command_case = "upcase"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+        let config = indoc::indoc! { r#"
+            command_case = "lowercase"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        let config = indoc::indoc! { r#"
+            command_case = "upper"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+        let config = indoc::indoc! { r#"
+            command_case = "lower"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+
+        let config = indoc::indoc! { r#"
+            command_case = "upper_case"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+        let config = indoc::indoc! { r#"
+            command_case = "lower_case"
+        "#};
+        assert!(toml::from_str::<Config>(config).is_ok());
+    }
+
     #[test]
     fn empty_config() {
         let config_file = "";
         let config: Config = toml::from_str(config_file).unwrap();
         assert_eq!(config, Config::default());
     }
+
     #[test]
     fn empty_args() {
         let config_file = r#"
@@ -138,6 +155,7 @@ program = "cmake-format"
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
         assert_eq!(args, None);
     }
+
     #[test]
     fn has_args() {
         let config_file = r#"
@@ -149,5 +167,33 @@ args = ["--hello"]
         let args = config.format.args;
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
         assert_eq!(args, Some(vec!["--hello".to_owned()]));
+    }
+
+    #[test]
+    fn check_lower_case_word() {
+        assert_eq!(
+            CommandCase::Upper.check("add_executable"),
+            Some("command name should be uppercased")
+        );
+    }
+
+    #[test]
+    fn check_upper_case_word() {
+        assert_eq!(
+            CommandCase::Lower.check("ADD_EXECUTABLE"),
+            Some("command name should be lowercased")
+        );
+    }
+
+    #[test]
+    fn check_mixed_case_word() {
+        assert_eq!(
+            CommandCase::Lower.check("Add_Executable"),
+            Some("command name should be lowercased")
+        );
+        assert_eq!(
+            CommandCase::Upper.check("Add_Executable"),
+            Some("command name should be uppercased")
+        );
     }
 }
