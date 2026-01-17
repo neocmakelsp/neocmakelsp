@@ -32,7 +32,7 @@ impl Config {
     }
 
     pub fn use_snippets(&self) -> bool {
-        self.use_snippets.unwrap_or(true)
+        self.use_snippets.unwrap_or(false)
     }
 }
 
