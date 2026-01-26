@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-01-26
+
+### Changed
+
+- Same with 0.9.2, but because breaking changes in 0.9.2, so we need to bump a big version
+- Set snippet default to false, since it is not good enough
+- Change the config fields by @idealseal (it was a Breaking change, you can find details in https://github.com/neocmakelsp/neocmakelsp/pull/240)
+- Switch to using etcetera for choosing config directory. This will fix the wrong directory on macos and windows
+
+[0.10.0]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.9.1...v0.10.0
+
+
 ## [0.9.2] - 2026-01-26
 
 ### Changed
