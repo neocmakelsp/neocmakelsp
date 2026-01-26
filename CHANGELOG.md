@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-01-26
+
+## Changed
+
+- Set snippet default to false, since it is not good enough
+- Change the config fields by @idealseal (it was a Breaking change, you can find details in https://github.com/neocmakelsp/neocmakelsp/pull/240)
+- Switch to using etcetera for choosing config directory. This will fix the wrong directory on macos and windows
+
 ## [0.9.1] - 2026-01-08
 
 ### Changed
