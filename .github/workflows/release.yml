@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: write # required to create release
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - uses: taiki-e/create-gh-release-action@56a8b3f8449593aa02b91f7b84da564f476e94f0 # v1.9.2
@@ -71,7 +71,7 @@ jobs:
       fail-fast: false
     needs: create-release
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -93,7 +93,7 @@ jobs:
       id-token: write # required for OIDC token exchange
     needs: upload-assets
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - name: Obtain crates.io token
