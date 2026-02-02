@@ -1,33 +1,25 @@
 use std::path::PathBuf;
 
 use clap::builder::Styles;
-use clap::builder::styling::{AnsiColor, Color, Style};
+use clap::builder::styling::{AnsiColor, Effects};
 use clap::{Parser, Subcommand, ValueHint};
 
 const STYLES: Styles = Styles::styled()
     .header(
-        Style::new()
-            .bold()
-            .underline()
-            .fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
+        AnsiColor::Yellow
+            .on_default()
+            .effects(Effects::BOLD)
+            .effects(Effects::UNDERLINE),
     )
     .usage(
-        Style::new()
-            .bold()
-            .underline()
-            .fg_color(Some(Color::Ansi(AnsiColor::Yellow))),
+        AnsiColor::Yellow
+            .on_default()
+            .effects(Effects::BOLD)
+            .effects(Effects::UNDERLINE),
     )
-    .literal(
-        Style::new()
-            .bold()
-            .fg_color(Some(Color::Ansi(AnsiColor::Green))),
-    )
-    .invalid(
-        Style::new()
-            .bold()
-            .fg_color(Some(Color::Ansi(AnsiColor::Red))),
-    )
-    .placeholder(Style::new().fg_color(Some(Color::Ansi(AnsiColor::Green))));
+    .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .invalid(AnsiColor::Red.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Green.on_default());
 
 /// CMake LSP implementation based on tower-lsp and tree-sitter.
 #[derive(Debug, Parser)]
