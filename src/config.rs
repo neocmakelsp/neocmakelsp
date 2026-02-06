@@ -45,8 +45,12 @@ pub(crate) enum CommandCase {
 
 impl CommandCase {
     pub(crate) fn check(&self, command: &str) -> Option<&'static str> {
-        let is_all_uppercase = command.chars().all(char::is_uppercase);
-        let is_all_lowercase = command.chars().all(char::is_lowercase);
+        let is_all_uppercase = command
+            .chars()
+            .all(|c| !c.is_alphabetic() || c.is_uppercase());
+        let is_all_lowercase = command
+            .chars()
+            .all(|c| !c.is_alphabetic() || c.is_lowercase());
 
         match (self, is_all_uppercase, is_all_lowercase) {
             (CommandCase::Upper, false, _) => Some("command name should be uppercased"),
@@ -171,6 +175,7 @@ mod tests {
 
     #[test]
     fn check_lower_case_word() {
+        assert_eq!(CommandCase::Lower.check("add_executable"), None);
         assert_eq!(
             CommandCase::Upper.check("add_executable"),
             Some("command name should be uppercased")
@@ -179,6 +184,7 @@ mod tests {
 
     #[test]
     fn check_upper_case_word() {
+        assert_eq!(CommandCase::Upper.check("ADD_EXECUTABLE"), None);
         assert_eq!(
             CommandCase::Lower.check("ADD_EXECUTABLE"),
             Some("command name should be lowercased")
