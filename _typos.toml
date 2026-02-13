@@ -3,3 +3,4 @@ extend-exclude = ["**/*.cmake", "**/*.json", "assets_for_test/*"]
 
 [default.extend-words]
 typ = "typ"
+consts = "consts"
