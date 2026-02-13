@@ -2,70 +2,93 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct Config {
-    pub format: Option<FormatConfig>,
-    pub scan_cmake_in_package: Option<bool>,
-    pub semantic_token: Option<bool>,
-    pub lint: Option<LintConfig>,
-    pub use_snippets: Option<bool>,
+    #[serde(default)]
+    pub format: FormatConfig,
+    #[serde(default = "scan_cmake_in_package_default")]
+    pub scan_cmake_in_package: bool,
+    #[serde(default)]
+    pub semantic_token: bool,
+    #[serde(default)]
+    pub lint: LintConfig,
+    #[serde(default)]
+    pub use_snippets: bool,
+}
+
+const fn scan_cmake_in_package_default() -> bool {
+    true
 }
 
 impl Config {
     pub fn is_format_enabled(&self) -> bool {
-        self.format
-            .as_ref()
-            .map(|config| config.enable.unwrap_or(true))
-            .unwrap_or(true)
+        self.format.enable
     }
     pub fn is_scan_cmake_in_package(&self) -> bool {
-        self.scan_cmake_in_package.unwrap_or(true)
+        self.scan_cmake_in_package
     }
 
     pub fn enable_semantic_token(&self) -> bool {
-        self.semantic_token.unwrap_or(false)
+        self.semantic_token
     }
 
     pub fn is_lint_enabled(&self) -> bool {
-        self.lint
-            .as_ref()
-            .map(|config| config.enable.unwrap_or(true))
-            .unwrap_or(true)
+        self.lint.enable
     }
 
     pub fn use_snippets(&self) -> bool {
-        self.use_snippets.unwrap_or(false)
+        self.use_snippets
     }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            format: Some(FormatConfig::default()),
-            scan_cmake_in_package: Some(true),
-            semantic_token: Some(false),
-            lint: Some(LintConfig::default()),
-            use_snippets: Some(true),
+            format: FormatConfig::default(),
+            scan_cmake_in_package: true,
+            semantic_token: false,
+            lint: LintConfig::default(),
+            use_snippets: true,
         }
     }
 }
 
+const fn default_enable() -> bool {
+    true
+}
+
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct FormatConfig {
-    pub enable: Option<bool>,
+    #[serde(default = "default_enable")]
+    pub enable: bool,
 }
 
 impl Default for FormatConfig {
     fn default() -> Self {
-        FormatConfig { enable: Some(true) }
+        FormatConfig { enable: true }
     }
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
 pub struct LintConfig {
-    pub enable: Option<bool>,
+    #[serde(default = "default_enable")]
+    pub enable: bool,
 }
 
 impl Default for LintConfig {
     fn default() -> Self {
-        LintConfig { enable: Some(true) }
+        LintConfig { enable: true }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Config;
+    #[test]
+    fn config_test() {
+        let data = r#"{}"#;
+        let config: Config = serde_json::from_str(data).unwrap();
+        assert!(config.scan_cmake_in_package);
+        assert!(!config.use_snippets);
+        assert!(config.is_lint_enabled());
+        assert!(config.is_format_enabled());
     }
 }

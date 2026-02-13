@@ -51,7 +51,7 @@ async fn test_init() {
         }]),
         initialization_options: Some(
             serde_json::to_value(Config {
-                semantic_token: Some(true),
+                semantic_token: true,
                 ..Default::default()
             })
             .unwrap(),
