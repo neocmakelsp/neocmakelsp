@@ -11,21 +11,21 @@ rust-version = "1.89.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.100"
-clap = { version = "4.5.56", features = ["derive"] }
-clap_complete = { version = "4.5.65", features = ["unstable-dynamic"] }
+anyhow = "1.0.101"
+clap = { version = "4.5.59", features = ["derive"] }
+clap_complete = { version = "4.5.66", features = ["unstable-dynamic"] }
 cli-table = "0.5.0"
 dashmap = "6.1.0"
 etcetera = "0.11.0"
 glob = "0.3.3"
 ignore = "0.4.25"
 pathdiff = "0.2.3"
-regex = "1.12.2"
+regex = "1.12.3"
 rust-ini = "0.21.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.49.0", features = ["full"] }
-toml = "1.0.0"
+toml = "1.0.3"
 tower-lsp = { version = "0.24.0", package = "tower-lsp-f" }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
