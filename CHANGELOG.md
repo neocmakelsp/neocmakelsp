@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-02-27
+
+## Changed
+
+- Allow non-alphabetic characters in command case checks by @pavllom (https://github.com/neocmakelsp/neocmakelsp/pull/250)
+- Update deps by @idealseal
+- Emacs document added by @karijs
+- Trim down clap styles by @idealseal (https://github.com/neocmakelsp/neocmakelsp/pull/248)
+- Unit test use rust conventions by @idealseal (https://github.com/neocmakelsp/neocmakelsp/pull/247)
+- Use serde default for lsp config
+
+[0.10.1]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.1...v0.10.1
+
 ## [0.10.0] - 2026-01-26
 
 ### Changed
