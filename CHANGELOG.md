@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.1] - 2026-02-27
 
-## Changed
+### Changed
 
 - Allow non-alphabetic characters in command case checks by @pavllom (https://github.com/neocmakelsp/neocmakelsp/pull/250)
 - Update deps by @idealseal
