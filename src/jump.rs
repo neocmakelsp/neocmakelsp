@@ -201,7 +201,7 @@ async fn godef_inner<P: AsRef<Path>>(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source, None)?;
 
-    let tofind = get_point_string(location, tree.root_node(), &source.lines().collect())?;
+    let tofind = get_point_string(location, tree.root_node(), source.as_bytes())?;
 
     let jumptype = get_pos_type(location, tree.root_node(), source);
 
@@ -304,7 +304,7 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
         let Some(tree) = parse.parse(&source, None) else {
             continue;
         };
-        let newsource = source.lines().collect();
+        let newsource = source.as_bytes();
         if let Some(mut locs) =
             reference_inner(tree.root_node(), &newsource, tofind, rp, is_function)
         {
@@ -317,7 +317,7 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
 /// sub get the def
 fn reference_inner<P: AsRef<Path>>(
     root: Node,
-    newsource: &Vec<&str>,
+    source: &[u8],
     tofind: &str,
     originuri: P,
     is_function: bool,
@@ -327,7 +327,7 @@ fn reference_inner<P: AsRef<Path>>(
     for child in root.children(&mut course) {
         if child.child_count() != 0 {
             if let Some(mut context) =
-                reference_inner(child, newsource, tofind, originuri.as_ref(), is_function)
+                reference_inner(child, source, tofind, originuri.as_ref(), is_function)
             {
                 definitions.append(&mut context);
             }
@@ -341,10 +341,7 @@ fn reference_inner<P: AsRef<Path>>(
             if child.kind() != CMakeNodeKinds::VARIABLE && !is_function {
                 continue;
             }
-            let h = child.start_position().row;
-            let x = child.start_position().column;
-            let y = child.end_position().column;
-            let message = &newsource[h][x..y];
+            let message = child.utf8_text(source).unwrap();
             if message == tofind {
                 definitions.push(Location {
                     uri: Uri::from_file_path(originuri.as_ref()).unwrap(),

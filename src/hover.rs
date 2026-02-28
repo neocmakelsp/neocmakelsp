@@ -48,7 +48,7 @@ PackageVersion: {}
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
     let current_point = location.to_point();
-    let message = get_point_string(current_point, root, &source.lines().collect())?;
+    let message = get_point_string(current_point, root, source.as_bytes())?;
     let inner_result = match get_pos_type(current_point, root, source) {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
