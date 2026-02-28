@@ -460,7 +460,7 @@ include(abcd.text)
                     start_point: input.start_position(),
                     end_point: input.end_position(),
                     message: "Grammar error".to_string(),
-                    severity: None,
+                    severity: Some(DiagnosticSeverity::ERROR),
                 }]
             })
         );

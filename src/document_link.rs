@@ -40,6 +40,9 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
     for command in normal_commands {
         let name = command.identifier.to_lowercase();
         let arguments = command.args;
+        if arguments.is_empty() {
+            continue;
+        }
         if !LINK_NODE_KIND.contains(&name.as_str()) {
             for arg_node in arguments {
                 let start_h = arg_node.start_position().row;
