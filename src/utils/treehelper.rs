@@ -373,7 +373,9 @@ fn get_pos_type_inner<'a>(
     }
     PositionType::Unknown
 }
-
+const ARGUMENT_LIST_QUERY: &str = r#"(
+    (argument_list) @argument_list
+)"#;
 const LINE_COMMENT_QUERY: &str = r#"(
     (line_comment) @comment
 )"#;
@@ -403,6 +405,12 @@ const NORMAL_COMMAND_QUERY: &str = r#"
 )
 "#;
 
+#[derive(Debug)]
+pub struct ArgumentListNode<'a> {
+    pub main_node: Option<Node<'a>>,
+    pub arguments: Vec<Node<'a>>,
+}
+
 pub struct LineCommentNode<'a> {
     pub content: &'a str,
     pub node: Node<'a>,
@@ -428,6 +436,39 @@ pub struct NormalCommandNode<'a> {
     pub args: Vec<Node<'a>>,
 }
 
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_argument_lists<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: u32,
+) -> Vec<ArgumentListNode<'a>> {
+    let mut arguments = vec![];
+    let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, ARGUMENT_LIST_QUERY).unwrap();
+    let mut cursor_comments = QueryCursor::new();
+    let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
+
+    'out: while let Some(m) = matches_comments.next() {
+        let mut ag_node = ArgumentListNode {
+            main_node: None,
+            arguments: vec![],
+        };
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            ag_node.main_node = Some(node);
+
+            let mut walk = node.walk();
+            for child in node.children(&mut walk) {
+                ag_node.arguments.push(child);
+            }
+        }
+        arguments.push(ag_node);
+    }
+    arguments
+}
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use u32::MAX
 pub fn get_line_comments<'a>(

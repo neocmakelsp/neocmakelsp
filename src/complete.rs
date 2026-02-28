@@ -288,7 +288,7 @@ fn getsubcomplete<P: AsRef<Path>>(
         let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
-            .find(|c| c.node.start_position().row - 1 == row)
+            .find(|c| c.node.start_position().row + 1 == row)
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
