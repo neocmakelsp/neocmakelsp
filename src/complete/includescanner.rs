@@ -121,7 +121,7 @@ endfunction()
         writeln!(file_2, "{}", file_info_1).unwrap();
         let data = getsubcomplete(
             thetree.root_node(),
-            &file_info_0,
+            file_info_0,
             &root_cmake,
             PositionType::VarOrFun,
             None,
@@ -207,7 +207,7 @@ endfunction()
         writeln!(file_2, "{}", file_info_1).unwrap();
         let data = getsubcomplete(
             thetree.root_node(),
-            &file_info_0,
+            file_info_0,
             &root_cmake,
             PositionType::VarOrFun,
             None,

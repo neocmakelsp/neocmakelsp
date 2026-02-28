@@ -701,14 +701,13 @@ include("abcd/efg.cmake")
         let tree = parse.parse(source, None).unwrap();
         let input = tree.root_node();
         let source_lines = source.as_bytes();
-        let pos_str_1 =
-            get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
+        let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, source_lines).unwrap();
         assert_eq!(pos_str_1, "ABC");
         let pos_str_2 =
-            get_point_string(Point { row: 3, column: 12 }, input, &source_lines).unwrap();
+            get_point_string(Point { row: 3, column: 12 }, input, source_lines).unwrap();
         assert_eq!(pos_str_2, "ABC");
         let pos_str_3 =
-            get_point_string(Point { row: 3, column: 16 }, input, &source_lines).unwrap();
+            get_point_string(Point { row: 3, column: 16 }, input, source_lines).unwrap();
         assert_eq!(pos_str_3, "${ABC}eft");
     }
 
