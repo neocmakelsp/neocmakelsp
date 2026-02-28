@@ -4,9 +4,8 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use tower_lsp::lsp_types::DiagnosticSeverity;
-use tree_sitter::Point;
+use tree_sitter::{Node, Point, Query, QueryCursor, StreamingIterator};
 
-use crate::CMakeNodeKinds;
 use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
@@ -57,7 +56,7 @@ pub fn checkerror<P: AsRef<Path>>(
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None)?;
-    let mut result = checkerror_inner(local_path, &newsource, thetree.root_node(), use_lint);
+    let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
     if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
         for item in v.inner {
@@ -154,9 +153,31 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
     }
 }
 
+const NORMAL_COMMAND_QUERY: &str = r#"
+(
+    (normal_command
+        (identifier) @name
+        (argument_list) @argument_list
+    )
+)
+"#;
+
+const ERROR_QUERY: &str = r#"
+(
+    (ERROR) @error
+)
+"#;
+
+struct NormalCommand<'a> {
+    identifier: &'a str,
+    identifier_node: Option<Node<'a>>,
+    first_arg: &'a str,
+    args: Vec<Node<'a>>,
+}
+
 fn checkerror_inner<P: AsRef<Path>>(
     local_path: P,
-    newsource: &Vec<&str>,
+    source: &str,
     input: tree_sitter::Node,
     use_lint: bool,
 ) -> Option<ErrorInfo> {
@@ -170,32 +191,64 @@ fn checkerror_inner<P: AsRef<Path>>(
             }],
         });
     }
+    let source_bytes = source.as_bytes();
     let local_path = local_path.as_ref();
-    let mut course = input.walk();
     let mut output = vec![];
-    for node in input.children(&mut course) {
-        if let Some(mut tran) = checkerror_inner(local_path, newsource, node, use_lint) {
-            output.append(&mut tran.inner);
-        }
-        if node.kind() != CMakeNodeKinds::NORMAL_COMMAND {
-            // INFO: NO NEED TO CHECK ANYMORE
-            continue;
-        }
 
-        let h = node.start_position().row;
-        let ids = node.child(0).unwrap();
-        //let ids = ids.child(2).unwrap();
-        let x = ids.start_position().column;
-        let y = ids.end_position().column;
-        let name = &newsource[h][x..y];
+    let query_e = Query::new(&TREESITTER_CMAKE_LANGUAGE, ERROR_QUERY).unwrap();
+    let mut cursor_e = QueryCursor::new();
+    let mut matches_e = cursor_e.matches(&query_e, input, source_bytes);
+    while let Some(m) = matches_e.next() {
+        for e in m.captures {
+            let input = e.node;
+            output.push(ErrorInformation {
+                start_point: input.start_position(),
+                end_point: input.end_position(),
+                message: "Grammar error".to_string(),
+                severity: None,
+            });
+        }
+    }
+    // NEXT
+    let query = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, input, source_bytes);
+
+    'out: while let Some(m) = matches.next() {
+        let mut query_now = NormalCommand {
+            identifier: "",
+            identifier_node: None,
+            first_arg: "",
+            args: vec![],
+        };
+        for command in m.captures {
+            let node = command.node;
+            if node.kind() == "identifier" {
+                query_now.identifier = node.utf8_text(source_bytes).unwrap();
+                query_now.identifier_node = Some(node);
+                continue;
+            }
+            if node.kind() == "argument_list" {
+                let mut walk = node.walk();
+                for child in node.children(&mut walk) {
+                    query_now.args.push(child);
+                }
+                let Some(first_arg) = node.child(0) else {
+                    continue 'out;
+                };
+                query_now.first_arg = first_arg.utf8_text(source_bytes).unwrap();
+            }
+        }
+        let name = query_now.identifier;
+        let name_node = query_now.identifier_node.unwrap();
         if use_lint
             && let Some(hint) = config::CONFIG
                 .command_case
                 .and_then(|lint| lint.check(name))
         {
             output.push(ErrorInformation {
-                start_point: ids.start_position(),
-                end_point: ids.end_position(),
+                start_point: name_node.start_position(),
+                end_point: name_node.end_position(),
                 message: hint.to_owned(),
                 severity: Some(DiagnosticSeverity::HINT),
             });
@@ -206,20 +259,9 @@ fn checkerror_inner<P: AsRef<Path>>(
             if errorpackages.is_empty() {
                 continue;
             }
-            let Some(arguments) = node.child(2) else {
-                continue;
-            };
-            let mut walk = arguments.walk();
-            for child in arguments.children(&mut walk) {
-                let h = child.start_position().row;
-                let h2 = child.end_position().row;
-                // TODO: now make sure package in the same level
-                if h != h2 {
-                    continue;
-                }
-                let x = child.start_position().column;
-                let y = child.end_position().column;
-                let name = &newsource[h][x..y];
+
+            for child in query_now.args {
+                let name = &child.utf8_text(source_bytes).unwrap();
                 if errorpackages.contains(&name.to_string()) {
                     output.push(ErrorInformation {
                         start_point: child.start_position(),
@@ -231,27 +273,16 @@ fn checkerror_inner<P: AsRef<Path>>(
             }
             continue;
         }
-        if INCLUDE_CHECK_KEYWORDS.contains(&lowercase_name.as_str()) && node.child_count() >= 4 {
+        if INCLUDE_CHECK_KEYWORDS.contains(&lowercase_name.as_str()) && !query_now.args.is_empty() {
             let is_sub_directory = lowercase_name == "add_subdirectory";
             let Some(parent_path) = local_path.parent() else {
                 continue;
             };
-            let Some(ids) = node.child(2) else {
-                continue;
-            };
-            let Some(first_arg_node) = ids.child(0) else {
-                continue;
-            };
-            if ids.start_position().row != ids.end_position().row {
-                continue;
-            }
-            let h = ids.start_position().row;
-            let x = first_arg_node.start_position().column;
-            let y = first_arg_node.end_position().column;
-            let first_arg = newsource[h][x..y].trim();
+            let first_arg = query_now.first_arg;
             let Some(first_arg) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };
+            let first_arg_node = query_now.args[0];
             let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
             if first_arg.is_empty() {
                 output.push(ErrorInformation {
@@ -319,6 +350,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             }
         }
     }
+
     if output.is_empty() {
         None
     } else {
@@ -399,13 +431,8 @@ add_subdirectory("unexist_subdir")
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(gammar_file_src, None).unwrap();
 
-        let check_result = checkerror_inner(
-            top_cmake,
-            &gammar_file_src.lines().collect(),
-            thetree.root_node(),
-            false,
-        )
-        .unwrap();
+        let check_result =
+            checkerror_inner(top_cmake, gammar_file_src, thetree.root_node(), false).unwrap();
 
         assert_eq!(
             *check_result,
@@ -468,12 +495,7 @@ include(abcd.text)
 
         let input = thetree.root_node();
         assert_eq!(
-            checkerror_inner(
-                std::path::Path::new("."),
-                &source.lines().collect(),
-                input,
-                true,
-            ),
+            checkerror_inner(std::path::Path::new("."), source, input, true,),
             Some(ErrorInfo {
                 inner: vec![ErrorInformation {
                     start_point: input.start_position(),
@@ -493,13 +515,8 @@ include(abcd.text)
         let thetree = parse.parse(source, None).unwrap();
 
         assert!(
-            checkerror_inner(
-                std::path::Path::new("."),
-                &source.lines().collect(),
-                thetree.root_node(),
-                true,
-            )
-            .is_none()
+            checkerror_inner(std::path::Path::new("."), source, thetree.root_node(), true,)
+                .is_none()
         );
     }
 
