@@ -142,29 +142,6 @@ pub fn gen_module_pattern(subpath: &str) -> Option<String> {
     }
 }
 
-#[derive(Debug)]
-pub struct LineCommentTmp<'a> {
-    pub end_y: usize,
-    pub comments: Vec<&'a str>,
-}
-
-impl LineCommentTmp<'_> {
-    pub fn is_node_comment(&self, start_y: usize) -> bool {
-        if start_y <= self.end_y {
-            return false;
-        }
-        start_y - self.end_y == 1 && !self.comments.is_empty()
-    }
-    pub fn comment(&self) -> String {
-        let tmp: Vec<&str> = self
-            .comments
-            .iter()
-            .map(|comment| comment.strip_prefix("#").unwrap_or(comment).trim())
-            .collect();
-        tmp.join("\n")
-    }
-}
-
 const LIBRARIES_END: &str = "_LIBRARIES";
 const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
 
@@ -216,15 +193,6 @@ mod tests {
             replace_placeholders_with_hashmap(template, &values),
             Some("/home/abc".to_string())
         );
-    }
-
-    #[test]
-    fn test_comment() {
-        let linecomment = LineCommentTmp {
-            end_y: 0,
-            comments: vec!["# Abcd", "#   EFGH"],
-        };
-        assert_eq!(linecomment.comment(), "Abcd\nEFGH");
     }
 
     #[test]

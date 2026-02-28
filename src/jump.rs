@@ -15,8 +15,8 @@ use crate::{
     consts::TREESITTER_CMAKE_LANGUAGE,
     scansubs::TREE_MAP,
     utils::{
-        CACHE_CMAKE_PACKAGES_WITHKEYS, LineCommentTmp, gen_module_pattern, get_the_packagename,
-        include_is_module, replace_placeholders,
+        CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, get_the_packagename, include_is_module,
+        replace_placeholders,
         treehelper::{ToPoint, ToPosition, get_point_string},
     },
 };
@@ -25,7 +25,9 @@ mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{PositionType, get_pos_type};
+use crate::utils::treehelper::{
+    PositionType, get_functions, get_line_comments, get_macros, get_normal_commands, get_pos_type,
+};
 
 /// Storage the information when jump
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,7 +56,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
     let tree = parse.parse(context, None)?;
     let result_data = getsubdef(
         tree.root_node(),
-        &context.lines().collect(),
+        context,
         path.as_ref(),
         PositionType::VarOrFun,
         &mut Vec::new(),
@@ -359,13 +361,12 @@ fn reference_inner<P: AsRef<Path>>(
         Some(definitions)
     }
 }
-
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
 fn getsubdef<P: AsRef<Path>>(
     input: tree_sitter::Node,
-    source: &Vec<&str>,
+    source: &str,
     local_path: P,
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
@@ -374,287 +375,201 @@ fn getsubdef<P: AsRef<Path>>(
     find_cmake_in_package: bool,
 ) -> Option<Vec<CacheDataUnit>> {
     let local_path = local_path.as_ref();
-    let mut course = input.walk();
     let mut defs: Vec<CacheDataUnit> = vec![];
-    let mut line_comment_tmp = LineCommentTmp {
-        end_y: 0,
-        comments: vec![],
-    };
-    for child in input.children(&mut course) {
-        match child.kind() {
-            CMakeNodeKinds::LINE_COMMENT => {
-                let start_x = child.start_position().column;
-                let end_x = child.end_position().column;
-                let end_y = child.end_position().row;
-                let comment = &source[end_y][start_x..end_x];
-                if end_y - line_comment_tmp.end_y == 1 {
-                    line_comment_tmp.end_y = end_y;
-                    line_comment_tmp.comments.push(comment);
+
+    let source_bytes = source.as_bytes();
+
+    // NOTE: prepare
+    let comments = get_line_comments(source_bytes, input, u32::MAX);
+
+    let macros = get_macros(source_bytes, input, u32::MAX);
+    let functions = get_functions(source_bytes, input, u32::MAX);
+    let normal_commands = get_normal_commands(source_bytes, input, u32::MAX);
+
+    // NOTE: check functions
+    for fun in functions {
+        let name = fun.name;
+        let row = fun.arguments[0].start_position().row;
+
+        let fun_node = fun.arguments[0];
+        let start = fun_node.start_position().to_position();
+        let end = fun_node.end_position().to_position();
+
+        let mut document_info = format!("defined function\nfrom: {}", local_path.display());
+        if let Some(line_comment) = comments
+            .iter()
+            .find(|c| c.node.start_position().row + 1 == row)
+            .map(|c| c.content)
+        {
+            document_info = format!("{}\n\n{}", document_info, line_comment);
+        }
+        defs.push(CacheDataUnit {
+            key: name.to_string(),
+            location: Location {
+                uri: Uri::from_file_path(local_path).unwrap(),
+                range: Range { start, end },
+            },
+            document_info,
+            is_function: true,
+        });
+    }
+
+    // NOTE: check macros
+    for macro_node in macros {
+        let name = macro_node.name;
+        let row = macro_node.arguments[0].start_position().row;
+
+        let fun_node = macro_node.arguments[0];
+        let start = fun_node.start_position().to_position();
+        let end = fun_node.end_position().to_position();
+
+        let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
+        if let Some(line_comment) = comments
+            .iter()
+            .find(|c| c.node.start_position().row + 1 == row)
+            .map(|c| c.content)
+        {
+            document_info = format!("{}\n\n{}", document_info, line_comment);
+        }
+        defs.push(CacheDataUnit {
+            key: name.to_string(),
+            location: Location {
+                uri: Uri::from_file_path(local_path).unwrap(),
+                range: Range { start, end },
+            },
+            document_info,
+            is_function: true,
+        });
+    }
+    // NOTE: check normal_commands
+    for command in normal_commands {
+        let name = command.identifier.to_lowercase();
+        if name == "include" && should_in {
+            let Some(file_name) = remove_quotation_and_replace_placeholders(command.first_arg)
+            else {
+                continue;
+            };
+            let (is_builtin, subpath) = {
+                if !include_is_module(&file_name) {
+                    (false, local_path.parent().unwrap().join(file_name))
                 } else {
-                    line_comment_tmp = LineCommentTmp {
-                        end_y,
-                        comments: vec![comment],
-                    }
+                    // NOTE: Module file now is not works on windows
+                    // Maybe also not works on android, please make pr for me
+                    let Some(glob_pattern) = gen_module_pattern(&file_name) else {
+                        continue;
+                    };
+                    let Some(path) = glob::glob(&glob_pattern)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .next()
+                    else {
+                        continue;
+                    };
+                    (true, path)
                 }
+            };
+            if include_files.contains(&subpath) {
+                continue;
             }
-            CMakeNodeKinds::FUNCTION_DEF => {
-                let Some(function_whole) = child.child(0) else {
-                    continue;
-                };
-                let Some(argument_list) = function_whole.child(2) else {
-                    continue;
-                };
-                let Some(function_name) = argument_list.child(0) else {
-                    continue;
-                };
-                let start = function_name.start_position().to_position();
-                let end = function_name.end_position().to_position();
-                let x = function_name.start_position().column;
-                let y = function_name.end_position().column;
-                let h = function_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
-                    continue;
-                };
-                let mut document_info = format!("defined function\nfrom: {}", local_path.display());
-
-                if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                }
-                defs.push(CacheDataUnit {
-                    key: name.to_string(),
-                    location: Location {
-                        uri: Uri::from_file_path(local_path).unwrap(),
-                        range: Range { start, end },
-                    },
-                    document_info,
-                    is_function: true,
-                });
-            }
-            CMakeNodeKinds::MACRO_DEF => {
-                let Some(macro_whole) = child.child(0) else {
-                    continue;
-                };
-                let Some(argument_list) = macro_whole.child(2) else {
-                    continue;
-                };
-                let Some(marco_name) = argument_list.child(0) else {
-                    continue;
-                };
-                let start = marco_name.start_position().to_position();
-                let end = marco_name.end_position().to_position();
-                let x = marco_name.start_position().column;
-                let y = marco_name.end_position().column;
-                let h = marco_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
-                    continue;
-                };
-                let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
-
-                if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                }
-                defs.push(CacheDataUnit {
-                    key: name.to_string(),
-                    location: Location {
-                        uri: Uri::from_file_path(local_path).unwrap(),
-                        range: Range { start, end },
-                    },
-                    document_info,
-                    is_function: true,
-                });
-            }
-            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                if let Some(mut message) = getsubdef(
-                    child,
-                    source,
-                    local_path,
+            if let Ok(true) = subpath.try_exists() {
+                if let Some(mut comps) = include::scanner_include_defs(
+                    &subpath,
                     postype,
                     include_files,
                     complete_packages,
-                    true,
                     find_cmake_in_package,
+                    is_builtin,
                 ) {
-                    defs.append(&mut message);
+                    defs.append(&mut comps);
                 }
+                include_files.push(subpath);
             }
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let name = source[h][x..y].to_lowercase();
-                if name == "include" && child.child_count() >= 3 && should_in {
-                    let ids = child.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &source[h][x..y];
-                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
-                            continue;
-                        };
-                        let (is_builtin, subpath) = {
-                            if !include_is_module(&name) {
-                                (false, local_path.parent().unwrap().join(name))
-                            } else {
-                                // NOTE: Module file now is not works on windows
-                                // Maybe also not works on android, please make pr for me
-                                let Some(glob_pattern) = gen_module_pattern(&name) else {
-                                    continue;
-                                };
-                                let Some(path) = glob::glob(&glob_pattern)
-                                    .into_iter()
-                                    .flatten()
-                                    .flatten()
-                                    .next()
-                                else {
-                                    continue;
-                                };
-                                (true, path)
-                            }
-                        };
-                        if include_files.contains(&subpath) {
-                            continue;
-                        }
-                        if let Ok(true) = subpath.try_exists() {
-                            if let Some(mut comps) = include::scanner_include_defs(
-                                &subpath,
-                                postype,
-                                include_files,
-                                complete_packages,
-                                find_cmake_in_package,
-                                is_builtin,
-                            ) {
-                                defs.append(&mut comps);
-                            }
-                            include_files.push(subpath);
-                        }
-                    }
-                } else if name == "find_package" && child.child_count() >= 3 && should_in {
-                    let Some(argumentlist) = child.child(2) else {
-                        continue;
-                    };
-                    // use tree_sitter to find all packages
-                    let argument_count = argumentlist.child_count();
-                    if argument_count == 0 {
-                        continue;
-                    }
-                    let package_prefix_node = argumentlist.child(0).unwrap();
-                    let h = package_prefix_node.start_position().row;
-                    let x = package_prefix_node.start_position().column;
-                    let y = package_prefix_node.end_position().column;
-                    let package_name = &source[h][x..y];
-                    let mut component_part = Vec::new();
-                    let mut cmakepackages = Vec::new();
-                    let components_packages = {
-                        if argument_count >= 2 {
-                            let mut support_component = false;
-                            let mut components_packages = Vec::new();
-                            for index in 1..argument_count {
-                                let package_prefix_node = argumentlist.child(index as u32).unwrap();
-                                let h = package_prefix_node.start_position().row;
-                                let x = package_prefix_node.start_position().column;
-                                let y = package_prefix_node.end_position().column;
-                                let component = &source[h][x..y];
-                                if component == "COMPONENTS" {
-                                    support_component = true;
-                                } else if component != "REQUIRED" {
-                                    component_part.push(component.to_string());
-                                    components_packages
-                                        .push(format!("{package_name}::{component}"));
-                                }
-                            }
-                            if support_component {
-                                Some(components_packages)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    };
-
-                    if find_cmake_in_package && components_packages.is_some() {
-                        for package in component_part {
-                            cmakepackages.push(format!("{package_name}{package}"));
-                        }
-                    } else {
-                        cmakepackages.push(package_name.to_string());
-                    }
-                    for package in cmakepackages {
-                        if complete_packages.contains(&package) {
-                            continue;
-                        }
-                        complete_packages.push(package.clone());
-                        let Some(mut completedefs) = get_cmake_package_defs(
-                            package.as_str(),
-                            postype,
-                            include_files,
-                            complete_packages,
-                        ) else {
-                            continue;
-                        };
-                        defs.append(&mut completedefs);
-                    }
-                } else if name == "set" || name == "option" {
-                    let Some(arguments) = child.child(2) else {
-                        continue;
-                    };
-                    let Some(ids) = arguments.child(0) else {
-                        continue;
-                    };
-                    if ids.start_position().row != ids.end_position().row {
-                        continue;
-                    }
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let Some(name) = &source[h][x..y].split(' ').next() else {
-                        continue;
-                    };
-                    let mut document_info =
-                        format!("defined variable\nfrom: {}", local_path.display());
-
-                    if line_comment_tmp.is_node_comment(h) {
-                        document_info =
-                            format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                    }
-                    defs.push(CacheDataUnit {
-                        key: name.to_string(),
-                        location: Location {
-                            uri: Uri::from_file_path(local_path).unwrap(),
-                            range: Range {
-                                start: Position {
-                                    line: h as u32,
-                                    character: x as u32,
-                                },
-                                end: Position {
-                                    line: h as u32,
-                                    character: y as u32,
-                                },
-                            },
-                        },
-                        document_info,
-                        is_function: false,
-                    });
-                }
-            }
-            CMakeNodeKinds::IDENTIFIER => {
-                continue;
-            }
-            _ => {}
         }
-        if let Some(mut message) = getsubdef(
-            child,
-            source,
-            local_path,
-            postype,
-            include_files,
-            complete_packages,
-            true,
-            find_cmake_in_package,
-        ) {
-            defs.append(&mut message);
+        if name == "find_package" && should_in {
+            let package_name = command.first_arg;
+            let argument_count = command.args.len();
+            let mut component_part = Vec::new();
+            let mut cmakepackages = Vec::new();
+            let components_packages = {
+                if argument_count >= 2 {
+                    let mut support_component = false;
+                    let mut components_packages = Vec::new();
+                    for index in 1..argument_count {
+                        let package_prefix_node = command.args[index];
+                        let component = package_prefix_node.utf8_text(source_bytes).unwrap();
+                        if component == "COMPONENTS" {
+                            support_component = true;
+                        } else if component != "REQUIRED" {
+                            component_part.push(component.to_string());
+                            components_packages.push(format!("{package_name}::{component}"));
+                        }
+                    }
+                    if support_component {
+                        Some(components_packages)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+            if find_cmake_in_package && components_packages.is_some() {
+                for package in component_part {
+                    cmakepackages.push(format!("{package_name}{package}"));
+                }
+            } else {
+                cmakepackages.push(package_name.to_string());
+            }
+            for package in cmakepackages {
+                if complete_packages.contains(&package) {
+                    continue;
+                }
+                complete_packages.push(package.clone());
+                let Some(mut completedefs) = get_cmake_package_defs(
+                    package.as_str(),
+                    postype,
+                    include_files,
+                    complete_packages,
+                ) else {
+                    continue;
+                };
+                defs.append(&mut completedefs);
+            }
+        } else if name == "set" || name == "option" {
+            let name = command.first_arg;
+            let row = command.identifier_node.unwrap().start_position().row;
+            let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
+
+            let val_name = command.args[0];
+            let h = val_name.start_position().row;
+            let x = val_name.start_position().column;
+            let y = val_name.end_position().column;
+            if let Some(line_comment) = comments
+                .iter()
+                .find(|c| c.node.start_position().row + 1 == row)
+                .map(|c| c.content)
+            {
+                document_info = format!("{}\n\n{}", document_info, line_comment);
+            }
+            defs.push(CacheDataUnit {
+                key: name.to_string(),
+                location: Location {
+                    uri: Uri::from_file_path(local_path).unwrap(),
+                    range: Range {
+                        start: Position {
+                            line: h as u32,
+                            character: x as u32,
+                        },
+                        end: Position {
+                            line: h as u32,
+                            character: y as u32,
+                        },
+                    },
+                },
+                document_info,
+                is_function: false,
+            });
         }
     }
     if defs.is_empty() { None } else { Some(defs) }
@@ -838,7 +753,7 @@ include(efg_test.cmake)
         let mut include_files = vec![];
         let data = getsubdef(
             thetree.root_node(),
-            &top_cmake_context.lines().collect(),
+            top_cmake_context,
             &top_cmake_path,
             PositionType::VarOrFun,
             &mut include_files,

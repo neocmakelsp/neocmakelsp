@@ -797,26 +797,6 @@ Example using both :command:`configure_package_config_file` and
         assert_eq!(rst_doc_read(doc, "FileExample.cmake").len(), 2);
     }
 
-    use crate::utils::LineCommentTmp;
-    #[test]
-    fn comment_mark_test() {
-        let temp = LineCommentTmp {
-            end_y: 1,
-            comments: vec![],
-        };
-
-        assert!(!temp.is_node_comment(2));
-
-        let temp = LineCommentTmp {
-            end_y: 1,
-            comments: vec!["# ABCD"],
-        };
-        assert!(temp.is_node_comment(2));
-        assert!(!temp.is_node_comment(1));
-        assert!(!temp.is_node_comment(0));
-        assert_eq!(temp.comment(), "ABCD");
-    }
-
     #[test]
     fn test_complete() {
         use std::fs::File;
