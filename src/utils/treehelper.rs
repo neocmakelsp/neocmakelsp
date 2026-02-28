@@ -405,7 +405,6 @@ const NORMAL_COMMAND_QUERY: &str = r#"
 )
 "#;
 
-#[derive(Debug)]
 pub struct ArgumentListNode<'a> {
     pub main_node: Option<Node<'a>>,
     pub arguments: Vec<Node<'a>>,
