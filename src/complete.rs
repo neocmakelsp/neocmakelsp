@@ -461,7 +461,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     // NOTE: check bracket_comments
     for bracket_comment in bracket_comments {
         complete.append(&mut rst_doc_read(
-            &bracket_comment.content.to_string(),
+            bracket_comment.content,
             local_path.file_name().unwrap().to_str().unwrap(),
         ));
     }

@@ -306,7 +306,7 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
         };
         let newsource = source.as_bytes();
         if let Some(mut locs) =
-            reference_inner(tree.root_node(), &newsource, tofind, rp, is_function)
+            reference_inner(tree.root_node(), newsource, tofind, rp, is_function)
         {
             results.append(&mut locs);
         }
