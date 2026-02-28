@@ -486,6 +486,9 @@ fn getsubcomplete<P: AsRef<Path>>(
                     .iter()
                     .map(|arg| arg.utf8_text(source_bytes).unwrap())
                     .collect();
+                if package_names.is_empty() {
+                    continue;
+                }
                 let package_name = package_names[0];
 
                 let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);

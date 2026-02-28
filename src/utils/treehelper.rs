@@ -404,6 +404,13 @@ const NORMAL_COMMAND_QUERY: &str = r#"
     )
 )
 "#;
+const NORMAL_COMMAND_NO_ARGUMENT_QUERY: &str = r#"
+(
+    (normal_command
+        (identifier) @identifier
+    )
+)
+"#;
 
 const VARIABLE_QUERY: &str = r#"
 (
@@ -597,12 +604,12 @@ pub fn get_normal_commands<'a>(
     node: Node<'a>,
     max_height: u32,
 ) -> Vec<NormalCommandNode<'a>> {
-    let mut macros = vec![];
-    let query_macro = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
-    let mut cursor_macro = QueryCursor::new();
-    let mut matches_macro = cursor_macro.matches(&query_macro, node, source);
+    let mut commands = vec![];
+    let query_cmd = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
+    let mut cursor_cmd = QueryCursor::new();
+    let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
 
-    'out: while let Some(m) = matches_macro.next() {
+    'out: while let Some(m) = matches_cmd.next() {
         let mut normal_command = NormalCommandNode {
             identifier: "",
             identifier_node: None,
@@ -632,9 +639,35 @@ pub fn get_normal_commands<'a>(
                 }
             }
         }
-        macros.push(normal_command);
+        commands.push(normal_command);
     }
-    macros
+
+    let query_cmd =
+        Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_NO_ARGUMENT_QUERY).unwrap();
+    let mut cursor_cmd = QueryCursor::new();
+    let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
+
+    'out: while let Some(m) = matches_cmd.next() {
+        let mut normal_command = NormalCommandNode {
+            identifier: "",
+            identifier_node: None,
+            first_arg: None,
+            args: vec![],
+        };
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            for command in m.captures {
+                let node = command.node;
+                normal_command.identifier = node.utf8_text(source).unwrap();
+                normal_command.identifier_node = Some(node);
+            }
+        }
+        commands.push(normal_command);
+    }
+    commands
 }
 
 /// max_height means when over this line, it will not count,
