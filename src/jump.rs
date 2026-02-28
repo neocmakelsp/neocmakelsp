@@ -11,7 +11,6 @@ use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::remove_quotation_and_replace_placeholders;
 /// provide go to definition
 use crate::{
-    CMakeNodeKinds,
     consts::TREESITTER_CMAKE_LANGUAGE,
     scansubs::TREE_MAP,
     utils::{
@@ -27,6 +26,7 @@ use tree_sitter::Node;
 
 use crate::utils::treehelper::{
     PositionType, get_functions, get_line_comments, get_macros, get_normal_commands, get_pos_type,
+    get_variables,
 };
 
 /// Storage the information when jump
@@ -325,34 +325,51 @@ fn reference_inner<P: AsRef<Path>>(
     is_function: bool,
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
-    let mut course = root.walk();
-    for child in root.children(&mut course) {
-        if child.child_count() != 0 {
-            if let Some(mut context) =
-                reference_inner(child, source, tofind, originuri.as_ref(), is_function)
-            {
-                definitions.append(&mut context);
+    if is_function {
+        let funcs = get_functions(source, root, u32::MAX);
+        let commands = get_normal_commands(source, root, u32::MAX);
+        for fun in funcs {
+            let fun_name = fun.name;
+            if fun_name != tofind {
+                continue;
             }
-            continue;
+            let fun_node = fun.arguments[0];
+            definitions.push(Location {
+                uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                range: Range {
+                    start: fun_node.start_position().to_position(),
+                    end: fun_node.end_position().to_position(),
+                },
+            });
         }
-        if child.start_position().row == child.end_position().row {
-            // NOTE: if different, means it is not what I want
-            if (child.kind() == CMakeNodeKinds::IDENTIFIER) ^ is_function {
+        for cmd in commands {
+            let cmd_name = cmd.identifier;
+            if cmd_name != tofind {
                 continue;
             }
-            if child.kind() != CMakeNodeKinds::VARIABLE && !is_function {
+            let cmd_node = cmd.identifier_node.unwrap();
+            definitions.push(Location {
+                uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                range: Range {
+                    start: cmd_node.start_position().to_position(),
+                    end: cmd_node.end_position().to_position(),
+                },
+            });
+        }
+    } else {
+        let vars = get_variables(source, root, u32::MAX);
+        for var in vars {
+            if var.content != tofind {
                 continue;
             }
-            let message = child.utf8_text(source).unwrap();
-            if message == tofind {
-                definitions.push(Location {
-                    uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
-                    range: Range {
-                        start: child.start_position().to_position(),
-                        end: child.end_position().to_position(),
-                    },
-                });
-            }
+            let var_node = var.node;
+            definitions.push(Location {
+                uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                range: Range {
+                    start: var_node.start_position().to_position(),
+                    end: var_node.end_position().to_position(),
+                },
+            });
         }
     }
     if definitions.is_empty() {

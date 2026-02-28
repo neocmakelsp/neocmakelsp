@@ -405,6 +405,17 @@ const NORMAL_COMMAND_QUERY: &str = r#"
 )
 "#;
 
+const VARIABLE_QUERY: &str = r#"
+(
+    (variable) @variable
+)
+"#;
+
+pub struct VariableNode<'a> {
+    pub content: &'a str,
+    pub node: Node<'a>,
+}
+
 pub struct ArgumentListNode<'a> {
     pub main_node: Option<Node<'a>>,
     pub arguments: Vec<Node<'a>>,
@@ -433,6 +444,28 @@ pub struct NormalCommandNode<'a> {
     pub identifier_node: Option<Node<'a>>,
     pub first_arg: &'a str,
     pub args: Vec<Node<'a>>,
+}
+
+pub fn get_variables<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: u32,
+) -> Vec<VariableNode<'a>> {
+    let mut variables = vec![];
+    let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, VARIABLE_QUERY).unwrap();
+    let mut cursor_vars = QueryCursor::new();
+    let mut matches_comments = cursor_vars.matches(&query_comment, node, source);
+    'out: while let Some(m) = matches_comments.next() {
+        for c in m.captures {
+            let node = c.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            let content = node.utf8_text(source).unwrap();
+            variables.push(VariableNode { content, node });
+        }
+    }
+    variables
 }
 
 /// max_height means when over this line, it will not count,
