@@ -18,7 +18,7 @@ use crate::fileapi;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{
-    PositionType, ToPoint, get_bracket_comments, get_line_comments, get_functions, get_macros,
+    PositionType, ToPoint, get_bracket_comments, get_functions, get_line_comments, get_macros,
     get_normal_commands, get_pos_type,
 };
 use crate::utils::{

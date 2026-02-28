@@ -430,7 +430,11 @@ pub struct NormalCommandNode<'a> {
 
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use u32::MAX
-pub fn get_line_comments<'a>(source: &'a [u8], node: Node<'a>, max_height: u32) -> Vec<LineCommentNode<'a>> {
+pub fn get_line_comments<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: u32,
+) -> Vec<LineCommentNode<'a>> {
     let mut comments = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, LINE_COMMENT_QUERY).unwrap();
     let mut cursor_comments = QueryCursor::new();
