@@ -180,17 +180,17 @@ fn checkerror_inner<P: AsRef<Path>>(
     let local_path = local_path.as_ref();
     let mut output = vec![];
 
-    let query_e = Query::new(&TREESITTER_CMAKE_LANGUAGE, ERROR_QUERY).unwrap();
+    let query_error = Query::new(&TREESITTER_CMAKE_LANGUAGE, ERROR_QUERY).unwrap();
     let mut cursor_e = QueryCursor::new();
-    let mut matches_e = cursor_e.matches(&query_e, input, source_bytes);
+    let mut matches_e = cursor_e.matches(&query_error, input, source_bytes);
     while let Some(m) = matches_e.next() {
-        for e in m.captures {
-            let input = e.node;
+        for err in m.captures {
+            let input = err.node;
             output.push(ErrorInformation {
                 start_point: input.start_position(),
                 end_point: input.end_position(),
                 message: "Grammar error".to_string(),
-                severity: None,
+                severity: Some(DiagnosticSeverity::ERROR),
             });
         }
     }
