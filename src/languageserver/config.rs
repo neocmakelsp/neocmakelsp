@@ -46,7 +46,7 @@ impl Default for Config {
             scan_cmake_in_package: true,
             semantic_token: false,
             lint: LintConfig::default(),
-            use_snippets: true,
+            use_snippets: false,
         }
     }
 }
