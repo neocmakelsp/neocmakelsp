@@ -34,7 +34,7 @@ pub fn scanner_include_complete(
     let tree = parse.parse(content.clone(), None)?;
     let result_data = getsubcomplete(
         tree.root_node(),
-        &content.lines().collect(),
+        &content,
         path,
         postype,
         None,
@@ -71,7 +71,7 @@ pub fn scanner_package_complete(
     let tree = parse.parse(&content, None)?;
     let result_data = getsubcomplete(
         tree.root_node(),
-        &content.lines().collect(),
+        &content,
         path,
         postype,
         None,
@@ -121,7 +121,7 @@ endfunction()
         writeln!(file_2, "{}", file_info_1).unwrap();
         let data = getsubcomplete(
             thetree.root_node(),
-            &file_info_0.lines().collect(),
+            &file_info_0,
             &root_cmake,
             PositionType::VarOrFun,
             None,
@@ -134,6 +134,29 @@ endfunction()
         assert_eq!(
             data,
             vec![
+                CompletionItem {
+                    label: "bb".to_string(),
+                    label_details: None,
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined function\nfrom: {}",
+                        another_cmake.display()
+                    ))),
+                    deprecated: None,
+                    preselect: None,
+                    sort_text: None,
+                    filter_text: None,
+                    insert_text: None,
+                    insert_text_format: None,
+                    insert_text_mode: None,
+                    text_edit: None,
+                    additional_text_edits: None,
+                    command: None,
+                    commit_characters: None,
+                    data: None,
+                    tags: None
+                },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
@@ -157,29 +180,6 @@ endfunction()
                     data: None,
                     tags: None
                 },
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    deprecated: None,
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None
-                }
             ]
         );
     }
@@ -207,7 +207,7 @@ endfunction()
         writeln!(file_2, "{}", file_info_1).unwrap();
         let data = getsubcomplete(
             thetree.root_node(),
-            &file_info_0.lines().collect(),
+            &file_info_0,
             &root_cmake,
             PositionType::VarOrFun,
             None,
@@ -220,6 +220,29 @@ endfunction()
         assert_eq!(
             data,
             vec![
+                CompletionItem {
+                    label: "bb".to_string(),
+                    label_details: None,
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined function\nfrom: {}",
+                        another_cmake.display()
+                    ))),
+                    deprecated: None,
+                    preselect: None,
+                    sort_text: None,
+                    filter_text: None,
+                    insert_text: None,
+                    insert_text_format: None,
+                    insert_text_mode: None,
+                    text_edit: None,
+                    additional_text_edits: None,
+                    command: None,
+                    commit_characters: None,
+                    data: None,
+                    tags: None
+                },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
@@ -243,29 +266,6 @@ endfunction()
                     data: None,
                     tags: None
                 },
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    deprecated: None,
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None
-                }
             ]
         );
     }
