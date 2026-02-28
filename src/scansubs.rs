@@ -156,7 +156,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None).unwrap();
-    let subdirs = get_subdir_from_tree(&&content, tree.root_node(), path);
+    let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
     if !subdirs.is_empty() {
         let mut sub_dirs: Vec<TreeDir> = vec![];
         for dir in subdirs {

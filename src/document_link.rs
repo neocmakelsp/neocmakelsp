@@ -2,11 +2,12 @@ use std::path::{Path, PathBuf};
 
 use tower_lsp::lsp_types::{DocumentLink, Position, Range};
 
+use crate::Uri;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::get_normal_commands;
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
 };
-use crate::{CMakeNodeKinds, Uri};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
@@ -20,9 +21,8 @@ pub fn document_link_search<P: AsRef<Path>>(
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None)?;
-    let documents: Vec<&str> = source.lines().collect();
     let file_parent = current_file.as_ref().parent()?;
-    document_link_search_inner(&documents, thetree.root_node(), &mut links, &file_parent);
+    document_link_search_inner(source, thetree.root_node(), &mut links, &file_parent);
     if links.is_empty() {
         return None;
     }
@@ -30,113 +30,35 @@ pub fn document_link_search<P: AsRef<Path>>(
 }
 
 pub fn document_link_search_inner<P: AsRef<Path>>(
-    source: &Vec<&str>,
+    source: &str,
     node: tree_sitter::Node,
     links: &mut Vec<DocumentLink>,
     current_parent: &P,
 ) {
-    let mut walk = node.walk();
-    for child in node.children(&mut walk) {
-        match child.kind() {
-            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                document_link_search_inner(source, child, links, current_parent);
-            }
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let h = child.start_position().row;
-                let cmd_id = child.child(0).unwrap();
-                let x = cmd_id.start_position().column;
-                let y = cmd_id.end_position().column;
-                let name = source[h][x..y].to_lowercase();
-
-                if child.child_count() < 4 {
+    let source = source.as_bytes();
+    let normal_commands = get_normal_commands(source, node, u32::MAX);
+    for command in normal_commands {
+        let name = command.identifier.to_lowercase();
+        let arguments = command.args;
+        if !LINK_NODE_KIND.contains(&name.as_str()) {
+            for arg_node in arguments {
+                let start_h = arg_node.start_position().row;
+                let x = arg_node.start_position().column;
+                let y = arg_node.end_position().column;
+                let arg = arg_node.utf8_text(source).unwrap();
+                if !NEED_TO_CHECK_EXTENSION
+                    .iter()
+                    .any(|extension| arg.ends_with(extension))
+                {
                     continue;
                 }
-
-                // ARGUMENTS
-                let arguments = child.child(2).unwrap();
-                if !LINK_NODE_KIND.contains(&name.as_str()) {
-                    let mut arguments_walk = arguments.walk();
-                    for arg in arguments.children(&mut arguments_walk) {
-                        let start_h = arg.start_position().row;
-                        let end_h = arg.end_position().row;
-                        let x = arg.start_position().column;
-                        let y = arg.end_position().column;
-                        if start_h != end_h {
-                            continue;
-                        }
-                        let arg = source[start_h][x..y].to_lowercase();
-                        if !NEED_TO_CHECK_EXTENSION
-                            .iter()
-                            .any(|extension| arg.ends_with(extension))
-                        {
-                            continue;
-                        }
-                        let Some(filename) =
-                            remove_quotation_and_replace_placeholders(arg.as_str())
-                        else {
-                            continue;
-                        };
-                        let file_path = current_parent.as_ref().join(filename);
-                        if !file_path.exists() {
-                            continue;
-                        }
-                        let range = Range {
-                            start: Position {
-                                line: start_h as u32,
-                                character: x as u32,
-                            },
-                            end: Position {
-                                line: start_h as u32,
-                                character: y as u32,
-                            },
-                        };
-                        links.push(DocumentLink {
-                            range,
-                            target: Some(Uri::from_file_path(file_path).unwrap()),
-                            tooltip: None,
-                            data: None,
-                        });
-                    }
-                    continue;
-                }
-
-                let is_subdirectory = name == "add_subdirectory";
-                let start_h = arguments.start_position().row;
-                let end_h = arguments.end_position().row;
-                // NOTE: I just mark link just when it is the same line
-                if start_h != end_h {
-                    continue;
-                }
-                let x = arguments.start_position().column;
-                let y = arguments.end_position().column;
-                let filename = &source[start_h][x..y];
-                let Some(filename) = remove_quotation_and_replace_placeholders(filename) else {
+                let Some(filename) = remove_quotation_and_replace_placeholders(arg) else {
                     continue;
                 };
-                let (final_uri, builtin) = if is_subdirectory {
-                    (
-                        current_parent
-                            .as_ref()
-                            .join(filename)
-                            .join("CMakeLists.txt"),
-                        false,
-                    )
-                } else {
-                    let Some((cmake_path, builtin)) =
-                        convert_include_cmake(&filename, current_parent)
-                    else {
-                        continue;
-                    };
-                    (cmake_path, builtin)
-                };
-                if !final_uri.exists() {
+                let file_path = current_parent.as_ref().join(filename);
+                if !file_path.exists() {
                     continue;
                 }
-                let tooltip = if builtin {
-                    Some(format!("builtin module, link: {}", final_uri.display()))
-                } else {
-                    Some(format!("link: {}", final_uri.display()))
-                };
                 let range = Range {
                     start: Position {
                         line: start_h as u32,
@@ -149,13 +71,60 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 };
                 links.push(DocumentLink {
                     range,
-                    target: Some(Uri::from_file_path(final_uri).unwrap()),
-                    tooltip,
+                    target: Some(Uri::from_file_path(file_path).unwrap()),
+                    tooltip: None,
                     data: None,
                 });
             }
-            _ => {}
+            continue;
         }
+        let is_subdirectory = name == "add_subdirectory";
+        let file_node = arguments[0];
+        let start_h = file_node.start_position().row;
+        let x = file_node.start_position().column;
+        let y = file_node.end_position().column;
+        let Some(filename) = remove_quotation_and_replace_placeholders(command.first_arg) else {
+            continue;
+        };
+        let (final_uri, builtin) = if is_subdirectory {
+            (
+                current_parent
+                    .as_ref()
+                    .join(filename)
+                    .join("CMakeLists.txt"),
+                false,
+            )
+        } else {
+            let Some((cmake_path, builtin)) = convert_include_cmake(&filename, current_parent)
+            else {
+                continue;
+            };
+            (cmake_path, builtin)
+        };
+        if !final_uri.exists() {
+            continue;
+        }
+        let tooltip = if builtin {
+            Some(format!("builtin module, link: {}", final_uri.display()))
+        } else {
+            Some(format!("link: {}", final_uri.display()))
+        };
+        let range = Range {
+            start: Position {
+                line: start_h as u32,
+                character: x as u32,
+            },
+            end: Position {
+                line: start_h as u32,
+                character: y as u32,
+            },
+        };
+        links.push(DocumentLink {
+            range,
+            target: Some(Uri::from_file_path(final_uri).unwrap()),
+            tooltip,
+            data: None,
+        });
     }
 }
 
@@ -242,8 +211,7 @@ add_subdirectory(abcd_test)
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(jump_file_src, None).unwrap();
-        let documents: Vec<&str> = jump_file_src.lines().collect();
-        document_link_search_inner(&documents, thetree.root_node(), &mut links, &dir.path());
+        document_link_search_inner(jump_file_src, thetree.root_node(), &mut links, &dir.path());
 
         assert_eq!(
             links,
