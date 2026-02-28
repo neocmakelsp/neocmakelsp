@@ -6,9 +6,9 @@ use std::sync::LazyLock;
 use lsp_types::{Position, Range};
 /// Some tools for treesitter  to lsp_types
 use tower_lsp::lsp_types;
-use tree_sitter::{Node, Point};
+use tree_sitter::{Node, Point, Query, QueryCursor, StreamingIterator};
 
-use crate::CMakeNodeKinds;
+use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 
@@ -374,6 +374,224 @@ fn get_pos_type_inner<'a>(
     PositionType::Unknown
 }
 
+const LINE_COMMENT_QUERY: &str = r#"(
+    (line_comment) @comment
+)"#;
+
+const BRACKET_COMMENT_QUERY: &str = r#"(
+    (bracket_comment) @comment
+)"#;
+
+const MACRO_QUERY: &str = r#"(
+   (macro_command
+       (argument_list) @argument_list
+   )
+)"#;
+
+const FUNCTION_QUERY: &str = r#"(
+   (function_command
+       (argument_list) @argument_list
+   )
+)"#;
+
+const NORMAL_COMMAND_QUERY: &str = r#"
+(
+    (normal_command
+        (identifier) @identifier
+        (argument_list) @argument_list
+    )
+)
+"#;
+
+pub struct LineCommentNode<'a> {
+    pub content: &'a str,
+    pub node: Node<'a>,
+}
+pub struct BracketCommentNode<'a> {
+    pub content: &'a str,
+}
+
+pub struct MacroNode<'a> {
+    pub name: &'a str,
+    pub arguments: Vec<Node<'a>>,
+}
+
+pub struct FuncNode<'a> {
+    pub name: &'a str,
+    pub arguments: Vec<Node<'a>>,
+}
+
+pub struct NormalCommandNode<'a> {
+    pub identifier: &'a str,
+    pub identifier_node: Option<Node<'a>>,
+    pub first_arg: &'a str,
+    pub args: Vec<Node<'a>>,
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_line_comments<'a>(source: &'a [u8], node: Node<'a>, max_height: u32) -> Vec<LineCommentNode<'a>> {
+    let mut comments = vec![];
+    let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, LINE_COMMENT_QUERY).unwrap();
+    let mut cursor_comments = QueryCursor::new();
+    let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
+
+    'out: while let Some(m) = matches_comments.next() {
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            let content = node
+                .utf8_text(source)
+                .unwrap()
+                .strip_prefix("#")
+                .unwrap()
+                .trim();
+            comments.push(LineCommentNode { content, node });
+        }
+    }
+    comments
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_bracket_comments<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: u32,
+) -> Vec<BracketCommentNode<'a>> {
+    // NOTE: prepare comments
+    let mut comments = vec![];
+    let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, BRACKET_COMMENT_QUERY).unwrap();
+    let mut cursor_comments = QueryCursor::new();
+    let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
+
+    'out: while let Some(m) = matches_comments.next() {
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            comments.push(BracketCommentNode {
+                content: node.utf8_text(source).unwrap(),
+            });
+        }
+    }
+    comments
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_macros<'a>(source: &'a [u8], node: Node<'a>, max_height: u32) -> Vec<MacroNode<'a>> {
+    let mut macros = vec![];
+    let query_macro = Query::new(&TREESITTER_CMAKE_LANGUAGE, MACRO_QUERY).unwrap();
+    let mut cursor_macro = QueryCursor::new();
+    let mut matches_macro = cursor_macro.matches(&query_macro, node, source);
+
+    'out: while let Some(m) = matches_macro.next() {
+        let mut macro_node = MacroNode {
+            name: "",
+            arguments: vec![],
+        };
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            let mut walk = node.walk();
+            for child in node.children(&mut walk) {
+                macro_node.arguments.push(child);
+            }
+            let Some(first_arg) = node.child(0) else {
+                continue 'out;
+            };
+            macro_node.name = first_arg.utf8_text(source).unwrap();
+        }
+        macros.push(macro_node);
+    }
+    macros
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_normal_commands<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: u32,
+) -> Vec<NormalCommandNode<'a>> {
+    let mut macros = vec![];
+    let query_macro = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
+    let mut cursor_macro = QueryCursor::new();
+    let mut matches_macro = cursor_macro.matches(&query_macro, node, source);
+
+    'out: while let Some(m) = matches_macro.next() {
+        let mut normal_command = NormalCommandNode {
+            identifier: "",
+            identifier_node: None,
+            first_arg: "",
+            args: vec![],
+        };
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            for command in m.captures {
+                let node = command.node;
+                if node.kind() == "identifier" {
+                    normal_command.identifier = node.utf8_text(source).unwrap();
+                    normal_command.identifier_node = Some(node);
+                    continue;
+                }
+                if node.kind() == "argument_list" {
+                    let mut walk = node.walk();
+                    for child in node.children(&mut walk) {
+                        normal_command.args.push(child);
+                    }
+                    let Some(first_arg) = node.child(0) else {
+                        continue 'out;
+                    };
+                    normal_command.first_arg = first_arg.utf8_text(source).unwrap();
+                }
+            }
+        }
+        macros.push(normal_command);
+    }
+    macros
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use u32::MAX
+pub fn get_functions<'a>(source: &'a [u8], node: Node<'a>, max_height: u32) -> Vec<FuncNode<'a>> {
+    let mut funs = vec![];
+    let query_fun = Query::new(&TREESITTER_CMAKE_LANGUAGE, FUNCTION_QUERY).unwrap();
+    let mut cursor_fun = QueryCursor::new();
+    let mut matches_fun = cursor_fun.matches(&query_fun, node, source);
+
+    'out: while let Some(m) = matches_fun.next() {
+        let mut fun_node = FuncNode {
+            name: "",
+            arguments: vec![],
+        };
+        for e in m.captures {
+            let node = e.node;
+            if node.start_position().row as u32 > max_height {
+                continue 'out;
+            }
+            let mut walk = node.walk();
+            for child in node.children(&mut walk) {
+                fun_node.arguments.push(child);
+            }
+            let Some(first_arg) = node.child(0) else {
+                continue 'out;
+            };
+            fun_node.name = first_arg.utf8_text(source).unwrap();
+        }
+        funs.push(fun_node);
+    }
+    funs
+}
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -4,10 +4,11 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use tower_lsp::lsp_types::DiagnosticSeverity;
-use tree_sitter::{Node, Point, Query, QueryCursor, StreamingIterator};
+use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
 use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::treehelper::get_normal_commands;
 use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
 
 const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
@@ -153,27 +154,11 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
     }
 }
 
-const NORMAL_COMMAND_QUERY: &str = r#"
-(
-    (normal_command
-        (identifier) @name
-        (argument_list) @argument_list
-    )
-)
-"#;
-
 const ERROR_QUERY: &str = r#"
 (
     (ERROR) @error
 )
 "#;
-
-struct NormalCommand<'a> {
-    identifier: &'a str,
-    identifier_node: Option<Node<'a>>,
-    first_arg: &'a str,
-    args: Vec<Node<'a>>,
-}
 
 fn checkerror_inner<P: AsRef<Path>>(
     local_path: P,
@@ -209,36 +194,8 @@ fn checkerror_inner<P: AsRef<Path>>(
             });
         }
     }
-    // NEXT
-    let query = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
-    let mut cursor = QueryCursor::new();
-    let mut matches = cursor.matches(&query, input, source_bytes);
-
-    'out: while let Some(m) = matches.next() {
-        let mut query_now = NormalCommand {
-            identifier: "",
-            identifier_node: None,
-            first_arg: "",
-            args: vec![],
-        };
-        for command in m.captures {
-            let node = command.node;
-            if node.kind() == "identifier" {
-                query_now.identifier = node.utf8_text(source_bytes).unwrap();
-                query_now.identifier_node = Some(node);
-                continue;
-            }
-            if node.kind() == "argument_list" {
-                let mut walk = node.walk();
-                for child in node.children(&mut walk) {
-                    query_now.args.push(child);
-                }
-                let Some(first_arg) = node.child(0) else {
-                    continue 'out;
-                };
-                query_now.first_arg = first_arg.utf8_text(source_bytes).unwrap();
-            }
-        }
+    let commands = get_normal_commands(source_bytes, input, u32::MAX);
+    for query_now in commands {
         let name = query_now.identifier;
         let name_node = query_now.identifier_node.unwrap();
         if use_lint
