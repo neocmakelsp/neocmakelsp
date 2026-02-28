@@ -88,8 +88,10 @@ fn scan_node<P: AsRef<Path>>(
     for command in normal_commands {
         let command_name = command.identifier.to_lowercase();
         if command_name == "add_subdirectory" {
-            let Some(file_name) = remove_quotation_and_replace_placeholders(command.first_arg)
-            else {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };
 
@@ -101,8 +103,10 @@ fn scan_node<P: AsRef<Path>>(
                 .join("CMakeLists.txt");
             bufs.push(subpath.to_path_buf());
         } else if command_name == "include" {
-            let Some(file_name) = remove_quotation_and_replace_placeholders(command.first_arg)
-            else {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };
 
@@ -179,8 +183,10 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
     let normal_commands = get_normal_commands(source.as_bytes(), tree, u32::MAX);
     for command in normal_commands {
         if command.identifier.to_lowercase() == "add_subdirectory" {
-            let Some(file_name) = remove_quotation_and_replace_placeholders(command.first_arg)
-            else {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };
 

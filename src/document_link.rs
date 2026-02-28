@@ -83,7 +83,10 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
         let start_h = file_node.start_position().row;
         let x = file_node.start_position().column;
         let y = file_node.end_position().column;
-        let Some(filename) = remove_quotation_and_replace_placeholders(command.first_arg) else {
+        let Some(first_arg) = command.first_arg else {
+            continue;
+        };
+        let Some(filename) = remove_quotation_and_replace_placeholders(first_arg) else {
             continue;
         };
         let (final_uri, builtin) = if is_subdirectory {

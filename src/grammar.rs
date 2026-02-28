@@ -235,7 +235,9 @@ fn checkerror_inner<P: AsRef<Path>>(
             let Some(parent_path) = local_path.parent() else {
                 continue;
             };
-            let first_arg = query_now.first_arg;
+            let Some(first_arg) = query_now.first_arg else {
+                continue;
+            };
             let Some(first_arg) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };

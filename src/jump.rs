@@ -462,8 +462,10 @@ fn getsubdef<P: AsRef<Path>>(
     for command in normal_commands {
         let name = command.identifier.to_lowercase();
         if name == "include" && should_in {
-            let Some(file_name) = remove_quotation_and_replace_placeholders(command.first_arg)
-            else {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
                 continue;
             };
             let (is_builtin, subpath) = {
@@ -504,7 +506,9 @@ fn getsubdef<P: AsRef<Path>>(
             }
         }
         if name == "find_package" && should_in {
-            let package_name = command.first_arg;
+            let Some(package_name) = command.first_arg else {
+                continue;
+            };
             let argument_count = command.args.len();
             let mut component_part = Vec::new();
             let mut cmakepackages = Vec::new();
@@ -554,7 +558,9 @@ fn getsubdef<P: AsRef<Path>>(
                 defs.append(&mut completedefs);
             }
         } else if name == "set" || name == "option" {
-            let name = command.first_arg;
+            let Some(name) = command.first_arg else {
+                continue;
+            };
             let row = command.identifier_node.unwrap().start_position().row;
             let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 

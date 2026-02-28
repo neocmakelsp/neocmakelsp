@@ -442,7 +442,7 @@ pub struct FuncNode<'a> {
 pub struct NormalCommandNode<'a> {
     pub identifier: &'a str,
     pub identifier_node: Option<Node<'a>>,
-    pub first_arg: &'a str,
+    pub first_arg: Option<&'a str>,
     pub args: Vec<Node<'a>>,
 }
 
@@ -606,7 +606,7 @@ pub fn get_normal_commands<'a>(
         let mut normal_command = NormalCommandNode {
             identifier: "",
             identifier_node: None,
-            first_arg: "",
+            first_arg: None,
             args: vec![],
         };
         for e in m.captures {
@@ -626,10 +626,9 @@ pub fn get_normal_commands<'a>(
                     for child in node.children(&mut walk) {
                         normal_command.args.push(child);
                     }
-                    let Some(first_arg) = node.child(0) else {
-                        continue 'out;
-                    };
-                    normal_command.first_arg = first_arg.utf8_text(source).unwrap();
+                    if let Some(first_arg) = node.child(0) {
+                        normal_command.first_arg = first_arg.utf8_text(source).ok();
+                    }
                 }
             }
         }
