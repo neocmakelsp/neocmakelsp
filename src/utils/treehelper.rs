@@ -665,7 +665,14 @@ pub fn get_normal_commands<'a>(
                 normal_command.identifier_node = Some(node);
             }
         }
-        commands.push(normal_command);
+
+        // NOTE: remove rebundant node
+        if !commands
+            .iter()
+            .any(|node| node.identifier_node.unwrap() == normal_command.identifier_node.unwrap())
+        {
+            commands.push(normal_command);
+        }
     }
     commands
 }
