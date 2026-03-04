@@ -398,17 +398,7 @@ const FUNCTION_QUERY: &str = r#"(
 
 const NORMAL_COMMAND_QUERY: &str = r#"
 (
-    (normal_command
-        (identifier) @identifier
-        (argument_list) @argument_list
-    )
-)
-"#;
-const NORMAL_COMMAND_NO_ARGUMENT_QUERY: &str = r#"
-(
-    (normal_command
-        (identifier) @identifier
-    )
+    (normal_command) @normal_command
 )
 "#;
 
@@ -616,64 +606,35 @@ pub fn get_normal_commands<'a>(
             first_arg: None,
             args: vec![],
         };
-        for e in m.captures {
-            let node = e.node;
+        for command in m.captures {
+            let node = command.node;
             if node.start_position().row as u32 > max_height {
                 continue 'out;
             }
-            for command in m.captures {
-                let node = command.node;
-                if node.kind() == "identifier" {
-                    normal_command.identifier = node.utf8_text(source).unwrap();
-                    normal_command.identifier_node = Some(node);
-                    continue;
+            let Some(identifier) = node.child(0) else {
+                continue 'out;
+            };
+            if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
+                continue 'out;
+            }
+            normal_command.identifier = identifier.utf8_text(source).unwrap();
+            normal_command.identifier_node = Some(identifier);
+            // NOTE: child 1 is "(", it is child 2 that argument_list
+            if let Some(argument_list) = node.child(2)
+                && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
+            {
+                let mut walk = argument_list.walk();
+                for child in argument_list.children(&mut walk) {
+                    normal_command.args.push(child);
                 }
-                if node.kind() == "argument_list" {
-                    let mut walk = node.walk();
-                    for child in node.children(&mut walk) {
-                        normal_command.args.push(child);
-                    }
-                    if let Some(first_arg) = node.child(0) {
-                        normal_command.first_arg = first_arg.utf8_text(source).ok();
-                    }
+                if let Some(first_arg) = argument_list.child(0) {
+                    normal_command.first_arg = first_arg.utf8_text(source).ok();
                 }
             }
         }
         commands.push(normal_command);
     }
 
-    let query_cmd =
-        Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_NO_ARGUMENT_QUERY).unwrap();
-    let mut cursor_cmd = QueryCursor::new();
-    let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
-
-    'out: while let Some(m) = matches_cmd.next() {
-        let mut normal_command = NormalCommandNode {
-            identifier: "",
-            identifier_node: None,
-            first_arg: None,
-            args: vec![],
-        };
-        for e in m.captures {
-            let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
-            for command in m.captures {
-                let node = command.node;
-                normal_command.identifier = node.utf8_text(source).unwrap();
-                normal_command.identifier_node = Some(node);
-            }
-        }
-
-        // NOTE: remove rebundant node
-        if !commands
-            .iter()
-            .any(|node| node.identifier_node.unwrap() == normal_command.identifier_node.unwrap())
-        {
-            commands.push(normal_command);
-        }
-    }
     commands
 }
 
