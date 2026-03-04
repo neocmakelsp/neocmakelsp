@@ -20,7 +20,7 @@ mod document_link;
 mod fileapi;
 mod filewatcher;
 mod formatting;
-mod gammar;
+mod grammar;
 mod hover;
 mod jump;
 mod languageserver;
