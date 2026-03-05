@@ -435,7 +435,7 @@ impl LanguageServer for Backend {
             .await;
         complete::init_builtin_variable();
         progress
-            .report_with_message("Start initing system modules", 70)
+            .report_with_message("Initializing system modules", 70)
             .await;
         complete::init_system_modules();
         progress.report_with_message("Scan finished", 100).await;
