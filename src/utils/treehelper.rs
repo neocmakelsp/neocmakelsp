@@ -8,7 +8,8 @@ use lsp_types::{Position, Range};
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point, Query, QueryCursor, StreamingIterator};
 
-use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
+use crate::CMakeNodeKinds;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 
