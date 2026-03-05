@@ -326,8 +326,8 @@ fn reference_inner<P: AsRef<Path>>(
 ) -> Option<Vec<Location>> {
     let mut definitions: Vec<Location> = vec![];
     if is_function {
-        let funcs = get_functions(source, root, u32::MAX);
-        let commands = get_normal_commands(source, root, u32::MAX);
+        let funcs = get_functions(source, root, None);
+        let commands = get_normal_commands(source, root, None);
         for fun in funcs {
             let fun_name = fun.name;
             if fun_name != tofind {
@@ -357,7 +357,7 @@ fn reference_inner<P: AsRef<Path>>(
             });
         }
     } else {
-        let vars = get_variables(source, root, u32::MAX);
+        let vars = get_variables(source, root, None);
         for var in vars {
             if var.content != tofind {
                 continue;
@@ -397,11 +397,11 @@ fn getsubdef<P: AsRef<Path>>(
     let source_bytes = source.as_bytes();
 
     // NOTE: prepare
-    let comments = get_line_comments(source_bytes, input, u32::MAX);
+    let comments = get_line_comments(source_bytes, input, None);
 
-    let macros = get_macros(source_bytes, input, u32::MAX);
-    let functions = get_functions(source_bytes, input, u32::MAX);
-    let normal_commands = get_normal_commands(source_bytes, input, u32::MAX);
+    let macros = get_macros(source_bytes, input, None);
+    let functions = get_functions(source_bytes, input, None);
+    let normal_commands = get_normal_commands(source_bytes, input, None);
 
     // NOTE: check functions
     for fun in functions {

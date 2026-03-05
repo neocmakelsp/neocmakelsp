@@ -239,7 +239,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     {
         return None;
     }
-    let max_height: u32 = location.map(|l| l.line).unwrap_or(u32::MAX);
+    let max_height = location.map(|l| l.line);
     let source_bytes = source.as_bytes();
     let mut complete: Vec<CompletionItem> = vec![];
 

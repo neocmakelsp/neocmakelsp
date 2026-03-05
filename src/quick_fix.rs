@@ -36,7 +36,7 @@ fn sub_lint_fix_action(
     longest: usize,
     uri: &tower_lsp::lsp_types::Uri,
 ) -> Option<CodeActionResponse> {
-    let argument_lists = get_argument_lists(source.as_bytes(), input, u32::MAX);
+    let argument_lists = get_argument_lists(source.as_bytes(), input, None);
     let argument_list = argument_lists.into_iter().find(|argument| {
         let node = argument.main_node.unwrap();
         node.end_position().row >= line && node.start_position().row <= line

@@ -194,7 +194,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             });
         }
     }
-    let commands = get_normal_commands(source_bytes, input, u32::MAX);
+    let commands = get_normal_commands(source_bytes, input, None);
     for query_now in commands {
         let name = query_now.identifier;
         let name_node = query_now.identifier_node.unwrap();

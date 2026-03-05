@@ -36,7 +36,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
     current_parent: &P,
 ) {
     let source = source.as_bytes();
-    let normal_commands = get_normal_commands(source, node, u32::MAX);
+    let normal_commands = get_normal_commands(source, node, None);
     for command in normal_commands {
         let name = command.identifier.to_lowercase();
         let arguments = command.args;

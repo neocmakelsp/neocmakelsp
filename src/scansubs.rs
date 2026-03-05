@@ -84,7 +84,7 @@ fn scan_node<P: AsRef<Path>>(
 ) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let mut bufs = Vec::new();
     let mut cmake_bufs = Vec::new();
-    let normal_commands = get_normal_commands(source.as_bytes(), tree, u32::MAX);
+    let normal_commands = get_normal_commands(source.as_bytes(), tree, None);
     for command in normal_commands {
         let command_name = command.identifier.to_lowercase();
         if command_name == "add_subdirectory" {
@@ -180,7 +180,7 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
         return vec![];
     }
     let mut output = vec![];
-    let normal_commands = get_normal_commands(source.as_bytes(), tree, u32::MAX);
+    let normal_commands = get_normal_commands(source.as_bytes(), tree, None);
     for command in normal_commands {
         if command.identifier.to_lowercase() == "add_subdirectory" {
             let Some(first_arg) = command.first_arg else {
