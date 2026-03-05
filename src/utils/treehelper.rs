@@ -376,12 +376,13 @@ fn get_pos_type_inner<'a>(
 const ARGUMENT_LIST_QUERY: &str = r#"(
     (argument_list) @argument_list
 )"#;
+
 const LINE_COMMENT_QUERY: &str = r#"(
     (line_comment) @comment
 )"#;
 
 const BRACKET_COMMENT_QUERY: &str = r#"(
-    (bracket_comment) @comment
+    (bracket_comment_content) @comment
 )"#;
 
 const MACRO_QUERY: &str = r#"(
@@ -705,6 +706,165 @@ A#ss\" #sss)";
         let input = tree.root_node();
         assert!(!contain_comment(Point { row: 1, column: 1 }, input));
         assert!(contain_comment(Point { row: 1, column: 8 }, input));
+    }
+
+    #[test]
+    fn test_get_normal_commands() {
+        let source = r#"
+# it is a comment
+set(ABC "abcd")
+set(EFT "${ABC}eft")
+function(abc)
+endfunction()
+find_package(PkgConfig)
+pkg_check_modules(zlib)
+target_link_libraries(ABC PUBLIC
+    ${zlib_LIBRARIES}
+    ${abcd}
+)
+include("abcd/efg.cmake")
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let normal_commands = get_normal_commands(source.as_bytes(), input, None);
+        assert_eq!(normal_commands.len(), 6);
+        let args = vec!["ABC", "EFT", "PkgConfig", "zlib", "\"abcd/efg.cmake\""];
+        for test_arg in args {
+            assert!(
+                normal_commands
+                    .iter()
+                    .any(|command| command.first_arg.is_some_and(|arg| arg == test_arg))
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_functions() {
+        let source = r#"
+function(abc)
+endfunction()
+
+function(efg d, e, f)
+endfunction()
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_functions(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 2);
+        assert!(
+            funs.iter()
+                .any(|fun| fun.name == "abc" && fun.arguments.len() == 1)
+        );
+        assert!(
+            funs.iter()
+                .any(|fun| fun.name == "efg" && fun.arguments.len() == 4)
+        );
+    }
+
+    #[test]
+    fn test_get_macros() {
+        let source = r#"
+macro(abc)
+endmacro()
+
+macro(efg d, e, f)
+endmacro()
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_macros(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 2);
+        assert!(
+            funs.iter()
+                .any(|fun| fun.name == "abc" && fun.arguments.len() == 1)
+        );
+        assert!(
+            funs.iter()
+                .any(|fun| fun.name == "efg" && fun.arguments.len() == 4)
+        );
+    }
+
+    #[test]
+    fn test_get_arguments() {
+        let source = r#"
+macro(abc)
+endmacro()
+
+macro(efg d)
+endmacro()
+
+set(g a b c)
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_argument_lists(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 3);
+        assert!(funs.iter().any(|fun| fun.arguments.len() == 1));
+        assert!(funs.iter().any(|fun| fun.arguments.len() == 2));
+        assert!(funs.iter().any(|fun| fun.arguments.len() == 4));
+    }
+
+    #[test]
+    fn test_get_variables() {
+        let source = r#"
+set(a "${abcd}")
+set(a "${efg}/${hijk}")
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_variables(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 3);
+        assert_eq!(funs[0].node.utf8_text(source.as_bytes()).unwrap(), "abcd");
+        assert_eq!(funs[1].node.utf8_text(source.as_bytes()).unwrap(), "efg");
+        assert_eq!(funs[2].node.utf8_text(source.as_bytes()).unwrap(), "hijk");
+    }
+
+    #[test]
+    fn test_get_line_comments() {
+        let source = r#"
+# Hello
+# World
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_line_comments(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 2);
+        assert_eq!(
+            funs[0].node.utf8_text(source.as_bytes()).unwrap(),
+            "# Hello"
+        );
+        assert_eq!(
+            funs[1].node.utf8_text(source.as_bytes()).unwrap(),
+            "# World"
+        );
+    }
+
+    #[test]
+    fn test_get_bracket_comments() {
+        let source = r#"
+#[=============[
+Hello world
+#]=============]
+    "#;
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(source, None).unwrap();
+        let input = tree.root_node();
+        let funs = get_bracket_comments(source.as_bytes(), input, None);
+        assert_eq!(funs.len(), 1);
+        assert_eq!(funs[0].content, "Hello world\n#");
     }
 
     #[test]
