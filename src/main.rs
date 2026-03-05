@@ -11,12 +11,12 @@ mod treesitter_nodetypes;
 
 use tokio::net::TcpListener;
 use treesitter_nodetypes as CMakeNodeKinds;
-mod ast;
 mod cli;
 mod complete;
 mod config;
 mod consts;
 mod document_link;
+mod document_symbol;
 mod fileapi;
 mod filewatcher;
 mod formatting;

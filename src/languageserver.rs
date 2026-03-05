@@ -24,8 +24,8 @@ use crate::semantic_token::LEGEND_TYPE;
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    BackendInitInfo, ast, complete, document_link, fileapi, filewatcher, hover, jump, quick_fix,
-    rename, scansubs, semantic_token, utils,
+    BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
+    quick_fix, rename, scansubs, semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -802,7 +802,7 @@ impl LanguageServer for Backend {
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri;
         match self.documents.get(&uri) {
-            Some(text) => Ok(ast::getast(&self.client, &text).await),
+            Some(text) => Ok(document_symbol::get_symbol(&self.client, &text).await),
             None => Ok(None),
         }
     }

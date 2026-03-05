@@ -13,7 +13,7 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_include_directories",
 ];
 
-pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
+pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
     let line = context.lines().count();
     if line > 10000 {
         client
@@ -23,12 +23,16 @@ pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResp
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
-    getsubast(tree.root_node(), context.as_bytes(), line > 10000)
+    get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
         .map(DocumentSymbolResponse::Nested)
 }
 
 #[allow(deprecated)]
-fn getsubast(input: tree_sitter::Node, source: &[u8], simple: bool) -> Option<Vec<DocumentSymbol>> {
+fn get_sub_symbol(
+    input: tree_sitter::Node,
+    source: &[u8],
+    simple: bool,
+) -> Option<Vec<DocumentSymbol>> {
     let mut course = input.walk();
     let mut asts: Vec<DocumentSymbol> = vec![];
     for child in input.children(&mut course) {
@@ -76,7 +80,7 @@ fn getsubast(input: tree_sitter::Node, source: &[u8], simple: bool) -> Option<Ve
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
@@ -122,12 +126,12 @@ fn getsubast(input: tree_sitter::Node, source: &[u8], simple: bool) -> Option<Ve
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
             CMakeNodeKinds::BODY => {
-                let Some(mut bodycontent) = getsubast(child, source, simple) else {
+                let Some(mut bodycontent) = get_sub_symbol(child, source, simple) else {
                     continue;
                 };
                 asts.append(&mut bodycontent);
@@ -162,7 +166,7 @@ fn getsubast(input: tree_sitter::Node, source: &[u8], simple: bool) -> Option<Ve
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
@@ -232,7 +236,7 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), context.as_bytes(), false).is_some());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
     }
 
     #[test]
@@ -242,7 +246,7 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), context.as_bytes(), false).is_some());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
     }
 
     #[test]
@@ -254,6 +258,6 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), context.as_bytes(), false).is_none());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_none());
     }
 }
