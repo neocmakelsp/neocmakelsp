@@ -386,14 +386,12 @@ const BRACKET_COMMENT_QUERY: &str = r#"(
 
 const MACRO_QUERY: &str = r#"(
    (macro_command
-       (argument_list) @argument_list
-   )
+       (argument_list ((argument)*) @args))
 )"#;
 
 const FUNCTION_QUERY: &str = r#"(
    (function_command
-       (argument_list) @argument_list
-   )
+       (argument_list ((argument)*) @args))
 )"#;
 
 const NORMAL_COMMAND_QUERY: &str = r#"
@@ -481,22 +479,20 @@ pub fn get_argument_lists<'a>(
     let mut cursor_comments = QueryCursor::new();
     let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
 
-    'out: while let Some(m) = matches_comments.next() {
+    while let Some(m) = matches_comments.next() {
         let mut ag_node = ArgumentListNode {
             main_node: None,
             arguments: vec![],
         };
-        for e in m.captures {
-            let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
-            ag_node.main_node = Some(node);
+        let node = m.nodes_for_capture_index(0).next().unwrap();
+        if node.start_position().row as u32 > max_height {
+            continue;
+        }
+        ag_node.main_node = Some(node);
 
-            let mut walk = node.walk();
-            for child in node.children(&mut walk) {
-                ag_node.arguments.push(child);
-            }
+        let mut walk = node.walk();
+        for child in node.children(&mut walk) {
+            ag_node.arguments.push(child);
         }
         arguments.push(ag_node);
     }
@@ -574,25 +570,17 @@ pub fn get_macros<'a>(
     let mut cursor_macro = QueryCursor::new();
     let mut matches_macro = cursor_macro.matches(&query_macro, node, source);
 
-    'out: while let Some(m) = matches_macro.next() {
+    while let Some(m) = matches_macro.next() {
         let mut macro_node = MacroNode {
             name: "",
             arguments: vec![],
         };
-        for e in m.captures {
-            let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
-            let mut walk = node.walk();
-            for child in node.children(&mut walk) {
-                macro_node.arguments.push(child);
-            }
-            let Some(first_arg) = node.child(0) else {
-                continue 'out;
-            };
-            macro_node.name = first_arg.utf8_text(source).unwrap();
+        let first_arg = m.nodes_for_capture_index(0).next().unwrap();
+        if first_arg.start_position().row as u32 > max_height {
+            continue;
         }
+        macro_node.name = first_arg.utf8_text(source).unwrap();
+        macro_node.arguments = m.captures.iter().map(|q| q.node).collect();
         macros.push(macro_node);
     }
     macros
@@ -611,37 +599,35 @@ pub fn get_normal_commands<'a>(
     let mut cursor_cmd = QueryCursor::new();
     let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
 
-    'out: while let Some(m) = matches_cmd.next() {
+    while let Some(m) = matches_cmd.next() {
         let mut normal_command = NormalCommandNode {
             identifier: "",
             identifier_node: None,
             first_arg: None,
             args: vec![],
         };
-        for command in m.captures {
-            let node = command.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
+        let node = m.nodes_for_capture_index(0).next().unwrap();
+        if node.start_position().row as u32 > max_height {
+            continue;
+        }
+        let Some(identifier) = node.child(0) else {
+            continue;
+        };
+        if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
+            continue;
+        }
+        normal_command.identifier = identifier.utf8_text(source).unwrap();
+        normal_command.identifier_node = Some(identifier);
+        // NOTE: child 1 is "(", it is child 2 that argument_list
+        if let Some(argument_list) = node.child(2)
+            && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
+        {
+            let mut walk = argument_list.walk();
+            for child in argument_list.children(&mut walk) {
+                normal_command.args.push(child);
             }
-            let Some(identifier) = node.child(0) else {
-                continue 'out;
-            };
-            if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
-                continue 'out;
-            }
-            normal_command.identifier = identifier.utf8_text(source).unwrap();
-            normal_command.identifier_node = Some(identifier);
-            // NOTE: child 1 is "(", it is child 2 that argument_list
-            if let Some(argument_list) = node.child(2)
-                && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
-            {
-                let mut walk = argument_list.walk();
-                for child in argument_list.children(&mut walk) {
-                    normal_command.args.push(child);
-                }
-                if let Some(first_arg) = argument_list.child(0) {
-                    normal_command.first_arg = first_arg.utf8_text(source).ok();
-                }
+            if let Some(first_arg) = argument_list.child(0) {
+                normal_command.first_arg = first_arg.utf8_text(source).ok();
             }
         }
         commands.push(normal_command);
@@ -663,25 +649,17 @@ pub fn get_functions<'a>(
     let mut cursor_fun = QueryCursor::new();
     let mut matches_fun = cursor_fun.matches(&query_fun, node, source);
 
-    'out: while let Some(m) = matches_fun.next() {
+    while let Some(m) = matches_fun.next() {
         let mut fun_node = FuncNode {
             name: "",
             arguments: vec![],
         };
-        for e in m.captures {
-            let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
-            let mut walk = node.walk();
-            for child in node.children(&mut walk) {
-                fun_node.arguments.push(child);
-            }
-            let Some(first_arg) = node.child(0) else {
-                continue 'out;
-            };
-            fun_node.name = first_arg.utf8_text(source).unwrap();
+        let first_arg = m.nodes_for_capture_index(0).next().unwrap();
+        if first_arg.start_position().row as u32 > max_height {
+            continue;
         }
+        fun_node.name = first_arg.utf8_text(source).unwrap();
+        fun_node.arguments = m.captures.iter().map(|q| q.node).collect();
         funs.push(fun_node);
     }
     funs
