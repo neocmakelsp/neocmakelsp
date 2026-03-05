@@ -669,7 +669,14 @@ pub fn get_functions<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+
+    fn parse_tree(source: &str) -> tree_sitter::Tree {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_cmake::LANGUAGE.into())
+            .unwrap();
+        parser.parse(source, None).unwrap()
+    }
 
     #[test]
     fn test_change() {
@@ -701,9 +708,7 @@ mod tests {
     fn test_line_comment() {
         let source = "set(A \"
 A#ss\" #sss)";
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         assert!(!contain_comment(Point { row: 1, column: 1 }, input));
         assert!(contain_comment(Point { row: 1, column: 8 }, input));
@@ -725,9 +730,7 @@ target_link_libraries(ABC PUBLIC
 )
 include("abcd/efg.cmake")
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let normal_commands = get_normal_commands(source.as_bytes(), input, None);
         assert_eq!(normal_commands.len(), 6);
@@ -750,9 +753,7 @@ endfunction()
 function(efg d, e, f)
 endfunction()
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_functions(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 2);
@@ -775,9 +776,7 @@ endmacro()
 macro(efg d, e, f)
 endmacro()
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_macros(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 2);
@@ -802,9 +801,7 @@ endmacro()
 
 set(g a b c)
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_argument_lists(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 3);
@@ -819,9 +816,7 @@ set(g a b c)
 set(a "${abcd}")
 set(a "${efg}/${hijk}")
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_variables(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 3);
@@ -836,9 +831,7 @@ set(a "${efg}/${hijk}")
 # Hello
 # World
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_line_comments(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 2);
@@ -859,9 +852,7 @@ set(a "${efg}/${hijk}")
 Hello world
 #]=============]
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_bracket_comments(source.as_bytes(), input, None);
         assert_eq!(funs.len(), 1);
@@ -884,9 +875,7 @@ target_link_libraries(ABC PUBLIC
 )
 include("abcd/efg.cmake")
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         let source_lines = source.as_bytes();
         let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, source_lines).unwrap();
@@ -921,9 +910,7 @@ find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
 
         assert_eq!(
