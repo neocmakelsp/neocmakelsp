@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::query::get_normal_commands;
 use crate::utils::remove_quotation_and_replace_placeholders;
-use crate::{CMakeNodeKinds, complete, jump};
+use crate::{complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -69,76 +70,55 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&source, None).unwrap();
     let tree = tree.root_node();
-    let newsource: Vec<&str> = source.lines().collect();
     if tree.is_error() {
         return (Vec::new(), Vec::new());
     }
 
-    scan_node(&newsource, tree, path)
+    scan_node(&source, tree, path)
 }
 
 fn scan_node<P: AsRef<Path>>(
-    source: &Vec<&str>,
+    source: &str,
     tree: tree_sitter::Node,
     path: P,
 ) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let mut bufs = Vec::new();
     let mut cmake_bufs = Vec::new();
-    let mut course = tree.walk();
-    for node in tree.children(&mut course) {
-        match node.kind() {
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let h = node.start_position().row;
-                let ids = node.child(0).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let command_name = &source[h][x..y];
-                if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
-                    let ids = node.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &source[h][x..y];
-                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
-                            continue;
-                        };
-                        let subpath = path
-                            .as_ref()
-                            .parent()
-                            .unwrap()
-                            .join(name)
-                            .join("CMakeLists.txt");
-                        bufs.push(subpath.to_path_buf());
-                    }
-                } else if command_name.to_lowercase() == "include" && node.child_count() >= 4 {
-                    let ids = node.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let name = &source[h][x..y];
-                        let Some(name) = remove_quotation_and_replace_placeholders(name) else {
-                            continue;
-                        };
-                        if !name.ends_with(".cmake") {
-                            continue;
-                        }
-                        let mut cmake_buf_path = PathBuf::from(name);
+    let normal_commands = get_normal_commands(source.as_bytes(), tree, None);
+    for command in normal_commands {
+        let command_name = command.identifier.to_lowercase();
+        if command_name == "add_subdirectory" {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+                continue;
+            };
 
-                        if !cmake_buf_path.is_absolute() {
-                            cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path);
-                        }
-                        cmake_bufs.push(cmake_buf_path);
-                    }
-                }
+            let subpath = path
+                .as_ref()
+                .parent()
+                .unwrap()
+                .join(file_name)
+                .join("CMakeLists.txt");
+            bufs.push(subpath.to_path_buf());
+        } else if command_name == "include" {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+                continue;
+            };
+
+            if !file_name.ends_with(".cmake") {
+                continue;
             }
-            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                let (mut childbufs, mut newcmakebufs) = scan_node(source, node, path.as_ref());
-                bufs.append(&mut childbufs);
-                cmake_bufs.append(&mut newcmakebufs);
+            let mut cmake_buf_path = PathBuf::from(file_name);
+
+            if !cmake_buf_path.is_absolute() {
+                cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path);
             }
-            _ => {}
+            cmake_bufs.push(cmake_buf_path);
         }
     }
     (bufs, cmake_bufs)
@@ -180,7 +160,7 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None).unwrap();
-    let subdirs = get_subdir_from_tree(&content.lines().collect(), tree.root_node(), path);
+    let subdirs = get_subdir_from_tree(&content, tree.root_node(), path);
     if !subdirs.is_empty() {
         let mut sub_dirs: Vec<TreeDir> = vec![];
         for dir in subdirs {
@@ -195,44 +175,32 @@ pub fn get_treedir(path: &Path) -> Option<TreeDir> {
     Some(top)
 }
 
-fn get_subdir_from_tree(
-    source: &Vec<&str>,
-    tree: tree_sitter::Node,
-    parent: &Path,
-) -> Vec<PathBuf> {
+fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) -> Vec<PathBuf> {
     if tree.is_error() {
         return vec![];
     }
-    let mut course = tree.walk();
     let mut output = vec![];
-    for node in tree.children(&mut course) {
-        let mut innodepath = get_subdir_from_tree(source, node, parent);
-        if !innodepath.is_empty() {
-            output.append(&mut innodepath);
-        }
-        if node.kind() == CMakeNodeKinds::NORMAL_COMMAND {
-            let h = node.start_position().row;
-            let ids = node.child(0).unwrap();
-            //let ids = ids.child(2).unwrap();
-            let x = ids.start_position().column;
-            let y = ids.end_position().column;
-            let command_name = &source[h][x..y];
-            if command_name.to_lowercase() == "add_subdirectory" && node.child_count() >= 4 {
-                let ids = node.child(2).unwrap();
-                if ids.start_position().row == ids.end_position().row {
-                    let h = ids.start_position().row;
-                    let x = ids.start_position().column;
-                    let y = ids.end_position().column;
-                    let name = &source[h][x..y];
-                    let name = name.trim_matches('"');
-                    let subpath = parent.parent().unwrap().join(name).join("CMakeLists.txt");
-                    if subpath.exists() {
-                        output.push(subpath);
-                    }
-                }
+    let normal_commands = get_normal_commands(source.as_bytes(), tree, None);
+    for command in normal_commands {
+        if command.identifier.to_lowercase() == "add_subdirectory" {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+                continue;
+            };
+
+            let subpath = parent
+                .parent()
+                .unwrap()
+                .join(file_name)
+                .join("CMakeLists.txt");
+            if subpath.exists() {
+                output.push(subpath);
             }
         }
     }
+
     output
 }
 

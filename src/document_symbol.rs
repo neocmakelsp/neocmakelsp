@@ -13,7 +13,7 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_include_directories",
 ];
 
-pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
+pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
     let line = context.lines().count();
     if line > 10000 {
         client
@@ -23,14 +23,14 @@ pub async fn getast(client: &Client, context: &str) -> Option<DocumentSymbolResp
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
-    getsubast(tree.root_node(), &context.lines().collect(), line > 10000)
+    get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
         .map(DocumentSymbolResponse::Nested)
 }
 
 #[allow(deprecated)]
-fn getsubast(
+fn get_sub_symbol(
     input: tree_sitter::Node,
-    source: &Vec<&str>,
+    source: &[u8],
     simple: bool,
 ) -> Option<Vec<DocumentSymbol>> {
     let mut course = input.walk();
@@ -47,10 +47,7 @@ fn getsubast(
                 let Some(function_name) = argumentlists.child(0) else {
                     continue;
                 };
-                let x = function_name.start_position().column;
-                let y = function_name.end_position().column;
-                let h = function_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
+                let Ok(name) = function_name.utf8_text(source) else {
                     continue;
                 };
 
@@ -83,7 +80,7 @@ fn getsubast(
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
@@ -97,10 +94,7 @@ fn getsubast(
                 let Some(marco_name) = argumentlists.child(0) else {
                     continue;
                 };
-                let x = marco_name.start_position().column;
-                let y = marco_name.end_position().column;
-                let h = marco_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
+                let Ok(name) = marco_name.utf8_text(source) else {
                     continue;
                 };
                 asts.push(DocumentSymbol {
@@ -132,12 +126,12 @@ fn getsubast(
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
             CMakeNodeKinds::BODY => {
-                let Some(mut bodycontent) = getsubast(child, source, simple) else {
+                let Some(mut bodycontent) = get_sub_symbol(child, source, simple) else {
                     continue;
                 };
                 asts.append(&mut bodycontent);
@@ -172,20 +166,19 @@ fn getsubast(
                     children: if simple {
                         None
                     } else {
-                        getsubast(child, source, simple)
+                        get_sub_symbol(child, source, simple)
                     },
                 });
             }
             CMakeNodeKinds::NORMAL_COMMAND => {
                 let start = child.start_position().to_position();
                 let end = child.end_position().to_position();
-                let h = child.start_position().row;
                 let Some(ids) = child.child(0) else {
                     continue;
                 };
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let command_name = &source[h][x..y];
+                let Ok(command_name) = ids.utf8_text(source) else {
+                    continue;
+                };
                 if COMMAND_KEYWORDS.contains(&command_name.to_lowercase().as_str()) {
                     let Some(argumentlists) = child.child(2) else {
                         continue;
@@ -201,7 +194,9 @@ fn getsubast(
                         }
                         let x = ids.start_position().column;
                         let y = ids.end_position().column;
-                        let varname = &source[h][x..y];
+                        let Ok(varname) = ids.utf8_text(source) else {
+                            continue;
+                        };
                         asts.push(DocumentSymbol {
                             name: format!("{command_name}: {varname}"),
                             detail: None,
@@ -241,7 +236,7 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
     }
 
     #[test]
@@ -251,7 +246,7 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_some());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
     }
 
     #[test]
@@ -263,6 +258,6 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(getsubast(thetree.root_node(), &context.lines().collect(), false).is_none());
+        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_none());
     }
 }

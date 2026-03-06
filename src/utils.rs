@@ -1,4 +1,5 @@
 mod findpackage;
+pub mod query;
 pub mod treehelper;
 
 use std::collections::HashMap;
@@ -7,7 +8,6 @@ use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::Uri;
-use tree_sitter::Node;
 
 pub use self::findpackage::*;
 use crate::fileapi;
@@ -59,39 +59,6 @@ pub struct CMakePackage {
 
 pub fn include_is_module(file_name: &str) -> bool {
     !file_name.ends_with(".cmake")
-}
-
-// get the content and split all argument to vector
-pub fn get_node_content<'a>(source: &[&'a str], node: &Node) -> Vec<&'a str> {
-    let mut content: Vec<&str> = vec![];
-    let x = node.start_position().column;
-    let y = node.end_position().column;
-
-    let row_start = node.start_position().row;
-    let row_end = node.end_position().row;
-
-    if row_start == row_end {
-        let tmpcontent = &source[row_start][x..y];
-        content.append(&mut tmpcontent.split(' ').collect());
-    } else {
-        let mut row = row_start;
-        content.append(&mut source[row][x..].split(' ').collect());
-        row += 1;
-
-        while row < row_end {
-            content.append(&mut source[row].split(' ').collect());
-            row += 1;
-        }
-
-        if row != row_start {
-            assert_eq!(row, row_end);
-            // NOTE: like ")" this kind should check again
-            if y != 0 {
-                content.append(&mut source[row][..y].split(' ').collect());
-            }
-        }
-    }
-    content
 }
 
 pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
@@ -176,29 +143,6 @@ pub fn gen_module_pattern(subpath: &str) -> Option<String> {
     }
 }
 
-#[derive(Debug)]
-pub struct LineCommentTmp<'a> {
-    pub end_y: usize,
-    pub comments: Vec<&'a str>,
-}
-
-impl LineCommentTmp<'_> {
-    pub fn is_node_comment(&self, start_y: usize) -> bool {
-        if start_y <= self.end_y {
-            return false;
-        }
-        start_y - self.end_y == 1 && !self.comments.is_empty()
-    }
-    pub fn comment(&self) -> String {
-        let tmp: Vec<&str> = self
-            .comments
-            .iter()
-            .map(|comment| comment.strip_prefix("#").unwrap_or(comment).trim())
-            .collect();
-        tmp.join("\n")
-    }
-}
-
 const LIBRARIES_END: &str = "_LIBRARIES";
 const INCLUDE_DIRS_END: &str = "_INCLUDE_DIRS";
 
@@ -215,47 +159,11 @@ pub fn get_the_packagename(package: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
     #[test]
     fn ut_ismodule() {
         assert!(include_is_module("GNUInstall"));
         assert!(!include_is_module("test.cmake"));
-    }
-
-    #[test]
-    fn get_node_content_test_1() {
-        let source = r#"findpackage(Qt5 COMPONENTS CONFIG Core Gui Widget)"#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
-        let input = tree.root_node();
-        let argumentlist = input.child(0).unwrap().child(2).unwrap();
-        let lines: Vec<&str> = source.lines().collect();
-        let content = get_node_content(&lines, &argumentlist);
-        assert_eq!(
-            content,
-            vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
-        );
-    }
-
-    #[test]
-    fn get_node_content_test_2() {
-        let source = r#"findpackage(Qt5
-COMPONENTS CONFIG
-Core Gui Widget
-)"#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
-        let input = tree.root_node();
-        let argumentlist = input.child(0).unwrap().child(2).unwrap();
-        let lines: Vec<&str> = source.lines().collect();
-        let content = get_node_content(&lines, &argumentlist);
-        assert_eq!(
-            content,
-            vec!["Qt5", "COMPONENTS", "CONFIG", "Core", "Gui", "Widget"]
-        );
     }
 
     #[test]
@@ -286,15 +194,6 @@ Core Gui Widget
             replace_placeholders_with_hashmap(template, &values),
             Some("/home/abc".to_string())
         );
-    }
-
-    #[test]
-    fn test_comment() {
-        let linecomment = LineCommentTmp {
-            end_y: 0,
-            comments: vec!["# Abcd", "#   EFGH"],
-        };
-        assert_eq!(linecomment.comment(), "Abcd\nEFGH");
     }
 
     #[test]

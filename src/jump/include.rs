@@ -68,7 +68,7 @@ pub fn scanner_include_defs(
     let thetree = parse.parse(&content, None)?;
     let result_data = getsubdef(
         thetree.root_node(),
-        &content.lines().collect(),
+        &content,
         path,
         postype,
         include_files,
@@ -104,7 +104,7 @@ pub fn scanner_package_defs(
     let thetree = parse.parse(&content, None)?;
     let result_data = getsubdef(
         thetree.root_node(),
-        &content.lines().collect(),
+        &content,
         path,
         postype,
         include_files,

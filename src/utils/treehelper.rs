@@ -8,7 +8,6 @@ use lsp_types::{Position, Range};
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};
 
-use super::get_node_content;
 use crate::CMakeNodeKinds;
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
@@ -58,7 +57,7 @@ pub fn position_to_point(input: Position) -> Point {
 }
 
 /// get the position of the string
-pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) -> Option<&'a str> {
+pub fn get_point_string<'a>(location: Point, root: Node, source: &'a [u8]) -> Option<&'a str> {
     let mut course = root.walk();
     for child in root.children(&mut course) {
         if !location_range_contain(location, child) {
@@ -81,13 +80,7 @@ pub fn get_point_string<'a>(location: Point, root: Node, source: &Vec<&'a str>) 
             && location.column <= child.end_position().column
             && location.column >= child.start_position().column
         {
-            let h = child.start_position().row;
-            let x = child.start_position().column;
-            let y = child.end_position().column;
-
-            let message = &source[h][x..y];
-
-            return Some(message);
+            return child.utf8_text(source).ok();
         }
     }
     None
@@ -244,18 +237,13 @@ pub fn contain_comment(location: Point, root: Node) -> bool {
 
 #[inline]
 pub fn get_pos_type<'a>(location: Point, root: Node, source: &'a str) -> PositionType<'a> {
-    get_pos_type_inner(
-        location,
-        root,
-        &source.lines().collect(),
-        PositionType::Unknown,
-    )
+    get_pos_type_inner(location, root, source.as_bytes(), PositionType::Unknown)
 }
 
 fn get_pos_type_inner<'a>(
     location: Point,
     root: Node,
-    source: &Vec<&'a str>,
+    source: &'a [u8],
     input_type: PositionType<'a>,
 ) -> PositionType<'a> {
     let mut course = root.walk();
@@ -266,11 +254,8 @@ fn get_pos_type_inner<'a>(
 
         let jumptype = match child.kind() {
             CMakeNodeKinds::NORMAL_COMMAND => {
-                let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let name = source[h][x..y].to_lowercase();
+                let identifier = child.child(0).unwrap();
+                let name = identifier.utf8_text(source).unwrap().to_lowercase();
                 match name.as_str() {
                     "find_package" => PositionType::FindPackage,
                     #[cfg(unix)]
@@ -286,15 +271,12 @@ fn get_pos_type_inner<'a>(
                 let child_count = child.child_count();
                 if child.child_count() >= 1 {
                     let first_argument = child.child(0).unwrap();
-                    let row = first_argument.start_position().row;
-                    let col_x = first_argument.start_position().column;
-                    let col_y = first_argument.end_position().column;
-                    let node_source = get_node_content(source, &child);
-                    let val = &source[row][col_x..col_y];
+                    let node_source = child.utf8_text(source).unwrap();
+                    let val = first_argument.utf8_text(source).unwrap();
                     if child_count >= 2
                         && !location_range_contain(location, first_argument)
                         && input_type == PositionType::FindPackage
-                        && node_source.contains(&"COMPONENTS")
+                        && node_source.contains("COMPONENTS")
                     {
                         return PositionType::FindPackageSpace(val);
                     }
@@ -391,12 +373,16 @@ fn get_pos_type_inner<'a>(
     }
     PositionType::Unknown
 }
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
+    use super::*;
+    fn parse_tree(source: &str) -> tree_sitter::Tree {
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        parser.parse(source, None).unwrap()
+    }
     #[test]
     fn test_change() {
         let point = Point {
@@ -427,9 +413,7 @@ mod tests {
     fn test_line_comment() {
         let source = "set(A \"
 A#ss\" #sss)";
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
         assert!(!contain_comment(Point { row: 1, column: 1 }, input));
         assert!(contain_comment(Point { row: 1, column: 8 }, input));
@@ -451,19 +435,16 @@ target_link_libraries(ABC PUBLIC
 )
 include("abcd/efg.cmake")
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
-        let source_lines = source.lines().collect();
-        let pos_str_1 =
-            get_point_string(Point { row: 2, column: 4 }, input, &source_lines).unwrap();
+        let source_lines = source.as_bytes();
+        let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, source_lines).unwrap();
         assert_eq!(pos_str_1, "ABC");
         let pos_str_2 =
-            get_point_string(Point { row: 3, column: 12 }, input, &source_lines).unwrap();
+            get_point_string(Point { row: 3, column: 12 }, input, source_lines).unwrap();
         assert_eq!(pos_str_2, "ABC");
         let pos_str_3 =
-            get_point_string(Point { row: 3, column: 16 }, input, &source_lines).unwrap();
+            get_point_string(Point { row: 3, column: 16 }, input, source_lines).unwrap();
         assert_eq!(pos_str_3, "${ABC}eft");
     }
 
@@ -489,9 +470,7 @@ find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
     "#;
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(source, None).unwrap();
+        let tree = parse_tree(source);
         let input = tree.root_node();
 
         assert_eq!(

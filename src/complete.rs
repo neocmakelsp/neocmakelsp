@@ -14,14 +14,18 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::fileapi;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
+
+use crate::utils::query::{
+    get_bracket_comments, get_functions, get_line_comments, get_macros, get_normal_commands,
+};
 use crate::utils::{
-    CACHE_CMAKE_PACKAGES_WITHKEYS, LineCommentTmp, gen_module_pattern, include_is_module,
+    CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, include_is_module,
     remove_quotation_and_replace_placeholders,
 };
-use crate::{CMakeNodeKinds, fileapi};
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
@@ -77,7 +81,7 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
     let tree = thetree.unwrap();
     let Some(result_data) = getsubcomplete(
         tree.root_node(),
-        &context.lines().collect(),
+        context,
         path.as_ref(),
         PositionType::VarOrFun,
         None,
@@ -150,7 +154,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
             }
             if let Some(mut message) = getsubcomplete(
                 tree.root_node(),
-                &source.lines().collect(),
+                source,
                 Path::new(local_path),
                 postype,
                 Some(location),
@@ -214,7 +218,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
 #[allow(clippy::too_many_arguments)]
 fn getsubcomplete<P: AsRef<Path>>(
     input: tree_sitter::Node,
-    source: &Vec<&str>,
+    source: &str,
     local_path: P,
     postype: PositionType,
     location: Option<Position>,
@@ -236,392 +240,298 @@ fn getsubcomplete<P: AsRef<Path>>(
     {
         return None;
     }
-
-    let mut course = input.walk();
+    let max_height = location.map(|l| l.line);
+    let source_bytes = source.as_bytes();
     let mut complete: Vec<CompletionItem> = vec![];
-    let mut line_comment_tmp = LineCommentTmp {
-        end_y: 0,
-        comments: vec![],
-    };
-    for child in input.children(&mut course) {
-        if let Some(location) = location
-            && child.start_position().row as u32 > location.line
+
+    // NOTE: prepare
+    let bracket_comments = get_bracket_comments(source_bytes, input, max_height);
+    let comments = get_line_comments(source_bytes, input, max_height);
+
+    let macros = get_macros(source_bytes, input, max_height);
+    let functions = get_functions(source_bytes, input, max_height);
+    let normal_commands = get_normal_commands(source_bytes, input, max_height);
+    // NOTE: check bracket_comments
+    for bracket_comment in bracket_comments {
+        complete.append(&mut rst_doc_read(
+            bracket_comment.content,
+            local_path.file_name().unwrap().to_str().unwrap(),
+        ));
+    }
+
+    // NOTE: check functions
+    for fun in functions {
+        let name = fun.name;
+        let row = fun.arguments[0].start_position().row;
+
+        let mut document_info = format!("defined function\nfrom: {}", local_path.display());
+        if let Some(line_comment) = comments
+            .iter()
+            .find(|c| c.node.start_position().row + 1 == row)
+            .map(|c| c.content)
         {
-            // if this child is below row, then break all loop
-            break;
+            document_info = format!("{}\n\n{}", document_info, line_comment);
         }
-        match child.kind() {
-            CMakeNodeKinds::LINE_COMMENT => {
-                let start_x = child.start_position().column;
-                let end_x = child.end_position().column;
-                let end_y = child.end_position().row;
-                let comment = &source[end_y][start_x..end_x];
-                if end_y - line_comment_tmp.end_y == 1 {
-                    line_comment_tmp.end_y = end_y;
-                    line_comment_tmp.comments.push(comment);
+        complete.push(CompletionItem {
+            label: name.to_string(),
+            kind: Some(CompletionItemKind::FUNCTION),
+            detail: Some("Function".to_string()),
+            documentation: Some(Documentation::String(document_info)),
+            ..Default::default()
+        });
+    }
+
+    // NOTE: check macros
+    for macro_node in macros {
+        let name = macro_node.name;
+        let row = macro_node.arguments[0].start_position().row;
+
+        let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
+        if let Some(line_comment) = comments
+            .iter()
+            .find(|c| c.node.start_position().row + 1 == row)
+            .map(|c| c.content)
+        {
+            document_info = format!("{}\n\n{}", document_info, line_comment);
+        }
+        complete.push(CompletionItem {
+            label: name.to_string(),
+            kind: Some(CompletionItemKind::FUNCTION),
+            detail: Some("Function".to_string()),
+            documentation: Some(Documentation::String(document_info)),
+            ..Default::default()
+        });
+    }
+
+    // NOTE: check normal_commands
+    for command in normal_commands {
+        let name = command.identifier.to_lowercase();
+        if name == "include" {
+            let Some(first_arg) = command.first_arg else {
+                continue;
+            };
+            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+                continue;
+            };
+            let (is_builtin, subpath) = {
+                if !include_is_module(&file_name) {
+                    (false, local_path.parent().unwrap().join(file_name))
                 } else {
-                    line_comment_tmp = LineCommentTmp {
-                        end_y,
-                        comments: vec![comment],
-                    }
+                    let Some(glob_pattern) = gen_module_pattern(&file_name) else {
+                        continue;
+                    };
+                    let Some(path) = glob::glob(&glob_pattern)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .next()
+                    else {
+                        continue;
+                    };
+                    (true, path)
                 }
+            };
+            if include_files.contains(&subpath) {
+                continue;
             }
-            CMakeNodeKinds::BRACKET_COMMENT => {
-                let start_y = child.start_position().row;
-                let end_y = child.end_position().row;
-                let mut output = String::new();
-                for item in source.iter().take(end_y).skip(start_y + 1) {
-                    output.push_str(&format!("{item}\n"));
-                }
-                complete.append(&mut rst_doc_read(
-                    &output,
-                    local_path.file_name().unwrap().to_str().unwrap(),
-                ));
-            }
-            CMakeNodeKinds::FUNCTION_DEF => {
-                let Some(function_whole) = child.child(0) else {
-                    continue;
-                };
-                let Some(argument_list) = function_whole.child(2) else {
-                    continue;
-                };
-                let Some(function_name) = argument_list.child(0) else {
-                    continue;
-                };
-                let x = function_name.start_position().column;
-                let y = function_name.end_position().column;
-                let h = function_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
-                    continue;
-                };
-                let mut document_info = format!("defined function\nfrom: {}", local_path.display());
-
-                if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                }
-                complete.push(CompletionItem {
-                    label: name.to_string(),
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(document_info)),
-                    ..Default::default()
-                });
-            }
-            CMakeNodeKinds::MACRO_DEF => {
-                let Some(macro_whole) = child.child(0) else {
-                    continue;
-                };
-                let Some(argument_list) = macro_whole.child(2) else {
-                    continue;
-                };
-                let Some(marco_name) = argument_list.child(0) else {
-                    continue;
-                };
-                let x = marco_name.start_position().column;
-                let y = marco_name.end_position().column;
-                let h = marco_name.start_position().row;
-                let Some(name) = &source[h][x..y].split(' ').next() else {
-                    continue;
-                };
-                let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
-
-                if line_comment_tmp.is_node_comment(h) {
-                    document_info = format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                }
-
-                complete.push(CompletionItem {
-                    label: name.to_string(),
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(document_info)),
-                    ..Default::default()
-                });
-            }
-            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP | CMakeNodeKinds::BODY => {
-                if let Some(mut message) = getsubcomplete(
-                    child,
-                    source,
-                    local_path,
+            if let Ok(true) = subpath.try_exists() {
+                if let Some(mut comps) = includescanner::scanner_include_complete(
+                    &subpath,
                     postype,
-                    location,
                     include_files,
                     complete_packages,
-                    true,
                     find_cmake_in_package,
+                    is_builtin,
                 ) {
-                    complete.append(&mut message);
+                    complete.append(&mut comps);
                 }
+                include_files.push(subpath);
             }
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let h = child.start_position().row;
-                let ids = child.child(0).unwrap();
-                let x = ids.start_position().column;
-                let y = ids.end_position().column;
-                let name = source[h][x..y].to_lowercase();
-                if name == "include" && child.child_count() >= 3 && should_in {
-                    let ids = child.child(2).unwrap();
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let Some(name) =
-                            remove_quotation_and_replace_placeholders(&source[h][x..y])
-                        else {
-                            continue;
-                        };
-                        let (is_builtin, subpath) = {
-                            if !include_is_module(&name) {
-                                (false, local_path.parent().unwrap().join(name))
-                            } else {
-                                let Some(glob_pattern) = gen_module_pattern(&name) else {
-                                    continue;
-                                };
-                                let Some(path) = glob::glob(&glob_pattern)
-                                    .into_iter()
-                                    .flatten()
-                                    .flatten()
-                                    .next()
-                                else {
-                                    continue;
-                                };
-                                (true, path)
+        } else if name == "mark_as_advanced" {
+            for arg in command.args {
+                let variable = arg.utf8_text(source_bytes).unwrap();
+                complete.push(CompletionItem {
+                    label: variable.to_string(),
+                    kind: Some(CompletionItemKind::VARIABLE),
+                    detail: Some("Variable".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined var\nfrom: {}",
+                        local_path.display()
+                    ))),
+                    ..Default::default()
+                });
+            }
+        } else {
+            if name == "set" || name == "options" {
+                let Some(name) = command.first_arg else {
+                    continue;
+                };
+                let row = command.identifier_node.unwrap().start_position().row;
+                let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
+
+                if let Some(line_comment) = comments
+                    .iter()
+                    .find(|c| c.node.start_position().row + 1 == row)
+                    .map(|c| c.content)
+                {
+                    document_info = format!("{}\n\n{}", document_info, line_comment);
+                }
+                complete.push(CompletionItem {
+                    label: name.to_string(),
+                    kind: Some(CompletionItemKind::VALUE),
+                    detail: Some("Value".to_string()),
+                    documentation: Some(Documentation::String(document_info)),
+                    ..Default::default()
+                });
+            }
+            if name == "find_package" && should_in {
+                let Some(package_name) = command.first_arg else {
+                    continue;
+                };
+                let argument_count = command.args.len();
+                let mut component_part = Vec::new();
+                let mut cmakepackages = Vec::new();
+
+                let components_packages = {
+                    if argument_count >= 2 {
+                        let mut support_component = false;
+                        let mut components_packages = Vec::new();
+                        for index in 1..argument_count {
+                            let package_prefix_node = command.args[index];
+                            let component = package_prefix_node.utf8_text(source_bytes).unwrap();
+                            if component == "COMPONENTS" {
+                                support_component = true;
+                            } else if component != "REQUIRED" {
+                                component_part.push(component.to_string());
+                                components_packages.push(format!("{package_name}::{component}"));
                             }
-                        };
-                        if include_files.contains(&subpath) {
-                            continue;
                         }
-                        if let Ok(true) = subpath.try_exists() {
-                            if let Some(mut comps) = includescanner::scanner_include_complete(
-                                &subpath,
-                                postype,
-                                include_files,
-                                complete_packages,
-                                find_cmake_in_package,
-                                is_builtin,
-                            ) {
-                                complete.append(&mut comps);
-                            }
-                            include_files.push(subpath);
+                        if support_component {
+                            Some(components_packages)
+                        } else {
+                            None
                         }
+                    } else {
+                        None
                     }
-                } else if name == "mark_as_advanced" {
-                    if child.child_count() < 3 {
-                        continue;
-                    }
-                    let child = child.child(2).unwrap();
-                    let mut advancedwalk = child.walk();
-                    for identifier in child.children(&mut advancedwalk) {
-                        if identifier.kind() == CMakeNodeKinds::ARGUMENT
-                            && identifier.start_position().row == identifier.end_position().row
-                        {
-                            let startx = identifier.start_position().column;
-                            let endx = identifier.end_position().column;
-                            let row = identifier.start_position().row;
-                            let variable = &source[row][startx..endx];
-                            complete.push(CompletionItem {
-                                label: variable.to_string(),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Variable".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "defined var\nfrom: {}",
-                                    local_path.display()
-                                ))),
-                                ..Default::default()
-                            });
-                        }
+                };
+                if find_cmake_in_package && components_packages.is_some() {
+                    for package in component_part {
+                        cmakepackages.push(format!("{package_name}{package}"));
                     }
                 } else {
-                    if name == "set" || name == "option" {
-                        let Some(arguments) = child.child(2) else {
-                            continue;
-                        };
-                        let Some(ids) = arguments.child(0) else {
-                            continue;
-                        };
-                        if ids.start_position().row != ids.end_position().row {
-                            continue;
-                        }
-                        let h = ids.start_position().row;
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let Some(name) = &source[h][x..y].split(' ').next() else {
-                            continue;
-                        };
-                        let mut document_info =
-                            format!("defined variable\nfrom: {}", local_path.display());
-
-                        if line_comment_tmp.is_node_comment(h) {
-                            document_info =
-                                format!("{}\n\n{}", document_info, line_comment_tmp.comment());
-                        }
+                    cmakepackages.push(package_name.to_string());
+                }
+                // modern cmake like Qt5::Core
+                if let Some(components) = components_packages {
+                    for component in components {
                         complete.push(CompletionItem {
-                            label: name.to_string(),
-                            kind: Some(CompletionItemKind::VALUE),
-                            detail: Some("Value".to_string()),
-                            documentation: Some(Documentation::String(document_info)),
+                            label: component,
+                            kind: Some(CompletionItemKind::VARIABLE),
+                            detail: Some("Variable".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package from: {package_name}",
+                            ))),
                             ..Default::default()
                         });
                     }
-                    if name == "find_package" && child.child_count() >= 3 && should_in {
-                        let Some(argumentlist) = child.child(2) else {
-                            continue;
-                        };
-                        // use tree_sitter to find all packages
-                        let argument_count = argumentlist.child_count();
-                        if argument_count == 0 {
-                            continue;
-                        }
-                        let package_prefix_node = argumentlist.child(0).unwrap();
-                        let h = package_prefix_node.start_position().row;
-                        let x = package_prefix_node.start_position().column;
-                        let y = package_prefix_node.end_position().column;
-                        let package_name = &source[h][x..y];
-                        let mut component_part = Vec::new();
-                        let mut cmakepackages = Vec::new();
-                        let components_packages = {
-                            if argument_count >= 2 {
-                                let mut support_component = false;
-                                let mut components_packages = Vec::new();
-                                for index in 1..argument_count {
-                                    let package_prefix_node =
-                                        argumentlist.child(index as u32).unwrap();
-                                    let h = package_prefix_node.start_position().row;
-                                    let x = package_prefix_node.start_position().column;
-                                    let y = package_prefix_node.end_position().column;
-                                    let component = &source[h][x..y];
-                                    if component == "COMPONENTS" {
-                                        support_component = true;
-                                    } else if component != "REQUIRED" {
-                                        component_part.push(component.to_string());
-                                        components_packages
-                                            .push(format!("{package_name}::{component}"));
-                                    }
-                                }
-                                if support_component {
-                                    Some(components_packages)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        };
+                }
 
-                        if find_cmake_in_package && components_packages.is_some() {
-                            for package in component_part {
-                                cmakepackages.push(format!("{package_name}{package}"));
-                            }
-                        } else {
-                            cmakepackages.push(package_name.to_string());
-                        }
-                        // modern cmake like Qt5::Core
-                        if let Some(components) = components_packages {
-                            for component in components {
-                                complete.push(CompletionItem {
-                                    label: component,
-                                    kind: Some(CompletionItemKind::VARIABLE),
-                                    detail: Some("Variable".to_string()),
-                                    documentation: Some(Documentation::String(format!(
-                                        "package from: {package_name}",
-                                    ))),
-                                    ..Default::default()
-                                });
-                            }
-                        }
+                if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
+                    complete.push(CompletionItem {
+                        label: format!("{package_name}_LIBRARIES"),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        detail: Some("Variable".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "package: {package_name}",
+                        ))),
+                        ..Default::default()
+                    });
+                }
 
-                        if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
-                            complete.push(CompletionItem {
-                                label: format!("{package_name}_LIBRARIES"),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Variable".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package: {package_name}",
-                                ))),
-                                ..Default::default()
-                            });
-                        }
-
-                        if matches!(
-                            postype,
-                            PositionType::TargetInclude | PositionType::VarOrFun
-                        ) {
-                            complete.push(CompletionItem {
-                                label: format!("{package_name}_INCLUDE_DIRS"),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Variable".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package: {package_name}",
-                                ))),
-                                ..Default::default()
-                            });
-                        }
-                        for package in cmakepackages {
-                            if complete_packages.contains(&package) {
-                                continue;
-                            }
-                            complete_packages.push(package.clone());
-                            let Some(mut completeitem) = get_cmake_package_complete(
-                                package.as_str(),
-                                postype,
-                                include_files,
-                                complete_packages,
-                            ) else {
-                                continue;
-                            };
-                            complete.append(&mut completeitem);
-                        }
+                if matches!(
+                    postype,
+                    PositionType::TargetInclude | PositionType::VarOrFun
+                ) {
+                    complete.push(CompletionItem {
+                        label: format!("{package_name}_INCLUDE_DIRS"),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        detail: Some("Variable".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "package: {package_name}",
+                        ))),
+                        ..Default::default()
+                    });
+                }
+                for package in cmakepackages {
+                    if complete_packages.contains(&package) {
+                        continue;
                     }
-                    #[cfg(unix)]
-                    if name == "pkg_check_modules" && child.child_count() >= 3 {
-                        use crate::utils::get_node_content;
-                        let ids = child.child(2).unwrap();
-                        let package_names = get_node_content(source, &ids);
-                        let package_name = package_names[0];
-
-                        let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
-                        if modernpkgconfig
-                            && matches!(postype, PositionType::VarOrFun | PositionType::TargetLink)
-                        {
-                            complete.push(CompletionItem {
-                                label: format!("PkgConfig::{package_name}"),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Package".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package: {package_name}",
-                                ))),
-                                ..Default::default()
-                            });
-                        }
-
-                        if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
-                            complete.push(CompletionItem {
-                                label: format!("{package_name}_LIBRARIES"),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Package".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package: {package_name}",
-                                ))),
-                                ..Default::default()
-                            });
-                        }
-                        if matches!(
-                            postype,
-                            PositionType::TargetInclude | PositionType::VarOrFun
-                        ) {
-                            complete.push(CompletionItem {
-                                label: format!("{package_name}_INCLUDE_DIRS"),
-                                kind: Some(CompletionItemKind::VARIABLE),
-                                detail: Some("Package".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package: {package_name}",
-                                ))),
-                                ..Default::default()
-                            });
-                        }
-                    }
+                    complete_packages.push(package.clone());
+                    let Some(mut completeitem) = get_cmake_package_complete(
+                        package.as_str(),
+                        postype,
+                        include_files,
+                        complete_packages,
+                    ) else {
+                        continue;
+                    };
+                    complete.append(&mut completeitem);
                 }
             }
-            _ => {}
+
+            #[cfg(unix)]
+            if name == "pkg_check_modules" {
+                let args = command.args;
+                let package_names: Vec<&str> = args
+                    .iter()
+                    .map(|arg| arg.utf8_text(source_bytes).unwrap())
+                    .collect();
+                if package_names.is_empty() {
+                    continue;
+                }
+                let package_name = package_names[0];
+
+                let modernpkgconfig = package_names.contains(&PKG_IMPORT_TARGET);
+                if modernpkgconfig
+                    && matches!(postype, PositionType::VarOrFun | PositionType::TargetLink)
+                {
+                    complete.push(CompletionItem {
+                        label: format!("PkgConfig::{package_name}"),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        detail: Some("Package".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "package: {package_name}",
+                        ))),
+                        ..Default::default()
+                    });
+                }
+                if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
+                    complete.push(CompletionItem {
+                        label: format!("{package_name}_LIBRARIES"),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        detail: Some("Package".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "package: {package_name}",
+                        ))),
+                        ..Default::default()
+                    });
+                }
+                if matches!(
+                    postype,
+                    PositionType::TargetInclude | PositionType::VarOrFun
+                ) {
+                    complete.push(CompletionItem {
+                        label: format!("{package_name}_INCLUDE_DIRS"),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        detail: Some("Package".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "package: {package_name}",
+                        ))),
+                        ..Default::default()
+                    });
+                }
+            }
         }
     }
     if complete.is_empty() {
@@ -898,25 +808,6 @@ Example using both :command:`configure_package_config_file` and
     }
 
     #[test]
-    fn comment_mark_test() {
-        let temp = LineCommentTmp {
-            end_y: 1,
-            comments: vec![],
-        };
-
-        assert!(!temp.is_node_comment(2));
-
-        let temp = LineCommentTmp {
-            end_y: 1,
-            comments: vec!["# ABCD"],
-        };
-        assert!(temp.is_node_comment(2));
-        assert!(!temp.is_node_comment(1));
-        assert!(!temp.is_node_comment(0));
-        assert_eq!(temp.comment(), "ABCD");
-    }
-
-    #[test]
     fn test_complete() {
         use std::fs::File;
         use std::io::Write;
@@ -938,7 +829,7 @@ endfunction()
         writeln!(file, "{}", file_info).unwrap();
         let data = getsubcomplete(
             thetree.root_node(),
-            &file_info.lines().collect(),
+            file_info,
             &root_cmake,
             PositionType::VarOrFun,
             None,
@@ -951,29 +842,6 @@ endfunction()
         assert_eq!(
             data,
             vec![
-                CompletionItem {
-                    label: "AB".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::VALUE),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined variable\nfrom: {}",
-                        root_cmake.display()
-                    ))),
-                    deprecated: None,
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None
-                },
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
@@ -996,42 +864,7 @@ endfunction()
                     commit_characters: None,
                     data: None,
                     tags: None
-                }
-            ]
-        );
-    }
-
-    #[test]
-    fn test_complete_win() {
-        use std::fs::File;
-        use std::io::Write;
-
-        use tempfile::tempdir;
-
-        let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()";
-
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let thetree = parse.parse(file_info, None).unwrap();
-        let dir = tempdir().unwrap();
-        let root_cmake = dir.path().join("CMakeList.txt");
-        let mut file = File::create(&root_cmake).unwrap();
-        writeln!(file, "{}", &file_info).unwrap();
-        let data = getsubcomplete(
-            thetree.root_node(),
-            &file_info.lines().collect(),
-            &root_cmake,
-            PositionType::VarOrFun,
-            None,
-            &mut vec![],
-            &mut vec![],
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(
-            data,
-            vec![
+                },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
@@ -1055,6 +888,41 @@ endfunction()
                     data: None,
                     tags: None
                 },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_complete_win() {
+        use std::fs::File;
+        use std::io::Write;
+
+        use tempfile::tempdir;
+
+        let file_info = "set(AB \"100\")\r\n# test hello \r\nfunction(bb)\r\nendfunction()";
+
+        let mut parse = tree_sitter::Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let thetree = parse.parse(file_info, None).unwrap();
+        let dir = tempdir().unwrap();
+        let root_cmake = dir.path().join("CMakeList.txt");
+        let mut file = File::create(&root_cmake).unwrap();
+        writeln!(file, "{}", &file_info).unwrap();
+        let data = getsubcomplete(
+            thetree.root_node(),
+            file_info,
+            &root_cmake,
+            PositionType::VarOrFun,
+            None,
+            &mut vec![],
+            &mut vec![],
+            false,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            data,
+            vec![
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
@@ -1077,7 +945,30 @@ endfunction()
                     commit_characters: None,
                     data: None,
                     tags: None
-                }
+                },
+                CompletionItem {
+                    label: "AB".to_string(),
+                    label_details: None,
+                    kind: Some(CompletionItemKind::VALUE),
+                    detail: Some("Value".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined variable\nfrom: {}",
+                        root_cmake.display()
+                    ))),
+                    deprecated: None,
+                    preselect: None,
+                    sort_text: None,
+                    filter_text: None,
+                    insert_text: None,
+                    insert_text_format: None,
+                    insert_text_mode: None,
+                    text_edit: None,
+                    additional_text_edits: None,
+                    command: None,
+                    commit_characters: None,
+                    data: None,
+                    tags: None
+                },
             ]
         );
     }
