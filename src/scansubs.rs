@@ -43,10 +43,11 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
 pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     let (bufs, cmakebufs) = scan_dir_inner(path.as_ref(), is_first).await;
     let mut tree = TREE_MAP.lock().await;
-    let mut includetree = TREE_CMAKE_MAP.lock().await;
     for subpath in bufs.iter() {
         tree.insert(subpath.to_path_buf(), path.as_ref().into());
     }
+    drop(tree);
+    let mut includetree = TREE_CMAKE_MAP.lock().await;
     for cmakepath in cmakebufs {
         let include_key = includetree.entry(cmakepath).or_default();
         let toaddpath = path.as_ref().into();
