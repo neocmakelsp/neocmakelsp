@@ -4,7 +4,7 @@ use tower_lsp::lsp_types::{DocumentLink, Position, Range};
 
 use crate::Uri;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::treehelper::get_normal_commands;
+use crate::utils::query::get_normal_commands;
 use crate::utils::{
     gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
 };

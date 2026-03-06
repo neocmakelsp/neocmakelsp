@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::query::get_normal_commands;
 use crate::utils::remove_quotation_and_replace_placeholders;
-use crate::utils::treehelper::get_normal_commands;
 use crate::{complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists

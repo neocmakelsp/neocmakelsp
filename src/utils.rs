@@ -1,4 +1,5 @@
 mod findpackage;
+pub mod query;
 pub mod treehelper;
 
 use std::collections::HashMap;

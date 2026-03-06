@@ -24,9 +24,10 @@ mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{
-    PositionType, get_functions, get_line_comments, get_macros, get_normal_commands, get_pos_type,
-    get_variables,
+use crate::utils::treehelper::{PositionType, get_pos_type};
+
+use crate::utils::query::{
+    get_functions, get_line_comments, get_macros, get_normal_commands, get_variables,
 };
 
 /// Storage the information when jump
