@@ -251,9 +251,9 @@ mod tests {
 
     #[test]
     fn test_ast_3() {
-        let context = r#"
+        let context = r"
 # Just comment here
-"#;
+";
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();

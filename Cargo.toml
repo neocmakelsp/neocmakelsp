@@ -46,5 +46,6 @@ tower = { version = "0.5.3", features = ["util"] }
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
 
 [lints.clippy]
+needless_raw_string_hashes = "warn"
 semicolon_if_nothing_returned = "warn"
 unnecessary_semicolon = "warn"

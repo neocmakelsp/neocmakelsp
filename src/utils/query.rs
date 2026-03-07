@@ -2,39 +2,39 @@ use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
 
 use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 
-const ARGUMENT_LIST_QUERY: &str = r#"(
+const ARGUMENT_LIST_QUERY: &str = r"(
     (argument_list) @argument_list
-)"#;
+)";
 
-const LINE_COMMENT_QUERY: &str = r#"(
+const LINE_COMMENT_QUERY: &str = r"(
     (line_comment) @comment
-)"#;
+)";
 
-const BRACKET_COMMENT_QUERY: &str = r#"(
+const BRACKET_COMMENT_QUERY: &str = r"(
     (bracket_comment_content) @comment
-)"#;
+)";
 
-const MACRO_QUERY: &str = r#"(
+const MACRO_QUERY: &str = r"(
    (macro_command
        (argument_list ((argument)*) @args))
-)"#;
+)";
 
-const FUNCTION_QUERY: &str = r#"(
+const FUNCTION_QUERY: &str = r"(
    (function_command
        (argument_list ((argument)*) @args))
-)"#;
+)";
 
-const NORMAL_COMMAND_QUERY: &str = r#"
+const NORMAL_COMMAND_QUERY: &str = r"
 (
     (normal_command) @normal_command
 )
-"#;
+";
 
-const VARIABLE_QUERY: &str = r#"
+const VARIABLE_QUERY: &str = r"
 (
     (variable) @variable
 )
-"#;
+";
 
 pub struct VariableNode<'a> {
     pub content: &'a str,
@@ -336,13 +336,13 @@ include("abcd/efg.cmake")
 
     #[test]
     fn test_get_functions() {
-        let source = r#"
+        let source = r"
 function(abc)
 endfunction()
 
 function(efg d, e, f)
 endfunction()
-    "#;
+    ";
         let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_functions(source.as_bytes(), input, None);
@@ -359,13 +359,13 @@ endfunction()
 
     #[test]
     fn test_get_macros() {
-        let source = r#"
+        let source = r"
 macro(abc)
 endmacro()
 
 macro(efg d, e, f)
 endmacro()
-    "#;
+    ";
         let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_macros(source.as_bytes(), input, None);
@@ -382,7 +382,7 @@ endmacro()
 
     #[test]
     fn test_get_arguments() {
-        let source = r#"
+        let source = r"
 macro(abc)
 endmacro()
 
@@ -390,7 +390,7 @@ macro(efg d)
 endmacro()
 
 set(g a b c)
-    "#;
+    ";
         let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_argument_lists(source.as_bytes(), input, None);
@@ -417,10 +417,10 @@ set(a "${efg}/${hijk}")
 
     #[test]
     fn test_get_line_comments() {
-        let source = r#"
+        let source = r"
 # Hello
 # World
-    "#;
+    ";
         let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_line_comments(source.as_bytes(), input, None);
@@ -437,11 +437,11 @@ set(a "${efg}/${hijk}")
 
     #[test]
     fn test_get_bracket_comments() {
-        let source = r#"
+        let source = r"
 #[=============[
 Hello world
 #]=============]
-    "#;
+    ";
         let tree = parse_tree(source);
         let input = tree.root_node();
         let funs = get_bracket_comments(source.as_bytes(), input, None);

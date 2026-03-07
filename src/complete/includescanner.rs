@@ -100,9 +100,9 @@ mod tests {
 
     #[test]
     fn test_complete_scan_1() {
-        let file_info_0 = r#"
+        let file_info_0 = r"
 include(another.cmake)
-    "#;
+    ";
         let file_info_1 = r#"
 set(AB "100")
 function(bb)

@@ -84,7 +84,7 @@ mod test {
     use super::Config;
     #[test]
     fn config_test() {
-        let data = r#"{}"#;
+        let data = r"{}";
         let config: Config = serde_json::from_str(data).unwrap();
         assert!(config.scan_cmake_in_package);
         assert!(!config.use_snippets);

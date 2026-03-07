@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn search_result_test_2() {
         let search_result = search_result_tojson("zzzz").unwrap();
-        let result_json = r#"[]"#;
+        let result_json = r"[]";
         assert_eq!(search_result, result_json);
     }
 
