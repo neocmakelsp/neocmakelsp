@@ -163,9 +163,9 @@ mod tests {
         let top_cmake = dir.path().join("CMakeLists.txt");
 
         let mut cmake_file = File::create_new(&top_cmake).unwrap();
-        let top_cmake_context = r#"
+        let top_cmake_context = r"
 include(abcd_test.cmake)
-"#;
+";
         writeln!(cmake_file, "{}", top_cmake_context).unwrap();
         let include_cmake_path = dir.path().join("abcd_test.cmake");
         let mut include_cmake = File::create_new(&include_cmake_path).unwrap();

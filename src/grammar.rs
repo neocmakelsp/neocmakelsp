@@ -69,7 +69,7 @@ pub fn checkerror<P: AsRef<Path>>(
 }
 
 const RE_MATCH_LINT_RESULT: &str =
-    r#"(?P<line>\d+)(,(?P<column>\d+))?: (?P<message>\[(?P<severity>[A-Z])\d+\]\s+.*)"#;
+    r"(?P<line>\d+)(,(?P<column>\d+))?: (?P<message>\[(?P<severity>[A-Z])\d+\]\s+.*)";
 
 static LINT_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap());
@@ -154,11 +154,11 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
     }
 }
 
-const ERROR_QUERY: &str = r#"
+const ERROR_QUERY: &str = r"
 (
     (ERROR) @error
 )
-"#;
+";
 
 fn checkerror_inner<P: AsRef<Path>>(
     local_path: P,
@@ -424,9 +424,9 @@ add_subdirectory("unexist_subdir")
 
         let bad_cmake = dir.path().join("test.cmake");
 
-        let bad_context = r#"
+        let bad_context = r"
 include((()
-"#;
+";
         let mut bad_file = File::create(&bad_cmake).unwrap();
 
         writeln!(bad_file, "{}", bad_context).unwrap();
@@ -435,9 +435,9 @@ include((()
 
         let good_cmake = dir.path().join("test2.cmake");
 
-        let good_context = r#"
+        let good_context = r"
 include(abcd.text)
-"#;
+";
         let mut good_file = File::create(&good_cmake).unwrap();
 
         writeln!(good_file, "{}", good_context).unwrap();
@@ -481,12 +481,12 @@ include(abcd.text)
 
     #[test]
     fn test_lint_regex() {
-        let input = r#"aa.cmake:38,00: [C0305] too many newlines between statements
+        let input = r"aa.cmake:38,00: [C0305] too many newlines between statements
 aa.cmake:46: [C0301] Line too long (84/80)
 aa.cmake:51,00: [C0111] Missing docstring on function or macro declaration
 aa.cmake:55: [C0301] Line too long (133/80)
 aa.cmake:56: [C0301] Line too long (143/80)
-aa.cmake:57: [C0301] Line too long (145/80)"#;
+aa.cmake:57: [C0301] Line too long (145/80)";
         let re = regex::Regex::new(RE_MATCH_LINT_RESULT).unwrap();
         for s in input.split('\n') {
             let m = re.captures(s).unwrap();

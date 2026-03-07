@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn test_editorconfig_tab() {
         let mut temp_file = NamedTempFile::new().unwrap();
-        let content = r#"
+        let content = r"
 root = true
 
 [*.{cmake}]
@@ -256,7 +256,7 @@ indent_size = 2
 [*.{lua}]
 indent_style = space
 indent_size = 4
-"#;
+";
         writeln!(temp_file, "{}", content).unwrap();
 
         assert_eq!(
@@ -272,7 +272,7 @@ indent_size = 4
     #[test]
     fn test_editorconfig_space() {
         let mut temp_file = NamedTempFile::new().unwrap();
-        let content = r#"
+        let content = r"
 root = true
 
 [CMakeLists.txt]
@@ -282,7 +282,7 @@ indent_size = 2
 [*.{lua}]
 indent_style = space
 indent_size = 4
-"#;
+";
         writeln!(temp_file, "{}", content).unwrap();
 
         assert_eq!(
@@ -298,7 +298,7 @@ indent_size = 4
     #[test]
     fn test_editorconfig_lastline() {
         let mut temp_file = NamedTempFile::new().unwrap();
-        let content = r#"
+        let content = r"
 root = true
 
 [CMakeLists.txt]
@@ -309,7 +309,7 @@ insert_final_newline = true
 [*.{lua}]
 indent_style = space
 indent_size = 4
-"#;
+";
         writeln!(temp_file, "{}", content).unwrap();
 
         assert_eq!(

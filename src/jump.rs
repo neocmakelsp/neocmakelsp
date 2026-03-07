@@ -633,7 +633,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_jump_subdir() {
-        let jump_file_src = r#"add_subdirectory(abcd_test)"#;
+        let jump_file_src = r"add_subdirectory(abcd_test)";
 
         let dir = tempdir().unwrap();
         let top_cmake = dir.path().join("CMakeLists.txt");
@@ -754,9 +754,9 @@ add_subdirectory(abcd_test)
         let top_cmake_path = dir.path().join("CMakeLists.txt");
 
         let mut cmake_file = File::create_new(&top_cmake_path).unwrap();
-        let top_cmake_context = r#"
+        let top_cmake_context = r"
 include(abcd_test.cmake)
-"#;
+";
         writeln!(cmake_file, "{}", top_cmake_context).unwrap();
         let include_cmake_path = dir.path().join("abcd_test.cmake");
         let mut include_cmake = File::create_new(&include_cmake_path).unwrap();

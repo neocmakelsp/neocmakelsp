@@ -104,9 +104,9 @@ mod tests {
     async fn test_hover() {
         let fake_data = FindPackageFunsFake.get_cmake_packages_withkeys();
         let fake_package = fake_data.get("bash-completion-fake").unwrap();
-        let content = r#"
+        let content = r"
 find_package(bash-completion-fake)
-    "#;
+    ";
         let mut parse = tree_sitter::Parser::new();
         parse
             .set_language(&tree_sitter_cmake::LANGUAGE.into())

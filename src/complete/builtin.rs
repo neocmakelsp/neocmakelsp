@@ -225,18 +225,18 @@ mod tests {
 
     #[test]
     fn test_convert_to_lsp_snippet() {
-        let snippet_example = r#"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
+        let snippet_example = r"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
                   TEST | VARIABLE | CACHED_VARIABLE>
                   PROPERTY <name> [INHERITED]
                   [BRIEF_DOCS <brief-doc> [docs...]]
                   [FULL_DOCS <full-doc> [docs...]]
-                  [INITIALIZE_FROM_VARIABLE <variable>])"#;
+                  [INITIALIZE_FROM_VARIABLE <variable>])";
         let snippet_result = convert_to_lsp_snippet(snippet_example);
-        let snippet_target = r#"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
+        let snippet_target = r"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
                   PROPERTY ${2:<name>} [INHERITED]
                   [BRIEF_DOCS ${3:<brief-doc>} [docs...]]
                   [FULL_DOCS ${4:<full-doc>} [docs...]]
-                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])"#;
+                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])";
         assert_eq!(snippet_result, snippet_target);
     }
 
