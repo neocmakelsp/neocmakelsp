@@ -1,5 +1,5 @@
-use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
-use tower_lsp::{Client, lsp_types};
+use ls_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
+use tower_lsp::{Client, ls_types};
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -57,22 +57,22 @@ fn get_sub_symbol(
                     kind: SymbolKind::FUNCTION,
                     tags: None,
                     deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
                     },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    selection_range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
@@ -103,22 +103,22 @@ fn get_sub_symbol(
                     kind: SymbolKind::FUNCTION,
                     tags: None,
                     deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
                     },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    selection_range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
@@ -143,22 +143,22 @@ fn get_sub_symbol(
                     kind: SymbolKind::NAMESPACE,
                     tags: None,
                     deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
                     },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    selection_range: ls_types::Range {
+                        start: ls_types::Position {
                             line: child.start_position().row as u32,
                             character: child.start_position().column as u32,
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: child.end_position().row as u32,
                             character: child.end_position().column as u32,
                         },
@@ -203,13 +203,13 @@ fn get_sub_symbol(
                             kind: SymbolKind::VARIABLE,
                             tags: None,
                             deprecated: None,
-                            range: lsp_types::Range { start, end },
-                            selection_range: lsp_types::Range {
-                                start: lsp_types::Position {
+                            range: ls_types::Range { start, end },
+                            selection_range: ls_types::Range {
+                                start: ls_types::Position {
                                     line: h as u32,
                                     character: x as u32,
                                 },
-                                end: lsp_types::Position {
+                                end: ls_types::Position {
                                     line: h as u32,
                                     character: y as u32,
                                 },

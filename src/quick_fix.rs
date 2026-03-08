@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use regex::Regex;
-use tower_lsp::lsp_types::{
+use tower_lsp::ls_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionResponse, Diagnostic,
     DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit,
     TextEdit, WorkspaceEdit,
@@ -17,7 +17,7 @@ pub fn lint_fix_action(
     context: &str,
     line: u32,
     diagnose: &Diagnostic,
-    uri: tower_lsp::lsp_types::Uri,
+    uri: tower_lsp::ls_types::Uri,
 ) -> Option<CodeActionResponse> {
     let caps = LINT_REGEX.captures(&diagnose.message)?;
     let longest = caps["max"].parse().unwrap();
@@ -34,7 +34,7 @@ fn sub_lint_fix_action(
     line: usize,
     diagnose: &Diagnostic,
     longest: usize,
-    uri: &tower_lsp::lsp_types::Uri,
+    uri: &tower_lsp::ls_types::Uri,
 ) -> Option<CodeActionResponse> {
     let argument_lists = get_argument_lists(source.as_bytes(), input, None);
     let argument_list = argument_lists.into_iter().find(|argument| {

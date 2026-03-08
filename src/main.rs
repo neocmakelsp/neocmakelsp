@@ -32,7 +32,7 @@ mod semantic_token;
 mod utils;
 use std::sync::OnceLock;
 
-use tower_lsp::lsp_types::Uri;
+use tower_lsp::ls_types::Uri;
 
 use crate::cli::{Cli, Command};
 use crate::formatting::format_file;

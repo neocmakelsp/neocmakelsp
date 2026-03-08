@@ -4,7 +4,7 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use anyhow::Result;
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
+use tower_lsp::ls_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
 
 use crate::languageserver::to_use_snippet;
 

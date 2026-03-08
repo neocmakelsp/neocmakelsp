@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
-use tower_lsp::lsp_types::*;
-use tower_lsp::{LanguageServer, lsp_types};
+use tower_lsp::ls_types::*;
+use tower_lsp::{LanguageServer, ls_types};
 use tree_sitter::Parser;
 
 use self::config::Config;
@@ -97,7 +97,7 @@ impl Backend {
     }
 
     async fn publish_diagnostics(&self, uri: Uri, context: &str, lint_info: LintConfigInfo) {
-        let Ok(file_path) = uri.to_file_path() else {
+        let Some(file_path) = uri.to_file_path() else {
             tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
                 .log_message(
@@ -200,7 +200,7 @@ impl LanguageServer for Backend {
                 .workspace_folders
                 .as_ref()
                 .and_then(|folders| folders.first())
-                .and_then(|folder| folder.uri.to_file_path().ok())
+                .and_then(|folder| folder.uri.to_file_path())
             {
                 let path = top_path.join("build").join("CMakeCache.txt");
                 if path.exists() {
@@ -241,7 +241,7 @@ impl LanguageServer for Backend {
             .workspace_folders
             .as_ref()
             .and_then(|folders| folders.first())
-            .and_then(|folder| folder.uri.to_file_path().ok())
+            .and_then(|folder| folder.uri.to_file_path())
         {
             self.root_path
                 .set(Some(project_root.to_path_buf()))
@@ -337,15 +337,15 @@ impl LanguageServer for Backend {
             watchers: vec![
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String("**/CMakeCache.txt".to_string()),
-                    kind: Some(lsp_types::WatchKind::all()),
+                    kind: Some(ls_types::WatchKind::all()),
                 },
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String("**/.cmake/api/v1/reply/*.json".to_string()),
-                    kind: Some(lsp_types::WatchKind::all()),
+                    kind: Some(ls_types::WatchKind::all()),
                 },
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String("**/CMakeLists.txt".to_string()),
-                    kind: Some(lsp_types::WatchKind::Create | lsp_types::WatchKind::Delete),
+                    kind: Some(ls_types::WatchKind::Create | ls_types::WatchKind::Delete),
                 },
             ],
         };
@@ -464,7 +464,7 @@ impl LanguageServer for Backend {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         let mut has_cached_changed = false;
         for change in params.changes {
-            let Ok(file_path) = change.uri.to_file_path() else {
+            let Some(file_path) = change.uri.to_file_path() else {
                 continue;
             };
             let Some(file_name) = file_path
@@ -510,8 +510,8 @@ impl LanguageServer for Backend {
         self.documents.insert(uri.clone(), text.clone());
 
         let path = match uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
+            Some(path) => path,
+            None => {
                 tracing::error!("Can't create path from {}", uri.as_str());
                 return;
             }
@@ -520,7 +520,7 @@ impl LanguageServer for Backend {
         complete::update_cache(&path, &text).await;
         jump::update_cache(&path, &text).await;
         self.publish_diagnostics(
-            uri,
+            uri.clone(),
             &text,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
@@ -584,8 +584,8 @@ impl LanguageServer for Backend {
             return;
         };
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {}", uri.as_str());
                 return;
             }
@@ -674,8 +674,8 @@ impl LanguageServer for Backend {
         let location = input.text_document_position.position;
         let uri = input.text_document_position.text_document.uri;
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {}", uri.as_str());
                 return Err(LspError::internal_error());
             }
@@ -701,8 +701,8 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {uri:?}");
                 return Err(LspError::internal_error());
             }
@@ -727,8 +727,8 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {uri:?}");
                 return Err(LspError::internal_error());
             }
@@ -760,8 +760,8 @@ impl LanguageServer for Backend {
         let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {uri:?}");
                 return Err(LspError::internal_error());
             }
@@ -822,8 +822,8 @@ impl LanguageServer for Backend {
     async fn document_link(&self, input: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = input.text_document.uri;
         let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
+            Some(file_path) => file_path,
+            None => {
                 tracing::error!("Cannot get file_path from {uri:?}");
                 return Err(LspError::internal_error());
             }

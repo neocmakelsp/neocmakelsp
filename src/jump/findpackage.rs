@@ -1,5 +1,5 @@
-use lsp_types::Uri;
-use tower_lsp::lsp_types;
+use ls_types::Uri;
+use tower_lsp::ls_types;
 
 use super::Location;
 use crate::utils::CACHE_CMAKE_PACKAGES_WITHKEYS;
@@ -10,12 +10,12 @@ pub(super) fn cmpfindpackage(input: &str) -> Option<Vec<Location>> {
             .tojump
             .iter()
             .map(|apath| Location {
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
@@ -46,12 +46,12 @@ mod tests {
         assert_eq!(
             location_fake,
             vec![Location {
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 0,
                         character: 0,
                     },

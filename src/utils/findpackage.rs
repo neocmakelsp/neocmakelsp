@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
 
-use tower_lsp::lsp_types::Uri;
+use tower_lsp::ls_types::Uri;
 use tree_sitter::Point;
 
 pub use self::cmakepackage::*;

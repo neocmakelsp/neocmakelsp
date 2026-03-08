@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tower_lsp::lsp_types::Uri;
+use tower_lsp::ls_types::Uri;
 
 pub use self::findpackage::*;
 use crate::fileapi;

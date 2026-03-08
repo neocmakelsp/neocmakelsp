@@ -1,9 +1,7 @@
 use std::sync::LazyLock;
 
 use tower_lsp::Client;
-use tower_lsp::lsp_types::{
-    SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult,
-};
+use tower_lsp::ls_types::{SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult};
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;

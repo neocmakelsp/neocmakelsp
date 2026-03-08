@@ -1,6 +1,7 @@
 use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
 
-use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
+use crate::CMakeNodeKinds;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
 const ARGUMENT_LIST_QUERY: &str = r"(
     (argument_list) @argument_list
