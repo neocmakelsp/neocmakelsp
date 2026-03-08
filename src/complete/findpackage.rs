@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
+use tower_lsp::ls_types::{CompletionItem, CompletionItemKind, Documentation};
 
 use crate::utils::CACHE_CMAKE_PACKAGES;
 

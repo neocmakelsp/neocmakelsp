@@ -1,5 +1,5 @@
-use lsp_types::Position;
-use tower_lsp::lsp_types;
+use ls_types::Position;
+use tower_lsp::ls_types;
 use tree_sitter::Node;
 
 use crate::fileapi;

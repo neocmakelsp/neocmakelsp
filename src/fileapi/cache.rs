@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation};
+use tower_lsp::ls_types::{CompletionItem, CompletionItemKind, Documentation};
 
 use super::ApiVersion;
 

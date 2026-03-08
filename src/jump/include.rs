@@ -3,8 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
-use lsp_types::Uri;
-use tower_lsp::lsp_types;
+use ls_types::Uri;
+use tower_lsp::ls_types;
 
 use super::{CacheDataUnit, Location, gen_module_pattern, getsubdef};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -26,12 +26,12 @@ pub(super) fn cmpinclude<P: AsRef<Path>>(localpath: P, subpath: &str) -> Option<
 
     if target.exists() {
         Some(vec![Location {
-            range: lsp_types::Range {
-                start: lsp_types::Position {
+            range: ls_types::Range {
+                start: ls_types::Position {
                     line: 0,
                     character: 0,
                 },
-                end: lsp_types::Position {
+                end: ls_types::Position {
                     line: 0,
                     character: 0,
                 },
@@ -142,12 +142,12 @@ mod tests {
         assert_eq!(
             locations,
             vec![Location {
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
@@ -196,12 +196,12 @@ include(efg_test.cmake)
                 key: "ABCD".to_string(),
                 location: Location {
                     uri: Uri::from_file_path(&include_cmake_path).unwrap(),
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    range: ls_types::Range {
+                        start: ls_types::Position {
                             line: 1,
                             character: 4
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: 1,
                             character: 8
                         }

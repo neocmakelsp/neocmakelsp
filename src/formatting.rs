@@ -4,10 +4,10 @@ use std::path::Path;
 use std::process::Stdio;
 
 use anyhow::{Context, Result};
-use lsp_types::{MessageType, Position, TextEdit};
+use ls_types::{MessageType, Position, TextEdit};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tower_lsp::lsp_types;
+use tower_lsp::ls_types;
 
 use crate::CMakeNodeKinds;
 use crate::config::CONFIG;
@@ -214,7 +214,7 @@ pub async fn getformat(
         );
 
         return Some(vec![TextEdit {
-            range: lsp_types::Range {
+            range: ls_types::Range {
                 start: Position {
                     line: 0,
                     character: 0,
@@ -259,7 +259,7 @@ pub async fn getformat(
     let len_origin = source.lines().count();
     let len = std::cmp::max(len_count, len_origin);
     Some(vec![TextEdit {
-        range: lsp_types::Range {
+        range: ls_types::Range {
             start: Position {
                 line: 0,
                 character: 0,

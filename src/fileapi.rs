@@ -7,7 +7,7 @@ use std::sync::{LazyLock, Mutex};
 use cache::Cache;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tower_lsp::lsp_types::CompletionItem;
+use tower_lsp::ls_types::CompletionItem;
 
 static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> = LazyLock::new(|| Mutex::new(None));
 

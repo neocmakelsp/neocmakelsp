@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
 
-use tower_lsp::lsp_types::CompletionItem;
+use tower_lsp::ls_types::CompletionItem;
 
 use super::getsubcomplete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -94,7 +94,7 @@ mod tests {
     use std::io::Write;
 
     use tempfile::tempdir;
-    use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
+    use tower_lsp::ls_types::{CompletionItemKind, Documentation};
 
     use super::*;
 

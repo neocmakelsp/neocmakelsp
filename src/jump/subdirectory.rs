@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use lsp_types::Uri;
-use tower_lsp::lsp_types;
+use ls_types::Uri;
+use tower_lsp::ls_types;
 
 use super::Location;
 
@@ -13,12 +13,12 @@ pub(super) fn cmpsubdirectory<P: AsRef<Path>>(
     let target = dir.join(subpath).join("CMakeLists.txt");
     if target.exists() {
         return Some(vec![Location {
-            range: lsp_types::Range {
-                start: lsp_types::Position {
+            range: ls_types::Range {
+                start: ls_types::Position {
                     line: 0,
                     character: 0,
                 },
-                end: lsp_types::Position {
+                end: ls_types::Position {
                     line: 0,
                     character: 0,
                 },
@@ -53,12 +53,12 @@ mod tests {
         assert_eq!(
             locations,
             vec![Location {
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 0,
                         character: 0,
                     },

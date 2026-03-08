@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use dashmap::DashMap;
-use tower_lsp::lsp_types::{Location, Position, TextEdit, Uri, WorkspaceEdit};
+use tower_lsp::ls_types::{Location, Position, TextEdit, Uri, WorkspaceEdit};
 
 use crate::jump;
 

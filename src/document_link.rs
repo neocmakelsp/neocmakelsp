@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tower_lsp::lsp_types::{DocumentLink, Position, Range};
+use tower_lsp::ls_types::{DocumentLink, Position, Range};
 
 use crate::Uri;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;

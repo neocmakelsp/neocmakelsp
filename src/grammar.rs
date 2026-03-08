@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
 
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp::ls_types::DiagnosticSeverity;
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
 use crate::config::{self, CONFIG};

@@ -3,9 +3,9 @@ use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
 
-use lsp_types::{Position, Range};
+use ls_types::{Position, Range};
 /// Some tools for treesitter  to lsp_types
-use tower_lsp::lsp_types;
+use tower_lsp::ls_types;
 use tree_sitter::{Node, Point};
 
 use crate::CMakeNodeKinds;
@@ -375,9 +375,8 @@ fn get_pos_type_inner<'a>(
 }
 #[cfg(test)]
 mod tests {
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-
     use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     fn parse_tree(source: &str) -> tree_sitter::Tree {
         let mut parser = tree_sitter::Parser::new();
         parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

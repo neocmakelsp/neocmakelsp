@@ -4,7 +4,7 @@ use std::sync::{Arc, LazyLock};
 
 use dashmap::DashMap;
 use tokio::sync::Mutex;
-use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
+use tower_lsp::ls_types::{Location, MessageType, Position, Range, Uri};
 
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_CMAKE_MAP;
@@ -24,11 +24,10 @@ mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{PositionType, get_pos_type};
-
 use crate::utils::query::{
     get_functions, get_line_comments, get_macros, get_normal_commands, get_variables,
 };
+use crate::utils::treehelper::{PositionType, get_pos_type};
 
 /// Storage the information when jump
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,7 +231,7 @@ async fn godef_inner<P: AsRef<Path>>(
                 return Some(vec![jump_cache]);
             }
 
-            let loc = jump_cache.uri.to_file_path().ok()?;
+            let loc = jump_cache.uri.to_file_path()?;
             locations.push(jump_cache.clone());
             let mut defdata = reference_all(&loc, tofind, is_function).await;
             locations.append(&mut defdata);
@@ -626,7 +625,7 @@ mod tests {
     use std::io::Write;
 
     use tempfile::tempdir;
-    use tower_lsp::lsp_types;
+    use tower_lsp::ls_types;
     use tree_sitter::Point;
 
     use super::*;
@@ -659,12 +658,12 @@ mod tests {
             locations,
             vec![Location {
                 uri: Uri::from_file_path(subdir_file).unwrap(),
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 0,
                         character: 0,
                     },
@@ -707,12 +706,12 @@ add_subdirectory(abcd_test)
             locations,
             vec![Location {
                 uri: Uri::from_file_path(&top_cmake).unwrap(),
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 1,
                         character: 4,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 1,
                         character: 8,
                     },
@@ -734,12 +733,12 @@ add_subdirectory(abcd_test)
             locations_2,
             vec![Location {
                 uri: Uri::from_file_path(top_cmake).unwrap(),
-                range: lsp_types::Range {
-                    start: lsp_types::Position {
+                range: ls_types::Range {
+                    start: ls_types::Position {
                         line: 3,
                         character: 4,
                     },
-                    end: lsp_types::Position {
+                    end: ls_types::Position {
                         line: 3,
                         character: 12,
                     },
@@ -793,12 +792,12 @@ include(efg_test.cmake)
                 key: "ABCD".to_string(),
                 location: Location {
                     uri: Uri::from_file_path(&include_cmake_path).unwrap(),
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
+                    range: ls_types::Range {
+                        start: ls_types::Position {
                             line: 1,
                             character: 4
                         },
-                        end: lsp_types::Position {
+                        end: ls_types::Position {
                             line: 1,
                             character: 8
                         }
