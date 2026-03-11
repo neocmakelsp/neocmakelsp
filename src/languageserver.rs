@@ -2,6 +2,7 @@ mod config;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -699,13 +700,42 @@ impl LanguageServer for Backend {
     }
 
     async fn rename(&self, input: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        let edited = input.new_name;
+        let new_name = input.new_name;
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
+
         let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        Ok(rename::rename(&edited, location, &document, &self.client, &self.documents).await)
+
+        let Some(definitions) = jump::godef(
+            location,
+            &document,
+            &self.client,
+            false,
+            true,
+            &self.documents,
+        )
+        .await
+        else {
+            return Ok(None);
+        };
+
+        let changes =
+            definitions
+                .into_iter()
+                .fold(HashMap::new(), |mut edits, Location { uri, range }| {
+                    edits.entry(uri).or_insert_with(Vec::new).push(TextEdit {
+                        range,
+                        new_text: new_name.to_string(),
+                    });
+                    edits
+                });
+
+        Ok(Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        }))
     }
 
     async fn goto_definition(
