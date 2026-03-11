@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 use tower_lsp::lsp_types::DiagnosticSeverity;
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
+use crate::Document;
 use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
@@ -40,24 +41,25 @@ impl Deref for ErrorInfo {
     }
 }
 
-pub fn checkerror<P: AsRef<Path>>(
-    local_path: &P,
-    source: &str,
+pub fn checkerror(
+    document: &Document,
     LintConfigInfo {
         use_lint,
         use_extra_cmake_lint,
     }: LintConfigInfo,
 ) -> Option<ErrorInfo> {
-    let newsource = source.lines().collect();
+    let root = document.tree().root_node();
+    let source = document.source();
+    let lines = document.source().lines().collect();
+    let path = document.path();
+
     let cmake_lint_info = if use_lint {
-        run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
+        run_cmake_lint(document.path(), use_extra_cmake_lint, &lines)
     } else {
         None
     };
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None)?;
-    let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
+
+    let mut result = checkerror_inner(path, source, root, use_lint);
     if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
         for item in v.inner {
@@ -386,12 +388,15 @@ add_subdirectory("unexist_subdir")
         let hello_cmake_error = dir.path().join("hello_unexist.cmake");
 
         let unexist_subdir = dir.path().join("unexist_subdir");
-        let mut parse = tree_sitter::Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let thetree = parse.parse(gammar_file_src, None).unwrap();
+        let document = Document::from_path(top_cmake).unwrap();
 
-        let check_result =
-            checkerror_inner(top_cmake, gammar_file_src, thetree.root_node(), false).unwrap();
+        let check_result = checkerror_inner(
+            document.path(),
+            document.source(),
+            document.tree().root_node(),
+            false,
+        )
+        .unwrap();
 
         assert_eq!(
             *check_result,

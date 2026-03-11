@@ -6,26 +6,23 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
-use dashmap::DashMap;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType, Position,
     Uri,
 };
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::fileapi;
-use crate::languageserver::get_or_update_buffer_contents;
+use crate::document::Document;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
-
 use crate::utils::query::{
     get_bracket_comments, get_functions, get_line_comments, get_macros, get_normal_commands,
 };
+use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, include_is_module,
     remove_quotation_and_replace_placeholders,
 };
+use crate::{DocumentCache, fileapi};
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 
@@ -74,15 +71,12 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(context, None);
-    let tree = thetree.unwrap();
+pub async fn update_cache(document: &Document) -> Vec<CompletionItem> {
+    let path = document.path();
     let Some(result_data) = getsubcomplete(
-        tree.root_node(),
-        context,
-        path.as_ref(),
+        document.tree().root_node(),
+        document.source(),
+        path,
         PositionType::VarOrFun,
         None,
         &mut Vec::new(),
@@ -93,15 +87,15 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
         return Vec::new();
     };
     let mut cache = COMPLETE_CACHE.lock().await;
-    cache.insert(path.as_ref().to_path_buf(), result_data.clone());
+    cache.insert(path.to_path_buf(), result_data.clone());
     result_data
 }
 
-pub async fn get_cached_completion<P: AsRef<Path>>(
-    path: P,
-    documents: &DashMap<Uri, String>,
+pub async fn get_cached_completion(
+    document: &Document,
+    documents: &DocumentCache,
 ) -> Vec<CompletionItem> {
-    let mut path = path.as_ref().to_path_buf();
+    let mut path = document.path().to_path_buf();
     let mut completions = Vec::new();
 
     let tree_map = TREE_MAP.lock().await;
@@ -110,11 +104,11 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
             completions.append(&mut data.clone());
-        } else if let Ok(context) = get_or_update_buffer_contents(parent, documents).await {
+        } else if let Ok(uri) = Uri::from_file_path(parent)
+            && let Some(document) = documents.get(&uri)
+        {
             drop(complete_cache);
-            completions.append(&mut update_cache(parent, context.as_str()).await);
-            path.clone_from(parent);
-            continue;
+            completions.append(&mut update_cache(&document).await);
         }
         path.clone_from(parent);
     }
@@ -123,29 +117,24 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
 }
 
 /// get the complete messages
-pub async fn getcomplete<P: AsRef<Path>>(
-    source: &str,
+pub async fn getcomplete(
+    document: &Document,
     location: Position,
     client: &tower_lsp::Client,
-    local_path: P,
     find_cmake_in_package: bool,
-    documents: &DashMap<Uri, String>,
+    documents: &DocumentCache,
 ) -> Option<CompletionResponse> {
-    let local_path = local_path.as_ref();
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None);
-    let tree = thetree.unwrap();
+    let tree = document.tree();
     let mut complete: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
-    let postype = get_pos_type(current_point, tree.root_node(), source);
+    let postype = get_pos_type(current_point, tree.root_node(), document.source());
     match postype {
         PositionType::VarOrFun
         | PositionType::TargetLink
         | PositionType::TargetInclude
         | PositionType::ArgumentOrList => {
-            let mut cached_completion = get_cached_completion(local_path, documents).await;
+            let mut cached_completion = get_cached_completion(document, documents).await;
             if !cached_completion.is_empty() {
                 complete.append(&mut cached_completion);
             }
@@ -154,8 +143,8 @@ pub async fn getcomplete<P: AsRef<Path>>(
             }
             if let Some(mut message) = getsubcomplete(
                 tree.root_node(),
-                source,
-                Path::new(local_path),
+                document.source(),
+                document.path(),
                 postype,
                 Some(location),
                 &mut Vec::new(),
@@ -186,7 +175,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
             complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
-            let mut cached_completion = get_cached_completion(local_path, documents).await;
+            let mut cached_completion = get_cached_completion(document, documents).await;
             if !cached_completion.is_empty() {
                 complete.append(&mut cached_completion);
             }
@@ -568,6 +557,7 @@ fn get_cmake_package_complete(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
     #[test]
     fn rst_doc_read_test() {

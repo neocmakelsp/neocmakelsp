@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
 use crate::utils::remove_quotation_and_replace_placeholders;
-use crate::{complete, jump};
+use crate::{Document, complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -40,54 +40,55 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
     }
 }
 
-pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
-    let (bufs, cmakebufs) = scan_dir_inner(path.as_ref(), is_first).await;
+pub async fn scan_dir(path: impl AsRef<Path>, is_first: bool) -> Vec<PathBuf> {
+    let path = path.as_ref();
+    let Some((bufs, cmakebufs)) = scan_dir_inner(path, is_first).await else {
+        return Vec::new();
+    };
     let mut tree = TREE_MAP.lock().await;
     for subpath in bufs.iter() {
-        tree.insert(subpath.to_path_buf(), path.as_ref().into());
+        tree.insert(subpath.to_path_buf(), path.to_path_buf());
     }
     drop(tree);
     let mut includetree = TREE_CMAKE_MAP.lock().await;
     for cmakepath in cmakebufs {
         let include_key = includetree.entry(cmakepath).or_default();
-        let toaddpath = path.as_ref().into();
-        if !include_key.contains(&toaddpath) {
-            include_key.push(toaddpath);
+        let path = path.to_path_buf();
+        if !include_key.contains(&path) {
+            include_key.push(path);
         }
     }
     bufs
 }
 
-async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
-    let Ok(source) = tokio::fs::read_to_string(path.as_ref()).await else {
-        return (Vec::new(), Vec::new());
-    };
-
+async fn scan_dir_inner(
+    path: impl AsRef<Path>,
+    is_first: bool,
+) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
+    let path = path.as_ref();
+    let document = Document::from_path(path)?;
     if is_first {
-        complete::update_cache(path.as_ref(), &source).await;
-        jump::update_cache(path.as_ref(), &source).await;
+        complete::update_cache(&document).await;
+        jump::update_cache(&document).await;
     }
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let tree = parse.parse(&source, None).unwrap();
-    let tree = tree.root_node();
-    if tree.is_error() {
-        return (Vec::new(), Vec::new());
+    if document.tree().root_node().is_error() {
+        return None;
     }
 
-    scan_node(&source, tree, path)
+    Some(scan_node(&document, path))
 }
 
-fn scan_node<P: AsRef<Path>>(
-    source: &str,
-    tree: tree_sitter::Node,
-    path: P,
-) -> (Vec<PathBuf>, Vec<PathBuf>) {
+fn scan_node(document: &Document, path: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let mut bufs = Vec::new();
     let mut cmake_bufs = Vec::new();
-    let normal_commands = get_normal_commands(source.as_bytes(), tree, None);
+    let normal_commands = get_normal_commands(
+        document.source().as_bytes(),
+        document.tree().root_node(),
+        None,
+    );
     for command in normal_commands {
         let command_name = command.identifier.to_lowercase();
+
         if command_name == "add_subdirectory" {
             let Some(first_arg) = command.first_arg else {
                 continue;
@@ -97,7 +98,6 @@ fn scan_node<P: AsRef<Path>>(
             };
 
             let subpath = path
-                .as_ref()
                 .parent()
                 .unwrap()
                 .join(file_name)
@@ -117,7 +117,7 @@ fn scan_node<P: AsRef<Path>>(
             let mut cmake_buf_path = PathBuf::from(file_name);
 
             if !cmake_buf_path.is_absolute() {
-                cmake_buf_path = path.as_ref().parent().unwrap().join(cmake_buf_path);
+                cmake_buf_path = path.parent().unwrap().join(cmake_buf_path);
             }
             cmake_bufs.push(cmake_buf_path);
         }
