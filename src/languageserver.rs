@@ -368,7 +368,7 @@ impl LanguageServer for Backend {
         let work_done_token = ProgressToken::Number(1);
         let progress = self
             .client
-            .progress(work_done_token, "start initing the workspace")
+            .progress(work_done_token, "Initializing workspace")
             .with_message("initial start")
             .with_percentage(0)
             .begin()
