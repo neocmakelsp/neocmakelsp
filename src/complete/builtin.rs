@@ -15,9 +15,58 @@ use crate::languageserver::to_use_snippet;
 // // (<[^>]+>(?:\.\.\.)?)|(\.{3})|(\[.*?\])|([A-Z][A-Z_]+)
 
 // As regex can't resolve nested parameter struct, parse it manually
-fn split_parameters(command_label: &str) -> Vec<&str> {
-    let _command_label = command_label.trim();
-    todo!()
+fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
+    let parameters_char_vec: Vec<char> = raw_parameters_string.trim().chars().collect();
+    let mut i = 0;
+    let mut result = Vec::new();
+    while i < parameters_char_vec.len() {
+        let para_begin = i;
+        match parameters_char_vec[i] {
+            '.' => {
+                while let Some('.') = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                }
+            }
+            bracket @ ('<' | '[') => {
+                let mut bracket_num = 1;
+                let opposite_bracket = if bracket == '<' { '>' } else { ']' };
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                    match (c, bracket_num) {
+                        (x, _) if *x == bracket => bracket_num += 1,
+                        (x, 1) if *x == opposite_bracket => break,
+                        (x, _) if *x == opposite_bracket => bracket_num -= 1,
+                        _ => (),
+                    }
+                }
+                while let Some('.') = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                }
+            }
+            'A'..='z' => {
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    if ('A'..='z').contains(c) {
+                        i += 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            ' ' | '\n' => {
+                i += 1;
+                continue;
+            }
+            _ => (),
+        }
+        if i >= parameters_char_vec.len() {
+            result.push(&raw_parameters_string[para_begin..parameters_char_vec.len()]);
+            break;
+        } else {
+            result.push(&raw_parameters_string[para_begin..=i]);
+            i += 1;
+        }
+    }
+    result
 }
 
 fn gen_builtin_command_signature_resource(
@@ -243,6 +292,49 @@ mod tests {
     use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
 
     #[test]
+    fn test_split_parameters() {
+        // test1 (parameters of add_executable)
+        let raw_parameters = r"<name> <options>... <sources>...";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(result, vec!["<name>", "<options>...", "<sources>..."]);
+
+        // test2 (parameters of set_property)
+        let raw_parameters = r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >
+              [APPEND] [APPEND_STRING]
+              PROPERTY <name> [<value1> ...]";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(
+            result,
+            vec![
+                r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >",
+                "[APPEND]",
+                "[APPEND_STRING]",
+                "PROPERTY",
+                "<name>",
+                "[<value1> ...]"
+            ]
+        );
+    }
+
+    #[test]
     fn test_regex() {
         let re = regex::Regex::new(r"-+").unwrap();
         assert!(re.is_match("---------"));
@@ -259,11 +351,55 @@ mod tests {
     fn test_cmake_command_builtin() {
         // NOTE: In case the command fails, ignore test
         // let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
-
         let output = gen_builtin_commands();
-        // let output = gen_builtin_commands(output);
-
         assert!(output.is_ok());
+    }
+
+    #[test]
+    fn test_gen_builtin_command_signature_resource() {
+        let res = BUILTIN_COMMAND_SIGNATURE_RES.as_ref().unwrap();
+        let tested_command = res.get("set_property").unwrap();
+        println!(
+            "{}\n\n\n{}\n\n\n{}",
+            tested_command.signature,
+            tested_command.parameters.join("\n"),
+            tested_command.raw_doc
+        );
+        assert_eq!(
+            tested_command.signature,
+            r"set_property(<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >
+              [APPEND] [APPEND_STRING]
+              PROPERTY <name> [<value1> ...])"
+        );
+        assert_eq!(
+            tested_command.parameters,
+            vec![
+                r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >",
+                "[APPEND]",
+                "[APPEND_STRING]",
+                "PROPERTY",
+                "<name>",
+                "[<value1> ...]"
+            ]
+        );
     }
 
     #[test]
