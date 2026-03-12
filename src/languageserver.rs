@@ -15,17 +15,18 @@ use tree_sitter::Parser;
 
 use self::config::Config;
 use super::Backend;
+use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
-use crate::utils::treehelper::ToPosition;
+use crate::utils::treehelper::{ToPoint, ToPosition};
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
-    quick_fix, rename, scansubs, semantic_token, utils,
+    BackendInitInfo, CMakeNodeKinds, complete, document_link, document_symbol, fileapi,
+    filewatcher, hover, jump, quick_fix, rename, scansubs, semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -274,6 +275,18 @@ impl LanguageServer for Backend {
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                     completion_item: None,
+                }),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec![
+                        String::from("("),
+                        String::from(" "),
+                        String::from("\n"),
+                    ]),
+                    retrigger_characters: None,
+                    // retrigger_characters: Some(vec![String::from(" ")]),
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
@@ -794,6 +807,47 @@ impl LanguageServer for Backend {
             }))),
             None => Ok(None),
         }
+    }
+
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let position = params.text_document_position_params.position;
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(text) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        let mut parse = Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(text.value(), None).unwrap();
+
+        let mut node = tree
+            .root_node()
+            .descendant_for_point_range(position.to_point(), position.to_point());
+        let Ok(res) = BUILTIN_COMMAND_SIGNATURE_RES.as_ref() else {
+            return Ok(None);
+        };
+
+        while let Some(current) = node {
+            if current.kind() == CMakeNodeKinds::NORMAL_COMMAND
+                && let Some(identifier_node) = current.child(0)
+            {
+                let command_name_at_pos = &text.value()[identifier_node.byte_range()];
+                let Some(command) = res.get(command_name_at_pos) else {
+                    return Ok(None);
+                };
+                return Ok(Some(SignatureHelp {
+                    signatures: vec![SignatureInformation {
+                        label: command.signature.to_string(),
+                        documentation: command.gen_document(),
+                        parameters: command.gen_parameters(),
+                        active_parameter: None,
+                    }],
+                    active_signature: None,
+                    active_parameter: None,
+                }));
+            }
+            node = current.parent();
+        }
+        Ok(None)
     }
 
     async fn document_symbol(

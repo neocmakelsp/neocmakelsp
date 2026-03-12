@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 use anyhow::Result;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
+    ParameterInformation, ParameterLabel,
 };
 
 use crate::languageserver::to_use_snippet;
@@ -71,7 +72,7 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
-) -> HashMap<String, CommandSignatureResource<'_>> {
+) -> HashMap<&str, CommandSignatureResource<'_>> {
     // WARN: This regex is directly copied from the original gen_builtin_commands()
     // But is might be wrong. Cause [A-z] contains [a-z]
     // And this also contains [ \ ] ^ _ `
@@ -98,16 +99,16 @@ fn gen_builtin_command_signature_resource(
                     let raw_parameters = capture.name("parameters").unwrap().as_str();
                     let parameters = split_parameters(raw_parameters);
                     (
-                        key.to_string(),
+                        key,
                         CommandSignatureResource::new(signature, parameters, content.trim()),
                     )
                 })
-                .collect::<Vec<(String, CommandSignatureResource)>>()
+                .collect::<Vec<(&str, CommandSignatureResource)>>()
         })
         .chain({
             #[cfg(unix)]
             [(
-                "pkg_check_modules".to_string(),
+                "pkg_check_modules",
                 CommandSignatureResource::new(
                     "pkg_check_modules()",
                     vec![],
@@ -128,42 +129,43 @@ fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
             let insert_text_format;
             let detail;
             let insert_text;
+            let uppercase_insert_text;
 
             if client_support_snippet {
                 detail = "Function (Snippet)";
                 insert_text_format = InsertTextFormat::SNIPPET;
-                insert_text = format!(
-                    "{name}({})",
-                    commandinfo
-                        .parameters
-                        .iter()
-                        .enumerate()
-                        .map(|(i, s)| format!("${{{i}:{s}}}"))
-                        .collect::<Vec<String>>()
-                        .join(" ")
-                );
+                let para = commandinfo
+                    .parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| format!("${{{}:{s}}}", i + 1))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                insert_text = format!("{name}({})", para);
+                uppercase_insert_text = format!("{}({})", name.to_uppercase(), para);
             } else {
                 detail = "Function";
                 insert_text_format = InsertTextFormat::PLAIN_TEXT;
-                insert_text = name.clone() + "()";
+                insert_text = name.to_string();
+                uppercase_insert_text = name.to_uppercase();
             }
 
             [
                 CompletionItem {
-                    label: commandinfo.signature.to_lowercase(),
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    detail: Some(detail.to_string()),
-                    documentation: commandinfo.gen_document(),
-                    insert_text: Some(insert_text.clone()),
-                    insert_text_format: Some(insert_text_format),
-                    ..Default::default()
-                },
-                CompletionItem {
-                    label: commandinfo.signature.to_uppercase(),
+                    label: name.to_lowercase(),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail: Some(detail.to_string()),
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(insert_text),
+                    insert_text_format: Some(insert_text_format),
+                    ..Default::default()
+                },
+                CompletionItem {
+                    label: name.to_uppercase(),
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some(detail.to_string()),
+                    documentation: commandinfo.gen_document(),
+                    insert_text: Some(uppercase_insert_text),
                     insert_text_format: Some(insert_text_format),
                     ..Default::default()
                 },
@@ -219,10 +221,10 @@ fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
 }
 
 pub struct CommandSignatureResource<'a> {
-    signature: &'a str,
-    parameters: Vec<&'a str>,
+    pub signature: &'a str,
+    pub parameters: Vec<&'a str>,
     // document: Option<Documentation>,
-    raw_doc: &'a str,
+    pub raw_doc: &'a str,
 }
 
 impl<'a> CommandSignatureResource<'a> {
@@ -234,14 +236,30 @@ impl<'a> CommandSignatureResource<'a> {
         }
     }
 
-    fn gen_document(&self) -> Option<Documentation> {
+    pub fn gen_document(&self) -> Option<Documentation> {
         if self.raw_doc.is_empty() {
+            None
+        } else {
             Some(Documentation::MarkupContent(MarkupContent {
                 kind: MarkupKind::Markdown,
                 value: self.raw_doc.to_string(),
             }))
-        } else {
+        }
+    }
+
+    pub fn gen_parameters(&self) -> Option<Vec<ParameterInformation>> {
+        if self.parameters.is_empty() {
             None
+        } else {
+            Some(
+                self.parameters
+                    .iter()
+                    .map(|&para| ParameterInformation {
+                        label: ParameterLabel::Simple(para.to_string()),
+                        documentation: None,
+                    })
+                    .collect(),
+            )
         }
     }
 }
@@ -256,7 +274,7 @@ static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
 /// Resource for generating builtin signatures and commands
 /// the key is command name, not signature
 pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<
-    Result<HashMap<String, CommandSignatureResource>>,
+    Result<HashMap<&str, CommandSignatureResource>>,
 > = LazyLock::new(|| {
     Ok(gen_builtin_command_signature_resource(
         CMAKE_COMMANDS_HELP.as_ref().unwrap(),

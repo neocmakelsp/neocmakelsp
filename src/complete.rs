@@ -1,4 +1,4 @@
-mod builtin;
+pub mod builtin;
 mod findpackage;
 mod includescanner;
 use std::collections::HashMap;
