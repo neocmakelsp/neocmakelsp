@@ -277,16 +277,9 @@ impl LanguageServer for Backend {
                     completion_item: None,
                 }),
                 signature_help_provider: Some(SignatureHelpOptions {
-                    trigger_characters: Some(vec![
-                        String::from("("),
-                        String::from(" "),
-                        String::from("\n"),
-                    ]),
+                    trigger_characters: Some(vec!["(".into()]),
                     retrigger_characters: None,
-                    // retrigger_characters: Some(vec![String::from(" ")]),
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
-                    },
+                    work_done_progress_options: Default::default(),
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),

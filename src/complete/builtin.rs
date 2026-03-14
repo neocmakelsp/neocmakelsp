@@ -11,13 +11,10 @@ use tower_lsp::lsp_types::{
 
 use crate::languageserver::to_use_snippet;
 
-// static SPIT_PRAMETER_REGEX: LazyLock<regex::Regex> =
-//     LazyLock::new(|| regex::Regex::new(r"<[^>]+>\.*").unwrap());
-// // (<[^>]+>(?:\.\.\.)?)|(\.{3})|(\[.*?\])|([A-Z][A-Z_]+)
-
 // As regex can't resolve nested parameter struct, parse it manually
 fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
-    let parameters_char_vec: Vec<char> = raw_parameters_string.trim().chars().collect();
+    let raw_parameters_string = raw_parameters_string.trim();
+    let parameters_char_vec: Vec<char> = raw_parameters_string.chars().collect();
     let mut i = 0;
     let mut result = Vec::new();
     while i < parameters_char_vec.len() {
@@ -53,11 +50,21 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
                     }
                 }
             }
-            ' ' | '\n' => {
+            // handle comments
+            '#' => {
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                    if *c == '\n' {
+                        break;
+                    }
+                }
                 i += 1;
                 continue;
             }
-            _ => (),
+            _ => {
+                i += 1;
+                continue;
+            }
         }
         if i >= parameters_char_vec.len() {
             result.push(&raw_parameters_string[para_begin..parameters_char_vec.len()]);
@@ -87,23 +94,19 @@ fn gen_builtin_command_signature_resource(
     let contents: Vec<_> = re.split(raw_document).skip(1).collect();
     keys.iter()
         .zip(contents)
-        .flat_map(|(&key, content)| {
+        .filter_map(|(&key, content)| {
             let r_match_signature = regex::Regex::new(
                 format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
             )
             .unwrap();
-            r_match_signature
-                .captures_iter(content)
-                .map(|capture| {
-                    let signature = capture.name("signature").unwrap().as_str();
-                    let raw_parameters = capture.name("parameters").unwrap().as_str();
-                    let parameters = split_parameters(raw_parameters);
-                    (
-                        key,
-                        CommandSignatureResource::new(signature, parameters, content.trim()),
-                    )
-                })
-                .collect::<Vec<(&str, CommandSignatureResource)>>()
+            let capture = r_match_signature.captures(content)?;
+            let signature = capture.name("signature").unwrap().as_str();
+            let raw_parameters = capture.name("parameters").unwrap().as_str();
+            let parameters = split_parameters(raw_parameters);
+            Some((
+                key,
+                CommandSignatureResource::new(signature, parameters, content.trim()),
+            ))
         })
         .chain({
             #[cfg(unix)]
@@ -348,6 +351,25 @@ mod tests {
                 "PROPERTY",
                 "<name>",
                 "[<value1> ...]"
+            ]
+        );
+
+        // test something with comments
+        let raw_parameters = r"<variable>
+               [CONFIGURATION <config>]
+               [PARALLEL_LEVEL <parallel>]
+               [TARGET <target>]
+               [PROJECT_NAME <projname>] # legacy, causes warning
+              ";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(
+            result,
+            vec![
+                "<variable>",
+                "[CONFIGURATION <config>]",
+                "[PARALLEL_LEVEL <parallel>]",
+                "[TARGET <target>]",
+                "[PROJECT_NAME <projname>]"
             ]
         );
     }
