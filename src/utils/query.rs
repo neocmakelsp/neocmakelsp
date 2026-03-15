@@ -24,7 +24,7 @@ const FUNCTION_QUERY: &str = r"(
        (argument_list ((argument)*) @args))
 )";
 
-const NORMAL_COMMAND_QUERY: &str = r"
+pub const NORMAL_COMMAND_QUERY: &str = r"
 (
     (normal_command) @normal_command
 )

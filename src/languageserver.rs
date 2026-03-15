@@ -21,6 +21,7 @@ use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
+use crate::signature_help::get_signature_help;
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
@@ -274,6 +275,11 @@ impl LanguageServer for Backend {
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                     completion_item: None,
+                }),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec!["(".into()]),
+                    retrigger_characters: None,
+                    work_done_progress_options: Default::default(),
                 }),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
@@ -794,6 +800,19 @@ impl LanguageServer for Backend {
             }))),
             None => Ok(None),
         }
+    }
+
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let position = params.text_document_position_params.position;
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(text) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        let mut parse = Parser::new();
+        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+        let tree = parse.parse(text.value(), None).unwrap();
+
+        Ok(get_signature_help(position, tree.root_node(), &text))
     }
 
     async fn document_symbol(

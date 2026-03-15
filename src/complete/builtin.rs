@@ -4,149 +4,180 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use anyhow::Result;
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, Documentation, InsertTextFormat};
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
+    ParameterInformation, ParameterLabel,
+};
 
 use crate::languageserver::to_use_snippet;
 
-fn shorter_var(arg: &str) -> String {
-    let mut shorter = arg.to_string();
-    let args = arg.split('\n').next().unwrap_or("");
-    if args.len() > 20 {
-        shorter = format!("{}...", &args[0..20]);
-    }
-    if shorter.contains(' ') {
-        shorter = format!("(arg_type: <{shorter}>)");
-    }
-    shorter = format!("<{shorter}>");
-    shorter
-}
-
-fn handle_sharp_bracket(arg: &str) -> &str {
-    let left_unique = arg.starts_with("<");
-    let right_unique = arg.ends_with(">");
-    match (left_unique, right_unique) {
-        (true, true) => &arg[1..arg.len() - 1],
-        (true, false) => &arg[1..],
-        (false, true) => &arg[..arg.len() - 1],
-        (false, false) => arg,
-    }
-}
-
-fn handle_square_bracket(arg: &str) -> &str {
-    let left_unique = arg.starts_with("[");
-    let right_unique = arg.ends_with("]");
-    match (left_unique, right_unique) {
-        (true, true) => &arg[1..arg.len() - 1],
-        (true, false) => &arg[1..],
-        (false, true) => &arg[..arg.len() - 1],
-        (false, false) => arg,
-    }
-}
-
-static SNIPPET_GEN_REGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"<[^>]+>").unwrap());
-
-fn convert_to_lsp_snippet(input: &str) -> String {
-    let mut result = String::new();
-    let mut last_pos = 0; // Keep track of the last match position
-    let mut i = 1;
-    for caps in SNIPPET_GEN_REGEX.captures_iter(input) {
-        if let Some(matched) = caps.get(0) {
-            let var_name_pre = matched.as_str(); // Extract captured variable
-            let var_name_pre2 = handle_sharp_bracket(var_name_pre);
-            let var_name_pre3 = handle_square_bracket(var_name_pre2);
-            let var_name = shorter_var(var_name_pre3);
-
-            // Add text before the match
-            result.push_str(&input[last_pos..matched.start()]);
-
-            // Replace the variable
-            result.push_str(&format!("${{{i}:{var_name}}}"));
-            // Update last position to after this match
-            last_pos = matched.end();
+// As regex can't resolve nested parameter struct, parse it manually
+fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
+    let raw_parameters_string = raw_parameters_string.trim();
+    let parameters_char_vec: Vec<char> = raw_parameters_string.chars().collect();
+    let mut i = 0;
+    let mut result = Vec::new();
+    while i < parameters_char_vec.len() {
+        let para_begin = i;
+        match parameters_char_vec[i] {
+            '.' => {
+                while let Some('.') = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                }
+            }
+            bracket @ ('<' | '[') => {
+                let mut bracket_num = 1;
+                let opposite_bracket = if bracket == '<' { '>' } else { ']' };
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                    match (c, bracket_num) {
+                        (x, _) if *x == bracket => bracket_num += 1,
+                        (x, 1) if *x == opposite_bracket => break,
+                        (x, _) if *x == opposite_bracket => bracket_num -= 1,
+                        _ => (),
+                    }
+                }
+                while let Some('.') = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                }
+            }
+            'A'..='z' => {
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    if ('A'..='z').contains(c) {
+                        i += 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // handle comments
+            '#' => {
+                while let Some(c) = parameters_char_vec.get(i + 1) {
+                    i += 1;
+                    if *c == '\n' {
+                        break;
+                    }
+                }
+                i += 1;
+                continue;
+            }
+            _ => {
+                i += 1;
+                continue;
+            }
+        }
+        if i >= parameters_char_vec.len() {
+            result.push(&raw_parameters_string[para_begin..parameters_char_vec.len()]);
+            break;
+        } else {
+            result.push(&raw_parameters_string[para_begin..=i]);
             i += 1;
         }
     }
-
-    // Add remaining part of the string
-    result.push_str(&input[last_pos..]);
-
     result
 }
 
-fn gen_builtin_commands(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
+fn gen_builtin_command_signature_resource(
+    raw_document: &str,
+) -> HashMap<&str, CommandSignatureResource<'_>> {
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let keys: Vec<_> = re
-        .find_iter(raw_info)
+        .find_iter(raw_document)
         .map(|message| {
             let temp: Vec<&str> = message.as_str().split('\n').collect();
             temp[0]
         })
         .collect();
-    let contents: Vec<_> = re.split(raw_info).collect();
-    let contents = &contents[1..].to_vec();
+    let contents: Vec<_> = re.split(raw_document).skip(1).collect();
+    let temp_iter = keys.iter().zip(contents).filter_map(|(&key, content)| {
+        let r_match_signature = regex::Regex::new(
+            format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
+        )
+        .unwrap();
+        let capture = r_match_signature.captures(content)?;
+        let signature = capture.name("signature").unwrap().as_str();
+        let raw_parameters = capture.name("parameters").unwrap().as_str();
+        let parameters = split_parameters(raw_parameters);
+        Some((
+            key,
+            CommandSignatureResource::new(signature, parameters, content.trim()),
+        ))
+    });
 
-    let mut completes = HashMap::new();
-    for (key, content) in keys.iter().zip(contents) {
-        let small_key = key.to_lowercase();
-        let big_key = key.to_uppercase();
-        completes.insert(small_key, content.to_string());
-        completes.insert(big_key, content.to_string());
-    }
     #[cfg(unix)]
-    {
-        completes.insert(
-            "pkg_check_modules".to_string(),
-            "please findpackage PkgConfig first".to_string(),
-        );
-        completes.insert(
-            "PKG_CHECK_MODULES".to_string(),
-            "please findpackage PkgConfig first".to_string(),
-        );
-    }
+    return temp_iter
+        .chain({
+            [(
+                "pkg_check_modules",
+                CommandSignatureResource::new(
+                    "pkg_check_modules()",
+                    vec![],
+                    "please findpackage PkgConfig first",
+                ),
+            )]
+        })
+        .collect();
+    #[cfg(windows)]
+    return temp_iter.collect();
+}
 
+fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
+    let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
     let client_support_snippet = to_use_snippet();
 
-    Ok(completes
+    Ok(res
         .iter()
-        .map(|(akey, message)| {
-            let mut insert_text_format = InsertTextFormat::PLAIN_TEXT;
-            let mut insert_text = akey.to_string();
-            let mut detail = "Function".to_string();
-            let s = format!(r"\n\s+(?P<signature>{akey}\([^)]*\))");
-            let r_match_signature = regex::Regex::new(s.as_str()).unwrap();
+        .flat_map(|(name, commandinfo)| {
+            let insert_text_format;
+            let detail;
+            let insert_text;
+            let uppercase_insert_text;
 
-            // snippets only work for lower case for now...
-            if client_support_snippet
-                && insert_text
-                    .chars()
-                    .all(|c| c.is_ascii_lowercase() || c == '_')
-            {
-                insert_text = match r_match_signature.captures(message) {
-                    Some(m) => {
-                        insert_text_format = InsertTextFormat::SNIPPET;
-                        detail += " (Snippet)";
-                        convert_to_lsp_snippet(m.name("signature").unwrap().as_str())
-                    }
-                    _ => akey.to_string(),
-                }
+            if client_support_snippet {
+                detail = "Function (Snippet)";
+                insert_text_format = InsertTextFormat::SNIPPET;
+                let para = commandinfo
+                    .parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| format!("${{{}:{s}}}", i + 1))
+                    .collect::<Vec<String>>()
+                    .join(" ");
+                insert_text = format!("{name}({})", para);
+                uppercase_insert_text = format!("{}({})", name.to_uppercase(), para);
+            } else {
+                detail = "Function";
+                insert_text_format = InsertTextFormat::PLAIN_TEXT;
+                insert_text = name.to_string();
+                uppercase_insert_text = name.to_uppercase();
             }
 
-            CompletionItem {
-                label: akey.to_string(),
-                kind: Some(CompletionItemKind::FUNCTION),
-                detail: Some(detail),
-                documentation: Some(Documentation::String(message.trim().to_string())),
-                insert_text: Some(insert_text),
-                insert_text_format: Some(insert_text_format),
-                ..Default::default()
-            }
+            [
+                CompletionItem {
+                    label: name.to_lowercase(),
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some(detail.to_string()),
+                    documentation: commandinfo.gen_document(),
+                    insert_text: Some(insert_text),
+                    insert_text_format: Some(insert_text_format),
+                    ..Default::default()
+                },
+                CompletionItem {
+                    label: name.to_uppercase(),
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    detail: Some(detail.to_string()),
+                    documentation: commandinfo.gen_document(),
+                    insert_text: Some(uppercase_insert_text),
+                    insert_text_format: Some(insert_text_format),
+                    ..Default::default()
+                },
+            ]
         })
         .collect())
 }
 
 fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
@@ -168,7 +199,7 @@ fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
@@ -189,15 +220,65 @@ fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-/// CMake builtin commands
-pub static BUILTIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
+pub struct CommandSignatureResource<'a> {
+    pub signature: &'a str,
+    pub parameters: Vec<&'a str>,
+    // document: Option<Documentation>,
+    pub raw_doc: &'a str,
+}
+
+impl<'a> CommandSignatureResource<'a> {
+    fn new(signature: &'a str, parameters: Vec<&'a str>, raw_doc: &'a str) -> Self {
+        CommandSignatureResource {
+            signature,
+            parameters,
+            raw_doc,
+        }
+    }
+
+    pub fn gen_document(&self) -> Option<Documentation> {
+        if self.raw_doc.is_empty() {
+            None
+        } else {
+            Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: self.raw_doc.to_string(),
+            }))
+        }
+    }
+
+    pub fn gen_parameters(&self) -> Option<Vec<ParameterInformation>> {
+        if self.parameters.is_empty() {
+            None
+        } else {
+            Some(
+                self.parameters
+                    .iter()
+                    .map(|&para| ParameterInformation {
+                        label: ParameterLabel::Simple(para.to_string()),
+                        documentation: None,
+                    })
+                    .collect(),
+            )
+        }
+    }
+}
+
+static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
     let output = Command::new("cmake")
         .arg("--help-commands")
         .output()?
         .stdout;
-    let temp = String::from_utf8_lossy(&output);
-    gen_builtin_commands(&temp)
+    Ok(String::from_utf8_lossy(&output).to_string())
 });
+/// Resource for generating builtin signatures and commands
+/// the key is command name, not signature
+pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<HashMap<&str, CommandSignatureResource>> =
+    LazyLock::new(|| gen_builtin_command_signature_resource(CMAKE_COMMANDS_HELP.as_ref().unwrap()));
+
+/// CMake builtin commands
+pub static BUILTIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> =
+    LazyLock::new(gen_builtin_commands);
 
 /// cmake builtin vars
 pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::new(|| {
@@ -224,20 +305,65 @@ mod tests {
     use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
 
     #[test]
-    fn test_convert_to_lsp_snippet() {
-        let snippet_example = r"define_property(<GLOBAL | DIRECTORY | TARGET | SOURCE |
-                  TEST | VARIABLE | CACHED_VARIABLE>
-                  PROPERTY <name> [INHERITED]
-                  [BRIEF_DOCS <brief-doc> [docs...]]
-                  [FULL_DOCS <full-doc> [docs...]]
-                  [INITIALIZE_FROM_VARIABLE <variable>])";
-        let snippet_result = convert_to_lsp_snippet(snippet_example);
-        let snippet_target = r"define_property(${1:<(arg_type: <GLOBAL | DIRECTORY |...>)>}
-                  PROPERTY ${2:<name>} [INHERITED]
-                  [BRIEF_DOCS ${3:<brief-doc>} [docs...]]
-                  [FULL_DOCS ${4:<full-doc>} [docs...]]
-                  [INITIALIZE_FROM_VARIABLE ${5:<variable>}])";
-        assert_eq!(snippet_result, snippet_target);
+    fn test_split_parameters() {
+        // test1 (parameters of add_executable)
+        let raw_parameters = r"<name> <options>... <sources>...";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(result, vec!["<name>", "<options>...", "<sources>..."]);
+
+        // test2 (parameters of set_property)
+        let raw_parameters = r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >
+              [APPEND] [APPEND_STRING]
+              PROPERTY <name> [<value1> ...]";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(
+            result,
+            vec![
+                r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >",
+                "[APPEND]",
+                "[APPEND_STRING]",
+                "PROPERTY",
+                "<name>",
+                "[<value1> ...]"
+            ]
+        );
+
+        // test something with comments
+        let raw_parameters = r"<variable>
+               [CONFIGURATION <config>]
+               [PARALLEL_LEVEL <parallel>]
+               [TARGET <target>]
+               [PROJECT_NAME <projname>] # legacy, causes warning
+              ";
+        let result = split_parameters(raw_parameters);
+        assert_eq!(
+            result,
+            vec![
+                "<variable>",
+                "[CONFIGURATION <config>]",
+                "[PARALLEL_LEVEL <parallel>]",
+                "[TARGET <target>]",
+                "[PROJECT_NAME <projname>]"
+            ]
+        );
     }
 
     #[test]
@@ -256,11 +382,56 @@ mod tests {
     #[test]
     fn test_cmake_command_builtin() {
         // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
-
-        let output = gen_builtin_commands(output);
-
+        // let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
+        let output = gen_builtin_commands();
         assert!(output.is_ok());
+    }
+
+    #[test]
+    fn test_gen_builtin_command_signature_resource() {
+        let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
+        let tested_command = res.get("set_property").unwrap();
+        println!(
+            "{}\n\n\n{}\n\n\n{}",
+            tested_command.signature,
+            tested_command.parameters.join("\n"),
+            tested_command.raw_doc
+        );
+        assert_eq!(
+            tested_command.signature,
+            r"set_property(<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >
+              [APPEND] [APPEND_STRING]
+              PROPERTY <name> [<value1> ...])"
+        );
+        assert_eq!(
+            tested_command.parameters,
+            vec![
+                r"<GLOBAL                      |
+               DIRECTORY [<dir>]           |
+               TARGET    [<target1> ...]   |
+               SOURCE    [<src1> ...]
+                         [DIRECTORY <dirs> ...]
+                         [TARGET_DIRECTORY <targets> ...] |
+               INSTALL   [<file1> ...]     |
+               TEST      [<test1> ...]
+                         [DIRECTORY <dir>] |
+               CACHE     [<entry1> ...]    >",
+                "[APPEND]",
+                "[APPEND_STRING]",
+                "PROPERTY",
+                "<name>",
+                "[<value1> ...]"
+            ]
+        );
     }
 
     #[test]
