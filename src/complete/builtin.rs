@@ -123,7 +123,7 @@ fn gen_builtin_command_signature_resource(
 }
 
 fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
-    let res = (BUILTIN_COMMAND_SIGNATURE_RES.as_ref()).unwrap();
+    let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
     let client_support_snippet = to_use_snippet();
 
     Ok(res
@@ -276,13 +276,8 @@ static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
 });
 /// Resource for generating builtin signatures and commands
 /// the key is command name, not signature
-pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<
-    Result<HashMap<&str, CommandSignatureResource>>,
-> = LazyLock::new(|| {
-    Ok(gen_builtin_command_signature_resource(
-        CMAKE_COMMANDS_HELP.as_ref().unwrap(),
-    ))
-});
+pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<HashMap<&str, CommandSignatureResource>> =
+    LazyLock::new(|| gen_builtin_command_signature_resource(CMAKE_COMMANDS_HELP.as_ref().unwrap()));
 
 /// CMake builtin commands
 pub static BUILTIN_COMMAND: LazyLock<Result<Vec<CompletionItem>>> =
@@ -397,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_gen_builtin_command_signature_resource() {
-        let res = BUILTIN_COMMAND_SIGNATURE_RES.as_ref().unwrap();
+        let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
         let tested_command = res.get("set_property").unwrap();
         println!(
             "{}\n\n\n{}\n\n\n{}",

@@ -11,10 +11,11 @@ use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
-use tree_sitter::Parser;
+use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
 
 use self::config::Config;
 use super::Backend;
+use crate::CMakeNodeKinds;
 use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -22,11 +23,12 @@ use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
+use crate::utils::query::NORMAL_COMMAND_QUERY;
 use crate::utils::treehelper::{ToPoint, ToPosition};
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    BackendInitInfo, CMakeNodeKinds, complete, document_link, document_symbol, fileapi,
-    filewatcher, hover, jump, quick_fix, rename, scansubs, semantic_token, utils,
+    BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
+    quick_fix, rename, scansubs, semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -808,25 +810,26 @@ impl LanguageServer for Backend {
         let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
+
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let tree = parse.parse(text.value(), None).unwrap();
 
-        let mut node = tree
-            .root_node()
-            .descendant_for_point_range(position.to_point(), position.to_point());
-        let Ok(res) = BUILTIN_COMMAND_SIGNATURE_RES.as_ref() else {
-            return Ok(None);
-        };
-
-        while let Some(current) = node {
-            if current.kind() == CMakeNodeKinds::NORMAL_COMMAND
-                && let Some(identifier_node) = current.child(0)
+        let query_cmd = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
+        let mut query_cursor = QueryCursor::new();
+        query_cursor.set_point_range(position.to_point()..position.to_point());
+        let mut match_cmd = query_cursor.matches(&query_cmd, tree.root_node(), text.as_bytes());
+        while let Some(m) = match_cmd.next() {
+            let node = m.nodes_for_capture_index(0).next().unwrap();
+            let Some(identifier) = node.child(0) else {
+                continue;
+            };
+            if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
+                continue;
+            }
+            if let Some(command) =
+                BUILTIN_COMMAND_SIGNATURE_RES.get(identifier.utf8_text(text.as_bytes()).unwrap())
             {
-                let command_name_at_pos = &text.value()[identifier_node.byte_range()];
-                let Some(command) = res.get(command_name_at_pos) else {
-                    return Ok(None);
-                };
                 return Ok(Some(SignatureHelp {
                     signatures: vec![SignatureInformation {
                         label: command.signature.to_string(),
@@ -838,7 +841,6 @@ impl LanguageServer for Backend {
                     active_parameter: None,
                 }));
             }
-            node = current.parent();
         }
         Ok(None)
     }
