@@ -80,10 +80,7 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
 ) -> HashMap<&str, CommandSignatureResource<'_>> {
-    // WARN: This regex is directly copied from the original gen_builtin_commands()
-    // But is might be wrong. Cause [A-z] contains [a-z]
-    // And this also contains [ \ ] ^ _ `
-    let re = regex::Regex::new(r"[a-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_document)
         .map(|message| {
@@ -180,8 +177,7 @@ fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    // WARN: same problem as the regex above
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
@@ -203,8 +199,7 @@ fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    // WARN: same problem as the regex above
-    let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
