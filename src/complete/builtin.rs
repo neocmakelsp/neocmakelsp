@@ -92,24 +92,24 @@ fn gen_builtin_command_signature_resource(
         })
         .collect();
     let contents: Vec<_> = re.split(raw_document).skip(1).collect();
-    keys.iter()
-        .zip(contents)
-        .filter_map(|(&key, content)| {
-            let r_match_signature = regex::Regex::new(
-                format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
-            )
-            .unwrap();
-            let capture = r_match_signature.captures(content)?;
-            let signature = capture.name("signature").unwrap().as_str();
-            let raw_parameters = capture.name("parameters").unwrap().as_str();
-            let parameters = split_parameters(raw_parameters);
-            Some((
-                key,
-                CommandSignatureResource::new(signature, parameters, content.trim()),
-            ))
-        })
+    let temp_iter = keys.iter().zip(contents).filter_map(|(&key, content)| {
+        let r_match_signature = regex::Regex::new(
+            format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
+        )
+        .unwrap();
+        let capture = r_match_signature.captures(content)?;
+        let signature = capture.name("signature").unwrap().as_str();
+        let raw_parameters = capture.name("parameters").unwrap().as_str();
+        let parameters = split_parameters(raw_parameters);
+        Some((
+            key,
+            CommandSignatureResource::new(signature, parameters, content.trim()),
+        ))
+    });
+
+    #[cfg(unix)]
+    return temp_iter
         .chain({
-            #[cfg(unix)]
             [(
                 "pkg_check_modules",
                 CommandSignatureResource::new(
@@ -119,7 +119,9 @@ fn gen_builtin_command_signature_resource(
                 ),
             )]
         })
-        .collect()
+        .collect();
+    #[cfg(windows)]
+    return temp_iter.collect();
 }
 
 fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
