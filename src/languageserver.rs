@@ -11,20 +11,18 @@ use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
-use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
+use tree_sitter::Parser;
 
 use self::config::Config;
 use super::Backend;
-use crate::CMakeNodeKinds;
-use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::semantic_token::LEGEND_TYPE;
-use crate::utils::query::NORMAL_COMMAND_QUERY;
-use crate::utils::treehelper::{ToPoint, ToPosition};
+use crate::signature_help::get_signature_help;
+use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
     BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
@@ -810,39 +808,11 @@ impl LanguageServer for Backend {
         let Some(text) = self.documents.get(&uri) else {
             return Ok(None);
         };
-
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let tree = parse.parse(text.value(), None).unwrap();
 
-        let query_cmd = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
-        let mut query_cursor = QueryCursor::new();
-        query_cursor.set_point_range(position.to_point()..position.to_point());
-        let mut match_cmd = query_cursor.matches(&query_cmd, tree.root_node(), text.as_bytes());
-        while let Some(m) = match_cmd.next() {
-            let node = m.nodes_for_capture_index(0).next().unwrap();
-            let Some(identifier) = node.child(0) else {
-                continue;
-            };
-            if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
-                continue;
-            }
-            if let Some(command) =
-                BUILTIN_COMMAND_SIGNATURE_RES.get(identifier.utf8_text(text.as_bytes()).unwrap())
-            {
-                return Ok(Some(SignatureHelp {
-                    signatures: vec![SignatureInformation {
-                        label: command.signature.to_string(),
-                        documentation: command.gen_document(),
-                        parameters: command.gen_parameters(),
-                        active_parameter: None,
-                    }],
-                    active_signature: None,
-                    active_parameter: None,
-                }));
-            }
-        }
-        Ok(None)
+        Ok(get_signature_help(position, tree.root_node(), &text))
     }
 
     async fn document_symbol(

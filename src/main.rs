@@ -29,6 +29,7 @@ mod rename;
 mod scansubs;
 mod search;
 mod semantic_token;
+mod signature_help;
 mod utils;
 use std::sync::OnceLock;
 
