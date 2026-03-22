@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
@@ -7,7 +6,7 @@ use lsp_types::Uri;
 use tower_lsp::lsp_types;
 
 use super::{CacheDataUnit, Location, gen_module_pattern, getsubdef};
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::Document;
 use crate::utils::include_is_module;
 use crate::utils::treehelper::PositionType;
 
@@ -62,14 +61,12 @@ pub fn scanner_include_defs(
     {
         return Some(complete_items.clone());
     }
-    let content = fs::read_to_string(path).ok()?;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&content, None)?;
+
+    // TODO: This needs to be cached, however, also some refactoring in other areas to get
+    // this smoothly integrated here.
+    let document = Document::from_path(path)?;
     let result_data = getsubdef(
-        thetree.root_node(),
-        &content,
-        path,
+        &document,
         postype,
         include_files,
         complete_packages,
@@ -98,14 +95,11 @@ pub fn scanner_package_defs(
     {
         return Some(complete_items.clone());
     }
-    let content = fs::read_to_string(path).ok()?;
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(&content, None)?;
+
+    // TODO: Can be cached, but needs refactoring.
+    let document = Document::from_path(path)?;
     let result_data = getsubdef(
-        thetree.root_node(),
-        &content,
-        path,
+        &document,
         postype,
         include_files,
         complete_packages,

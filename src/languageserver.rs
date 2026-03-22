@@ -2,21 +2,20 @@ mod config;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::exit;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use dashmap::DashMap;
-use tower_lsp::jsonrpc::{Error as LspError, Result};
+use anyhow::Context;
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
-use tree_sitter::Parser;
 
 use self::config::Config;
 use super::Backend;
 use crate::config::CONFIG;
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::document::Document;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
@@ -25,24 +24,23 @@ use crate::signature_help::get_signature_help;
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
-    BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
-    quick_fix, rename, scansubs, semantic_token, utils,
+    BackendInitInfo, DocumentCache, complete, document_link, document_symbol, fileapi, filewatcher,
+    hover, jump, quick_fix, rename, scansubs, semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 
-pub(crate) async fn get_or_update_buffer_contents<P: AsRef<Path>>(
-    path: P,
-    documents: &DashMap<Uri, String>,
-) -> std::io::Result<String> {
-    let uri = Uri::from_file_path(&path).unwrap();
-    if let Some(text) = documents.get(&uri) {
-        return Ok(text.to_string());
-    }
-    let text = tokio::fs::read_to_string(&path).await?;
-    documents.insert(uri, text.clone());
-    Ok(text)
+pub(crate) async fn get_or_update_buffer_contents(
+    path: impl AsRef<Path>,
+    documents: &DocumentCache,
+) -> anyhow::Result<String> {
+    let path = path.as_ref();
+    let uri = Uri::from_file_path(path)?;
+    let document = documents
+        .entry(uri)
+        .or_try_insert_with(|| Document::from_path(path).context("failed to parse document"))?;
+    Ok(document.source().to_string())
 }
 
 fn set_client_text_document(text_document: Option<TextDocumentClientCapabilities>) {
@@ -97,23 +95,12 @@ impl Backend {
             .all(|component| component != Component::ParentDir)
     }
 
-    async fn publish_diagnostics(&self, uri: Uri, context: &str, lint_info: LintConfigInfo) {
-        let Ok(file_path) = uri.to_file_path() else {
-            tracing::error!("Cannot transport {uri:?} to file_path");
-            self.client
-                .log_message(
-                    MessageType::ERROR,
-                    format!("Cannot transport {uri:?} to file_path"),
-                )
-                .await;
-            return;
-        };
-
-        if !self.path_in_project(&file_path) {
+    async fn publish_diagnostics(&self, document: &Document, lint_info: LintConfigInfo) {
+        if !self.path_in_project(document.path()) {
             return;
         }
 
-        let gammererror = checkerror(&file_path, context, lint_info);
+        let gammererror = checkerror(&document, lint_info);
         if let Some(diagnoses) = gammererror {
             let mut pusheddiagnoses = vec![];
             for ErrorInformation {
@@ -143,20 +130,16 @@ impl Backend {
                 pusheddiagnoses.push(diagnose);
             }
             self.client
-                .publish_diagnostics(uri, pusheddiagnoses, Some(1))
+                .publish_diagnostics(document.uri().clone(), pusheddiagnoses, Some(1))
                 .await;
-        } else {
-            self.client.publish_diagnostics(uri, vec![], None).await;
         }
     }
 
     async fn update_diagnostics(&self) {
         for item in &self.documents {
-            let uri = item.key();
-            let text = item.value();
+            let document = item.value();
             self.publish_diagnostics(
-                uri.clone(),
-                text,
+                &document,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: true,
@@ -449,10 +432,7 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        // NOTE: do nothing
-        // Seems tower_lsp won't do anything when receive this command.
-        // Now it should be proper for me to directly exit(0) here
-        exit(0)
+        Ok(())
     }
 
     async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
@@ -513,21 +493,16 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let TextDocumentItem { uri, text, .. } = params.text_document;
-        self.documents.insert(uri.clone(), text.clone());
 
-        let path = match uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
-                tracing::error!("Can't create path from {}", uri.as_str());
-                return;
-            }
-        };
+        let document = self
+            .documents
+            .entry(uri.clone())
+            .or_insert_with(|| Document::with_source_and_uri(text, uri.clone()).unwrap());
 
-        complete::update_cache(&path, &text).await;
-        jump::update_cache(&path, &text).await;
+        complete::update_cache(&document).await;
+        jump::update_cache(&document).await;
         self.publish_diagnostics(
-            uri,
-            &text,
+            &document,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: true,
@@ -536,7 +511,10 @@ impl LanguageServer for Backend {
         .await;
 
         self.client
-            .log_message(MessageType::INFO, format!("Opened file {}", path.display()))
+            .log_message(
+                MessageType::INFO,
+                format!("Opened file {}", document.path().display()),
+            )
             .await;
     }
 
@@ -551,22 +529,38 @@ impl LanguageServer for Backend {
         };
 
         let uri = params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
         let line = params.range.start.line;
-        Ok(quick_fix::lint_fix_action(&text, line, toolong, uri))
+        Ok(quick_fix::lint_fix_action(
+            document.source(),
+            line,
+            toolong,
+            uri,
+        ))
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.content_changes.into_iter().next().unwrap().text;
-        self.documents.insert(uri.clone(), text);
-        let text = self.documents.get(&uri).unwrap();
-        if text.lines().count() < 500 {
+        let uri = params.text_document.uri.clone();
+        let text = params
+            .content_changes
+            .into_iter()
+            .next()
+            .unwrap()
+            .clone()
+            .text;
+        let Ok(document) = self
+            .documents
+            .entry(uri.clone())
+            .or_try_insert_with(|| Document::with_source_and_uri(&text, uri.clone()).context(""))
+        else {
+            return;
+        };
+
+        if document.source().lines().count() < 500 {
             self.publish_diagnostics(
-                uri.clone(),
-                &text,
+                &document,
                 LintConfigInfo {
                     use_lint: self.init_info().enable_lint,
                     use_extra_cmake_lint: false,
@@ -575,35 +569,29 @@ impl LanguageServer for Backend {
             .await;
         }
         self.client
-            .log_message(MessageType::INFO, &format!("update file: {}", uri.as_str()))
+            .log_message(
+                MessageType::INFO,
+                &format!("update file: {}", document.uri().as_str()),
+            )
             .await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
 
-        let has_root = self.root_path().is_some();
-        let Some(text) = self.documents.get(&uri) else {
-            self.client
-                .log_message(MessageType::INFO, "file saved!")
-                .await;
+        let Some(document) = self.documents.get(&uri) else {
             return;
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {}", uri.as_str());
-                return;
-            }
-        };
+
+        let has_root = self.root_path().is_some();
+
         if has_root {
-            scansubs::scan_dir(&file_path, false).await;
-            complete::update_cache(&file_path, &text).await;
-            jump::update_cache(&file_path, &text).await;
+            scansubs::scan_dir(document.path(), false).await;
+            complete::update_cache(&document).await;
+            jump::update_cache(&document).await;
         }
         self.publish_diagnostics(
-            uri,
-            &text,
+            &document,
             LintConfigInfo {
                 use_lint: self.init_info().enable_lint,
                 use_extra_cmake_lint: CONFIG.enable_external_cmake_lint,
@@ -619,13 +607,14 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
-        let output = hover::get_hovered_doc(position, tree.root_node(), &text).await;
+
+        let tree = document.tree();
+        let source = document.source();
+
+        let output = hover::get_hovered_doc(position, tree.root_node(), source).await;
         match output {
             Some(context) => Ok(Some(Hover {
                 contents: HoverContents::Scalar(MarkedString::String(context)),
@@ -652,18 +641,23 @@ impl LanguageServer for Backend {
             1
         };
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
-        match self.documents.get(&uri) {
-            Some(text) => Ok(getformat(
-                self.root_path().map(|p| p.as_path()),
-                &text,
-                &self.client,
-                space_line,
-                input.options.insert_spaces,
-                insert_final_newline,
-            )
-            .await),
-            None => Ok(None),
-        }
+
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+        let root_path = self.root_path().map(PathBuf::as_path);
+        let source = document.source();
+        let client = &self.client;
+        let use_space = input.options.insert_spaces;
+        Ok(getformat(
+            root_path,
+            source,
+            client,
+            space_line,
+            use_space,
+            insert_final_newline,
+        )
+        .await)
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -679,21 +673,14 @@ impl LanguageServer for Backend {
         self.client.log_message(MessageType::INFO, "Complete").await;
         let location = input.text_document_position.position;
         let uri = input.text_document_position.text_document.uri;
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {}", uri.as_str());
-                return Err(LspError::internal_error());
-            }
-        };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
+
         Ok(complete::getcomplete(
-            &text,
+            &document,
             location,
             &self.client,
-            &file_path,
             self.init_info().scan_cmake_in_package,
             &self.documents,
         )
@@ -703,20 +690,13 @@ impl LanguageServer for Backend {
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
-        };
+
         Ok(jump::godef(
             location,
-            &text,
-            &file_path,
+            &document,
             &self.client,
             false,
             false,
@@ -726,28 +706,42 @@ impl LanguageServer for Backend {
     }
 
     async fn rename(&self, input: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        let edited = input.new_name;
+        let new_name = input.new_name;
         let uri = input.text_document_position.text_document.uri;
         let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
-        };
-        Ok(rename::rename(
-            &edited,
+
+        let Some(definitions) = jump::godef(
             location,
-            file_path,
+            &document,
             &self.client,
-            &text,
+            false,
+            true,
             &self.documents,
         )
-        .await)
+        .await
+        else {
+            return Ok(None);
+        };
+
+        let changes =
+            definitions
+                .into_iter()
+                .fold(HashMap::new(), |mut edits, Location { uri, range }| {
+                    edits.entry(uri).or_insert_with(Vec::new).push(TextEdit {
+                        range,
+                        new_text: new_name.to_string(),
+                    });
+                    edits
+                });
+
+        Ok(Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        }))
     }
 
     async fn goto_definition(
@@ -756,26 +750,16 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
         let location = input.text_document_position_params.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
 
-        let mut parse = Parser::new();
-        parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
-        let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
+        let origin_selection_range =
+            treehelper::get_position_range(location, document.tree().root_node());
 
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
-        };
         match jump::godef(
             location,
-            &text,
-            &file_path,
+            &document,
             &self.client,
             true,
             false,
@@ -820,10 +804,11 @@ impl LanguageServer for Backend {
         input: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri;
-        match self.documents.get(&uri) {
-            Some(text) => Ok(document_symbol::get_symbol(&self.client, &text).await),
-            None => Ok(None),
-        }
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
+
+        Ok(document_symbol::get_symbol(&self.client, document.source()).await)
     }
 
     async fn semantic_tokens_full(
@@ -831,25 +816,19 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri.clone();
+        let Some(document) = self.documents.get(&uri) else {
+            return Ok(None);
+        };
 
-        match self.documents.get(&uri) {
-            Some(text) => Ok(semantic_token::semantic_token(&self.client, &text).await),
-            None => Ok(None),
-        }
+        Ok(semantic_token::semantic_token(&document).await)
     }
 
     async fn document_link(&self, input: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = input.text_document.uri;
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
-        };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(document) = self.documents.get(&uri) else {
             return Ok(None);
         };
-        Ok(document_link::document_link_search(&text, file_path))
+
+        Ok(document_link::document_link_search(&document))
     }
 }
