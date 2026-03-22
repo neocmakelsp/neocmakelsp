@@ -25,9 +25,13 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
                     i += 1;
                 }
             }
-            bracket @ ('<' | '[') => {
+            bracket @ ('<' | '[' | '{') => {
                 let mut bracket_num = 1;
-                let opposite_bracket = if bracket == '<' { '>' } else { ']' };
+                let opposite_bracket = match bracket {
+                    '<' => '>',
+                    '[' => ']',
+                    _ => '}',
+                };
                 while let Some(c) = parameters_char_vec.get(i + 1) {
                     i += 1;
                     match (c, bracket_num) {
@@ -406,7 +410,9 @@ mod tests {
 
     #[test]
     fn test_gen_builtin_command_signature_resource() {
-        let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
+        let res = gen_builtin_command_signature_resource(include_str!(
+            "../../assets_for_test/cmake_help_commands.txt"
+        ));
         let tested_command = res.get("set_property").unwrap();
         println!(
             "{}\n\n\n{}\n\n\n{}",
@@ -416,39 +422,41 @@ mod tests {
         );
         assert_eq!(
             tested_command.signature,
-            r"set_property(<GLOBAL                      |
-               DIRECTORY [<dir>]           |
-               TARGET    [<target1> ...]   |
-               SOURCE    [<src1> ...]
+            r"set_property({GLOBAL                                    |
+               DIRECTORY [<dir>]                         |
+               TARGET    <target>...                     |
+               FILE_SET  <file_set>... TARGET <target>   |
+               SOURCE    <source>...
                          [DIRECTORY <dirs> ...]
-                         [TARGET_DIRECTORY <targets> ...] |
-               INSTALL   [<file1> ...]     |
-               TEST      [<test1> ...]
-                         [DIRECTORY <dir>] |
-               CACHE     [<entry1> ...]    >
+                         [TARGET_DIRECTORY <targets>...] |
+               INSTALL   <file>...                       |
+               TEST      <test>...
+                         [DIRECTORY <dir>]               |
+               CACHE     <entry>...}
               [APPEND] [APPEND_STRING]
-              PROPERTY <name> [<value1> ...])"
+              PROPERTY <name> [<value>...])"
         );
-        assert_eq!(
-            tested_command.parameters,
-            vec![
-                r"<GLOBAL                      |
-               DIRECTORY [<dir>]           |
-               TARGET    [<target1> ...]   |
-               SOURCE    [<src1> ...]
+        let temp = [
+            r"{GLOBAL                                    |
+               DIRECTORY [<dir>]                         |
+               TARGET    <target>...                     |
+               FILE_SET  <file_set>... TARGET <target>   |
+               SOURCE    <source>...
                          [DIRECTORY <dirs> ...]
-                         [TARGET_DIRECTORY <targets> ...] |
-               INSTALL   [<file1> ...]     |
-               TEST      [<test1> ...]
-                         [DIRECTORY <dir>] |
-               CACHE     [<entry1> ...]    >",
-                "[APPEND]",
-                "[APPEND_STRING]",
-                "PROPERTY",
-                "<name>",
-                "[<value1> ...]"
-            ]
-        );
+                         [TARGET_DIRECTORY <targets>...] |
+               INSTALL   <file>...                       |
+               TEST      <test>...
+                         [DIRECTORY <dir>]               |
+               CACHE     <entry>...}",
+            "[APPEND]",
+            "[APPEND_STRING]",
+            "PROPERTY",
+            "<name>",
+            "[<value>...]",
+        ];
+        for (i, &item) in tested_command.parameters.iter().enumerate() {
+            assert_eq!(item, temp[i]);
+        }
     }
 
     #[test]
@@ -469,22 +477,25 @@ set, you can not change this variable.
 ";
         let output = gen_builtin_variables(raw_doc);
         assert_eq!(output[0].label, "CMAKE_COMMAND");
+        let Documentation::MarkupContent(temp) = output[0].documentation.as_ref().unwrap() else {
+            panic!();
+        };
         assert_eq!(
-            output[0].documentation,
-            Some(Documentation::String(
-                "The full path to the ``cmake(1)`` executable.".to_string()
-            ))
+            temp.value,
+            "The full path to the ``cmake(1)`` executable.".to_string()
         );
+
+        let Documentation::MarkupContent(temp) = output[1].documentation.as_ref().unwrap() else {
+            panic!();
+        };
         assert_eq!(output[1].label, "CMAKE_CXX_COMPILER");
         assert_eq!(
-            output[1].documentation,
-            Some(Documentation::String(
-                r"The full path to the compiler for ``LANG``.
+            temp.value,
+            r"The full path to the compiler for ``LANG``.
 
 This is the command that will be used as the ``<LANG>`` compiler.  Once
 set, you can not change this variable."
-                    .to_string()
-            ))
+                .to_string()
         );
         assert_eq!(output[2].label, "CMAKE_C_COMPILER");
     }
