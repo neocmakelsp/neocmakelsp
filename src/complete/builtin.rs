@@ -176,26 +176,40 @@ fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
-    let key: Vec<_> = re
-        .find_iter(raw_info)
-        .map(|message| {
-            let temp: Vec<&str> = message.as_str().split('\n').collect();
-            temp[0]
-        })
-        .collect();
-    let content: Vec<_> = re.split(raw_info).collect();
-    let context = &content[1..];
-    Ok(zip(key, context)
-        .map(|(akey, message)| CompletionItem {
-            label: akey.to_string(),
+fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
+    let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\n-+").unwrap();
+    let mut key_iter = re.captures_iter(raw_info).peekable();
+    let mut result = Vec::<CompletionItem>::new();
+
+    let mut push_item = |label: String, doc: &str| {
+        result.push(CompletionItem {
+            label,
             kind: Some(CompletionItemKind::VARIABLE),
             detail: Some("Variable".to_string()),
-            documentation: Some(Documentation::String(message.trim().to_string())),
+            documentation: Some(Documentation::String(doc.trim().to_string())),
             ..Default::default()
-        })
-        .collect())
+        });
+    };
+
+    while let Some(key) = key_iter.next()
+        && let Some(variable_name) = key.get(1)
+    {
+        let variable_name = variable_name.as_str();
+
+        let next_start = key_iter
+            .peek()
+            .map(|m| m.get(0).unwrap().start())
+            .unwrap_or_else(|| raw_info.len());
+        let doc = &raw_info[key.get(0).unwrap().end()..next_start];
+
+        if variable_name.contains("<LANG>") {
+            push_item(variable_name.replace("<LANG>", "CXX"), doc);
+            push_item(variable_name.replace("<LANG>", "C"), doc);
+        } else {
+            push_item(variable_name.to_string(), doc);
+        }
+    }
+    result
 }
 
 fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
@@ -287,7 +301,7 @@ pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::n
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);
-    gen_builtin_variables(&temp)
+    Ok(gen_builtin_variables(&temp))
 });
 
 /// Cmake builtin modules
@@ -436,12 +450,40 @@ mod tests {
 
     #[test]
     fn test_cmake_variables_builtin() {
-        // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assets_for_test/cmake_help_variables.txt");
+        let raw_doc = r"
+CMAKE_COMMAND
+-------------
 
-        let output = gen_builtin_variables(output);
+The full path to the ``cmake(1)`` executable.
 
-        assert!(output.is_ok());
+CMAKE_<LANG>_COMPILER
+---------------------
+
+The full path to the compiler for ``LANG``.
+
+This is the command that will be used as the ``<LANG>`` compiler.  Once
+set, you can not change this variable.
+";
+        let output = gen_builtin_variables(raw_doc);
+        assert_eq!(output[0].label, "CMAKE_COMMAND");
+        assert_eq!(
+            output[0].documentation,
+            Some(Documentation::String(
+                "The full path to the ``cmake(1)`` executable.".to_string()
+            ))
+        );
+        assert_eq!(output[1].label, "CMAKE_CXX_COMPILER");
+        assert_eq!(
+            output[1].documentation,
+            Some(Documentation::String(
+                r"The full path to the compiler for ``LANG``.
+
+This is the command that will be used as the ``<LANG>`` compiler.  Once
+set, you can not change this variable."
+                    .to_string()
+            ))
+        );
+        assert_eq!(output[2].label, "CMAKE_C_COMPILER");
     }
 
     #[test]
