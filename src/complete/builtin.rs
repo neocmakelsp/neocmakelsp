@@ -84,11 +84,11 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
 ) -> HashMap<&str, CommandSignatureResource<'_>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_document)
         .map(|message| {
-            let temp: Vec<&str> = message.as_str().lines().collect();
+            let temp: Vec<&str> = message.as_str().lines().map(|m| m.trim()).collect();
             temp[0]
         })
         .collect();
@@ -181,7 +181,7 @@ fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
-    let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\n-+").unwrap();
+    let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\r?\n-+").unwrap();
     let mut key_iter = re.captures_iter(raw_info).peekable();
     let mut result = Vec::<CompletionItem>::new();
 
@@ -220,7 +220,7 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
 }
 
 fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
@@ -325,6 +325,10 @@ mod tests {
     use super::*;
     use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
 
+    #[cfg(not(windows))]
+    const NEW_LINE: &str = "\n";
+    #[cfg(windows)]
+    const NEW_LINE: &str = "\r\n";
     #[test]
     fn test_split_parameters() {
         // test1 (parameters of add_executable)
@@ -417,9 +421,10 @@ mod tests {
         println!(
             "{}\n\n\n{}\n\n\n{}",
             tested_command.signature,
-            tested_command.parameters.join("\n"),
+            tested_command.parameters.join(NEW_LINE),
             tested_command.raw_doc
         );
+        #[cfg(not(windows))]
         assert_eq!(
             tested_command.signature,
             r"set_property({GLOBAL                                    |
@@ -436,6 +441,7 @@ mod tests {
               [APPEND] [APPEND_STRING]
               PROPERTY <name> [<value>...])"
         );
+        #[cfg(not(windows))]
         let temp = [
             r"{GLOBAL                                    |
                DIRECTORY [<dir>]                         |
@@ -454,6 +460,7 @@ mod tests {
             "<name>",
             "[<value>...]",
         ];
+        #[cfg(not(windows))]
         for (i, &item) in tested_command.parameters.iter().enumerate() {
             assert_eq!(item, temp[i]);
         }
