@@ -88,7 +88,7 @@ fn gen_builtin_command_signature_resource(
     let keys: Vec<_> = re
         .find_iter(raw_document)
         .map(|message| {
-            let temp: Vec<&str> = message.as_str().split('\n').collect();
+            let temp: Vec<&str> = message.as_str().lines().collect();
             temp[0]
         })
         .collect();
