@@ -25,9 +25,13 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
                     i += 1;
                 }
             }
-            bracket @ ('<' | '[') => {
+            bracket @ ('<' | '[' | '{') => {
                 let mut bracket_num = 1;
-                let opposite_bracket = if bracket == '<' { '>' } else { ']' };
+                let opposite_bracket = match bracket {
+                    '<' => '>',
+                    '[' => ']',
+                    _ => '}',
+                };
                 while let Some(c) = parameters_char_vec.get(i + 1) {
                     i += 1;
                     match (c, bracket_num) {
@@ -80,11 +84,11 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
 ) -> HashMap<&str, CommandSignatureResource<'_>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_document)
         .map(|message| {
-            let temp: Vec<&str> = message.as_str().split('\n').collect();
+            let temp: Vec<&str> = message.as_str().lines().map(|m| m.trim()).collect();
             temp[0]
         })
         .collect();
@@ -176,30 +180,47 @@ fn gen_builtin_commands() -> Result<Vec<CompletionItem>> {
         .collect())
 }
 
-fn gen_builtin_variables(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
-    let key: Vec<_> = re
-        .find_iter(raw_info)
-        .map(|message| {
-            let temp: Vec<&str> = message.as_str().split('\n').collect();
-            temp[0]
-        })
-        .collect();
-    let content: Vec<_> = re.split(raw_info).collect();
-    let context = &content[1..];
-    Ok(zip(key, context)
-        .map(|(akey, message)| CompletionItem {
-            label: akey.to_string(),
+fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
+    let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\r?\n-+").unwrap();
+    let mut key_iter = re.captures_iter(raw_info).peekable();
+    let mut result = Vec::<CompletionItem>::new();
+
+    let mut push_item = |label: String, doc: &str| {
+        result.push(CompletionItem {
+            label,
             kind: Some(CompletionItemKind::VARIABLE),
             detail: Some("Variable".to_string()),
-            documentation: Some(Documentation::String(message.trim().to_string())),
+            documentation: Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: doc.trim().to_string(),
+            })),
             ..Default::default()
-        })
-        .collect())
+        });
+    };
+
+    while let Some(key) = key_iter.next()
+        && let Some(variable_name) = key.get(1)
+    {
+        let variable_name = variable_name.as_str();
+
+        let next_start = key_iter
+            .peek()
+            .map(|m| m.get(0).unwrap().start())
+            .unwrap_or_else(|| raw_info.len());
+        let doc = &raw_info[key.get(0).unwrap().end()..next_start];
+
+        if variable_name.contains("<LANG>") {
+            push_item(variable_name.replace("<LANG>", "CXX"), doc);
+            push_item(variable_name.replace("<LANG>", "C"), doc);
+        } else {
+            push_item(variable_name.to_string(), doc);
+        }
+    }
+    result
 }
 
 fn gen_builtin_modules(raw_info: &str) -> Result<Vec<CompletionItem>> {
-    let re = regex::Regex::new(r"[a-zA-Z_]+\n-+").unwrap();
+    let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let key: Vec<_> = re
         .find_iter(raw_info)
         .map(|message| {
@@ -287,7 +308,7 @@ pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> = LazyLock::n
         .output()?
         .stdout;
     let temp = String::from_utf8_lossy(&output);
-    gen_builtin_variables(&temp)
+    Ok(gen_builtin_variables(&temp))
 });
 
 /// Cmake builtin modules
@@ -304,6 +325,10 @@ mod tests {
     use super::*;
     use crate::complete::builtin::{gen_builtin_modules, gen_builtin_variables};
 
+    #[cfg(not(windows))]
+    const NEW_LINE: &str = "\n";
+    #[cfg(windows)]
+    const NEW_LINE: &str = "\r\n";
     #[test]
     fn test_split_parameters() {
         // test1 (parameters of add_executable)
@@ -389,59 +414,97 @@ mod tests {
 
     #[test]
     fn test_gen_builtin_command_signature_resource() {
-        let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
+        let res = gen_builtin_command_signature_resource(include_str!(
+            "../../assets_for_test/cmake_help_commands.txt"
+        ));
         let tested_command = res.get("set_property").unwrap();
         println!(
             "{}\n\n\n{}\n\n\n{}",
             tested_command.signature,
-            tested_command.parameters.join("\n"),
+            tested_command.parameters.join(NEW_LINE),
             tested_command.raw_doc
         );
+        #[cfg(not(windows))]
         assert_eq!(
             tested_command.signature,
-            r"set_property(<GLOBAL                      |
-               DIRECTORY [<dir>]           |
-               TARGET    [<target1> ...]   |
-               SOURCE    [<src1> ...]
+            r"set_property({GLOBAL                                    |
+               DIRECTORY [<dir>]                         |
+               TARGET    <target>...                     |
+               FILE_SET  <file_set>... TARGET <target>   |
+               SOURCE    <source>...
                          [DIRECTORY <dirs> ...]
-                         [TARGET_DIRECTORY <targets> ...] |
-               INSTALL   [<file1> ...]     |
-               TEST      [<test1> ...]
-                         [DIRECTORY <dir>] |
-               CACHE     [<entry1> ...]    >
+                         [TARGET_DIRECTORY <targets>...] |
+               INSTALL   <file>...                       |
+               TEST      <test>...
+                         [DIRECTORY <dir>]               |
+               CACHE     <entry>...}
               [APPEND] [APPEND_STRING]
-              PROPERTY <name> [<value1> ...])"
+              PROPERTY <name> [<value>...])"
         );
-        assert_eq!(
-            tested_command.parameters,
-            vec![
-                r"<GLOBAL                      |
-               DIRECTORY [<dir>]           |
-               TARGET    [<target1> ...]   |
-               SOURCE    [<src1> ...]
+        #[cfg(not(windows))]
+        let temp = [
+            r"{GLOBAL                                    |
+               DIRECTORY [<dir>]                         |
+               TARGET    <target>...                     |
+               FILE_SET  <file_set>... TARGET <target>   |
+               SOURCE    <source>...
                          [DIRECTORY <dirs> ...]
-                         [TARGET_DIRECTORY <targets> ...] |
-               INSTALL   [<file1> ...]     |
-               TEST      [<test1> ...]
-                         [DIRECTORY <dir>] |
-               CACHE     [<entry1> ...]    >",
-                "[APPEND]",
-                "[APPEND_STRING]",
-                "PROPERTY",
-                "<name>",
-                "[<value1> ...]"
-            ]
-        );
+                         [TARGET_DIRECTORY <targets>...] |
+               INSTALL   <file>...                       |
+               TEST      <test>...
+                         [DIRECTORY <dir>]               |
+               CACHE     <entry>...}",
+            "[APPEND]",
+            "[APPEND_STRING]",
+            "PROPERTY",
+            "<name>",
+            "[<value>...]",
+        ];
+        #[cfg(not(windows))]
+        for (i, &item) in tested_command.parameters.iter().enumerate() {
+            assert_eq!(item, temp[i]);
+        }
     }
 
     #[test]
     fn test_cmake_variables_builtin() {
-        // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assets_for_test/cmake_help_variables.txt");
+        let raw_doc = r"
+CMAKE_COMMAND
+-------------
 
-        let output = gen_builtin_variables(output);
+The full path to the ``cmake(1)`` executable.
 
-        assert!(output.is_ok());
+CMAKE_<LANG>_COMPILER
+---------------------
+
+The full path to the compiler for ``LANG``.
+
+This is the command that will be used as the ``<LANG>`` compiler.  Once
+set, you can not change this variable.
+";
+        let output = gen_builtin_variables(raw_doc);
+        assert_eq!(output[0].label, "CMAKE_COMMAND");
+        let Documentation::MarkupContent(temp) = output[0].documentation.as_ref().unwrap() else {
+            panic!();
+        };
+        assert_eq!(
+            temp.value,
+            "The full path to the ``cmake(1)`` executable.".to_string()
+        );
+
+        let Documentation::MarkupContent(temp) = output[1].documentation.as_ref().unwrap() else {
+            panic!();
+        };
+        assert_eq!(output[1].label, "CMAKE_CXX_COMPILER");
+        assert_eq!(
+            temp.value,
+            r"The full path to the compiler for ``LANG``.
+
+This is the command that will be used as the ``<LANG>`` compiler.  Once
+set, you can not change this variable."
+                .to_string()
+        );
+        assert_eq!(output[2].label, "CMAKE_C_COMPILER");
     }
 
     #[test]
