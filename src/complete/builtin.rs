@@ -186,7 +186,10 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
             label,
             kind: Some(CompletionItemKind::VARIABLE),
             detail: Some("Variable".to_string()),
-            documentation: Some(Documentation::String(doc.trim().to_string())),
+            documentation: Some(Documentation::MarkupContent(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: doc.trim().to_string(),
+            })),
             ..Default::default()
         });
     };
