@@ -194,7 +194,7 @@ pub enum PositionType<'a> {
     Comment,
 }
 
-fn location_range_contain(location: Point, range_node: Node) -> bool {
+pub fn location_range_contain(location: Point, range_node: Node) -> bool {
     let range_start_position = range_node.start_position();
     let range_end_position = range_node.end_position();
     if range_end_position.row < location.row || range_start_position.row > location.row {

@@ -17,10 +17,11 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type};
+use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type, location_range_contain};
 
 use crate::utils::query::{
-    get_bracket_comments, get_functions, get_line_comments, get_macros, get_normal_commands,
+    FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
+    get_normal_commands,
 };
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, include_is_module,
@@ -265,12 +266,14 @@ fn getsubcomplete<P: AsRef<Path>>(
         let row = fun.arguments[0].start_position().row;
 
         let mut document_info = format!("defined function\nfrom: {}", local_path.display());
+        let mut variable_info = format!("defined variable\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
             .find(|c| c.node.start_position().row + 1 == row)
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
+            variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
         complete.push(CompletionItem {
             label: name.to_string(),
@@ -279,6 +282,19 @@ fn getsubcomplete<P: AsRef<Path>>(
             documentation: Some(Documentation::String(document_info)),
             ..Default::default()
         });
+        if let Some(location) = location
+            && location_range_contain(location.to_point(), fun.node)
+        {
+            for FunMarcoArg { content, .. } in fun.args(source_bytes) {
+                complete.push(CompletionItem {
+                    label: content.to_string(),
+                    kind: Some(CompletionItemKind::VARIABLE),
+                    detail: Some("VARIABLE".to_string()),
+                    documentation: Some(Documentation::String(variable_info.clone())),
+                    ..Default::default()
+                });
+            }
+        }
     }
 
     // NOTE: check macros
@@ -287,12 +303,14 @@ fn getsubcomplete<P: AsRef<Path>>(
         let row = macro_node.arguments[0].start_position().row;
 
         let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
+        let mut variable_info = format!("defined variable\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
             .find(|c| c.node.start_position().row + 1 == row)
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
+            variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
         complete.push(CompletionItem {
             label: name.to_string(),
@@ -301,6 +319,19 @@ fn getsubcomplete<P: AsRef<Path>>(
             documentation: Some(Documentation::String(document_info)),
             ..Default::default()
         });
+        if let Some(location) = location
+            && location_range_contain(location.to_point(), macro_node.node)
+        {
+            for FunMarcoArg { content, .. } in macro_node.args(source_bytes) {
+                complete.push(CompletionItem {
+                    label: content.to_string(),
+                    kind: Some(CompletionItemKind::VARIABLE),
+                    detail: Some("VARIABLE".to_string()),
+                    documentation: Some(Documentation::String(variable_info.clone())),
+                    ..Default::default()
+                });
+            }
+        }
     }
 
     // NOTE: check normal_commands
