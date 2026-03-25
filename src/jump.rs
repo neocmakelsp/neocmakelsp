@@ -24,7 +24,7 @@ mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{PositionType, get_pos_type};
+use crate::utils::treehelper::{PositionType, get_pos_type, location_range_contain};
 
 use crate::utils::query::{
     get_functions, get_line_comments, get_macros, get_normal_commands, get_variables,
@@ -224,10 +224,25 @@ async fn godef_inner<P: AsRef<Path>>(
         | PositionType::ArgumentOrList
         | PositionType::FunOrMacroIdentifier => {
             let mut locations = vec![];
-            let ReferenceInfo {
+            let Some(ReferenceInfo {
                 loc: jump_cache,
                 is_function,
-            } = get_cached_def(&originuri, tofind, documents).await?;
+            }) = get_cached_def(&originuri, tofind, documents).await
+            else {
+                if !is_jump {
+                    return None;
+                }
+                let jumps = query_reference(
+                    tree.root_node(),
+                    source.as_bytes(),
+                    location,
+                    tofind,
+                    originuri,
+                    false,
+                    true,
+                )?;
+                return Some(jumps);
+            };
             if is_jump {
                 return Some(vec![jump_cache]);
             }
@@ -308,9 +323,15 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
             continue;
         };
         let newsource = source.as_bytes();
-        if let Some(mut locs) =
-            reference_inner(tree.root_node(), newsource, tofind, rp, is_function)
-        {
+        if let Some(mut locs) = query_reference(
+            tree.root_node(),
+            newsource,
+            None,
+            tofind,
+            rp,
+            is_function,
+            false,
+        ) {
             results.append(&mut locs);
         }
     }
@@ -318,16 +339,20 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
 }
 
 /// sub get the def
-fn reference_inner<P: AsRef<Path>>(
+fn query_reference<P: AsRef<Path>, L: Into<Option<tree_sitter::Point>>>(
     root: Node,
     source: &[u8],
+    location: L,
     tofind: &str,
     originuri: P,
     is_function: bool,
+    jump: bool,
 ) -> Option<Vec<Location>> {
+    let location = location.into();
     let mut definitions: Vec<Location> = vec![];
-    if is_function {
-        let funcs = get_functions(source, root, None);
+    let funcs = get_functions(source, root, None);
+    let macros = get_macros(source, root, None);
+    if is_function && !jump {
         let commands = get_normal_commands(source, root, None);
         for fun in funcs {
             let fun_name = fun.name;
@@ -340,6 +365,20 @@ fn reference_inner<P: AsRef<Path>>(
                 range: Range {
                     start: fun_node.start_position().to_position(),
                     end: fun_node.end_position().to_position(),
+                },
+            });
+        }
+        for macro_node in macros {
+            let macro_name = macro_node.name;
+            if macro_name != tofind {
+                continue;
+            }
+            let macro_node = macro_node.arguments[0];
+            definitions.push(Location {
+                uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                range: Range {
+                    start: macro_node.start_position().to_position(),
+                    end: macro_node.end_position().to_position(),
                 },
             });
         }
@@ -358,12 +397,13 @@ fn reference_inner<P: AsRef<Path>>(
             });
         }
     } else {
-        let vars = get_variables(source, root, None);
-        for var in vars {
-            if var.content != tofind {
-                continue;
-            }
-            let var_node = var.node;
+        if let Some(location) = location
+            && let Some(f_v) = funcs
+                .iter()
+                .find(|n| location_range_contain(location, n.node))
+            && let Some(arg) = f_v.args(source).iter().find(|arg| arg.content == tofind)
+        {
+            let var_node = arg.node;
             definitions.push(Location {
                 uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
                 range: Range {
@@ -371,6 +411,37 @@ fn reference_inner<P: AsRef<Path>>(
                     end: var_node.end_position().to_position(),
                 },
             });
+        }
+        if let Some(location) = location
+            && let Some(m_v) = macros
+                .iter()
+                .find(|n| location_range_contain(location, n.node))
+            && let Some(arg) = m_v.args(source).iter().find(|arg| arg.content == tofind)
+        {
+            let var_node = arg.node;
+            definitions.push(Location {
+                uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                range: Range {
+                    start: var_node.start_position().to_position(),
+                    end: var_node.end_position().to_position(),
+                },
+            });
+        }
+        if !jump {
+            let vars = get_variables(source, root, None);
+            for var in vars {
+                if var.content != tofind {
+                    continue;
+                }
+                let var_node = var.node;
+                definitions.push(Location {
+                    uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
+                    range: Range {
+                        start: var_node.start_position().to_position(),
+                        end: var_node.end_position().to_position(),
+                    },
+                });
+            }
         }
     }
     if definitions.is_empty() {
