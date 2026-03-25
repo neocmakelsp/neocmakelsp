@@ -1,4 +1,4 @@
-use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
+use tree_sitter::{Node, Query, QueryCapture, QueryCursor, StreamingIterator};
 
 use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 
@@ -15,13 +15,15 @@ const BRACKET_COMMENT_QUERY: &str = r"(
 )";
 
 const MACRO_QUERY: &str = r"(
-   (macro_command
-       (argument_list ((argument)*) @args))
+   (macro_def
+        (macro_command
+            (argument_list ((argument)*) @args))) @macro_def
 )";
 
 const FUNCTION_QUERY: &str = r"(
-   (function_command
-       (argument_list ((argument)*) @args))
+    (function_def
+        (function_command
+            (argument_list ((argument)*) @args))) @function_def
 )";
 
 pub const NORMAL_COMMAND_QUERY: &str = r"
@@ -56,12 +58,46 @@ pub struct BracketCommentNode<'a> {
 
 pub struct MacroNode<'a> {
     pub name: &'a str,
+    pub node: Node<'a>,
     pub arguments: Vec<Node<'a>>,
 }
 
+impl<'a> MacroNode<'a> {
+    pub fn args(&'a self, source: &'a [u8]) -> Vec<FunMarcoArg<'a>> {
+        let mut arg_strs = vec![];
+        for arg in self.arguments[1..].iter() {
+            arg_strs.push(FunMarcoArg {
+                node: *arg,
+                content: arg.utf8_text(source).unwrap(),
+            });
+        }
+        arg_strs
+    }
+}
 pub struct FuncNode<'a> {
     pub name: &'a str,
+    pub node: Node<'a>,
     pub arguments: Vec<Node<'a>>,
+}
+
+pub struct FunMarcoArg<'a> {
+    #[allow(unused)]
+    // I want to use it in jump
+    pub node: Node<'a>,
+    pub content: &'a str,
+}
+
+impl<'a> FuncNode<'a> {
+    pub fn args(&'a self, source: &'a [u8]) -> Vec<FunMarcoArg<'a>> {
+        let mut arg_strs = vec![];
+        for arg in self.arguments[1..].iter() {
+            arg_strs.push(FunMarcoArg {
+                node: *arg,
+                content: arg.utf8_text(source).unwrap(),
+            });
+        }
+        arg_strs
+    }
 }
 
 pub struct NormalCommandNode<'a> {
@@ -201,16 +237,30 @@ pub fn get_macros<'a>(
     let mut matches_macro = cursor_macro.matches(&query_macro, node, source);
 
     while let Some(m) = matches_macro.next() {
+        let Some(node) = m
+            .captures
+            .iter()
+            .find(|c| c.node.kind() == CMakeNodeKinds::MACRO_DEF)
+            .map(|c| c.node)
+        else {
+            continue;
+        };
         let mut macro_node = MacroNode {
+            node,
             name: "",
             arguments: vec![],
         };
-        let first_arg = m.nodes_for_capture_index(0).next().unwrap();
+        let args: Vec<&QueryCapture> = m
+            .captures
+            .iter()
+            .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
+            .collect();
+        let first_arg = args[0].node;
         if first_arg.start_position().row as u32 > max_height {
             continue;
         }
         macro_node.name = first_arg.utf8_text(source).unwrap();
-        macro_node.arguments = m.captures.iter().map(|q| q.node).collect();
+        macro_node.arguments = args.iter().map(|q| q.node).collect();
         macros.push(macro_node);
     }
     macros
@@ -280,16 +330,30 @@ pub fn get_functions<'a>(
     let mut matches_fun = cursor_fun.matches(&query_fun, node, source);
 
     while let Some(m) = matches_fun.next() {
+        let Some(node) = m
+            .captures
+            .iter()
+            .find(|c| c.node.kind() == CMakeNodeKinds::FUNCTION_DEF)
+            .map(|c| c.node)
+        else {
+            continue;
+        };
         let mut fun_node = FuncNode {
+            node,
             name: "",
             arguments: vec![],
         };
-        let first_arg = m.nodes_for_capture_index(0).next().unwrap();
+        let args: Vec<&QueryCapture> = m
+            .captures
+            .iter()
+            .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
+            .collect();
+        let first_arg = args[0].node;
         if first_arg.start_position().row as u32 > max_height {
             continue;
         }
         fun_node.name = first_arg.utf8_text(source).unwrap();
-        fun_node.arguments = m.captures.iter().map(|q| q.node).collect();
+        fun_node.arguments = args.iter().map(|q| q.node).collect();
         funs.push(fun_node);
     }
     funs
