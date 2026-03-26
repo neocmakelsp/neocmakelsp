@@ -393,7 +393,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 });
             }
         } else {
-            if name == "set" || name == "options" {
+            if name == "set" || name == "option" {
                 let Some(name) = command.first_arg else {
                     continue;
                 };
