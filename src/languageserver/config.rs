@@ -19,22 +19,22 @@ const fn scan_cmake_in_package_default() -> bool {
 }
 
 impl Config {
-    pub fn is_format_enabled(&self) -> bool {
+    pub const fn is_format_enabled(&self) -> bool {
         self.format.enable
     }
-    pub fn is_scan_cmake_in_package(&self) -> bool {
+    pub const fn is_scan_cmake_in_package(&self) -> bool {
         self.scan_cmake_in_package
     }
 
-    pub fn enable_semantic_token(&self) -> bool {
+    pub const fn enable_semantic_token(&self) -> bool {
         self.semantic_token
     }
 
-    pub fn is_lint_enabled(&self) -> bool {
+    pub const fn is_lint_enabled(&self) -> bool {
         self.lint.enable
     }
 
-    pub fn use_snippets(&self) -> bool {
+    pub const fn use_snippets(&self) -> bool {
         self.use_snippets
     }
 }
