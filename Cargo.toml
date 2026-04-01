@@ -49,6 +49,7 @@ needless_raw_string_hashes = "warn"
 redundant_pub_crate = "warn"
 semicolon_if_nothing_returned = "warn"
 unnecessary_semicolon = "warn"
+unnecessary_wraps = "warn"
 use_self = "warn"
 
 [lints.rust]
