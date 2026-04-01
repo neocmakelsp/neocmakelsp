@@ -53,8 +53,8 @@ impl CommandCase {
             .all(|c| !c.is_alphabetic() || c.is_lowercase());
 
         match (self, is_all_uppercase, is_all_lowercase) {
-            (CommandCase::Upper, false, _) => Some("command name should be uppercased"),
-            (CommandCase::Lower, _, false) => Some("command name should be lowercased"),
+            (Self::Upper, false, _) => Some("command name should be uppercased"),
+            (Self::Lower, _, false) => Some("command name should be lowercased"),
             _ => None,
         }
     }

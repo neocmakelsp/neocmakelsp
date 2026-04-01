@@ -128,7 +128,7 @@ fn scan_node<P: AsRef<Path>>(
 #[derive(Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct TreeDir {
     current_file: PathBuf,
-    subdirs: Option<Vec<TreeDir>>,
+    subdirs: Option<Vec<Self>>,
 }
 
 impl fmt::Display for TreeDir {
