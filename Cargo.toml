@@ -25,11 +25,11 @@ rust-ini = "0.21.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.50.0", features = ["full"] }
-toml = "1.0.6"
+toml = "1.1.2"
 tower-lsp = { package = "tower-lsp-f", version = "0.24.0" }
 tracing = "0.1.44"
-tracing-subscriber = "0.3.22"
-tree-sitter = "0.26.6"
+tracing-subscriber = "0.3.23"
+tree-sitter = "0.26.8"
 tree-sitter-cmake = "0.7.1"
 treesitter_kind_collector = "0.2.0"
 
