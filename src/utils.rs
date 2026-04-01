@@ -26,8 +26,8 @@ pub enum PackageType {
 impl std::fmt::Display for PackageType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PackageType::Dir => write!(f, "Dir"),
-            PackageType::File => write!(f, "File"),
+            Self::Dir => write!(f, "Dir"),
+            Self::File => write!(f, "File"),
         }
     }
 }

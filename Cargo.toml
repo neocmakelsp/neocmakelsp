@@ -46,6 +46,7 @@ path-absolutize = "3.1.1"
 needless_raw_string_hashes = "warn"
 semicolon_if_nothing_returned = "warn"
 unnecessary_semicolon = "warn"
+use_self = "warn"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }

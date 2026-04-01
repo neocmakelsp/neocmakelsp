@@ -41,7 +41,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Config {
+        Self {
             format: FormatConfig::default(),
             scan_cmake_in_package: true,
             semantic_token: false,
@@ -63,7 +63,7 @@ pub struct FormatConfig {
 
 impl Default for FormatConfig {
     fn default() -> Self {
-        FormatConfig { enable: true }
+        Self { enable: true }
     }
 }
 
@@ -75,7 +75,7 @@ pub struct LintConfig {
 
 impl Default for LintConfig {
     fn default() -> Self {
-        LintConfig { enable: true }
+        Self { enable: true }
     }
 }
 
