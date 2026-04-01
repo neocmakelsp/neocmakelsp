@@ -121,6 +121,7 @@ fn replace_placeholders_with_hashmap(
 
 // FIXME: I do not know the way to gen module_pattern on windows
 #[allow(unused_variables)]
+#[allow(clippy::unnecessary_wraps)]
 pub fn gen_module_pattern(subpath: &str) -> Option<String> {
     #[cfg(unix)]
     #[cfg(not(target_os = "android"))]

@@ -17,12 +17,11 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
-use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type, location_range_contain};
-
 use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
     get_normal_commands,
 };
+use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type, location_range_contain};
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, include_is_module,
     remove_quotation_and_replace_placeholders,
@@ -167,9 +166,8 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 complete.append(&mut message);
             }
 
-            if let Ok(messages) = &*BUILTIN_COMMAND
-                && !matches!(postype, PositionType::ArgumentOrList)
-            {
+            if !matches!(postype, PositionType::ArgumentOrList) {
+                let messages = &*BUILTIN_COMMAND;
                 complete.append(&mut messages.clone());
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {

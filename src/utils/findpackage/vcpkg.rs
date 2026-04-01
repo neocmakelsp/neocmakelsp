@@ -175,7 +175,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
     packages
 }
 
-pub fn make_vcpkg_package_search_path(search_path: &Path) -> std::io::Result<Vec<String>> {
+pub fn make_vcpkg_package_search_path(search_path: &Path) -> Vec<String> {
     const LIB_PATHS: [&str; 6] = [
         "x64-linux",
         "x86-linux",
@@ -195,7 +195,7 @@ pub fn make_vcpkg_package_search_path(search_path: &Path) -> std::io::Result<Vec
         }
     }
 
-    Ok(paths)
+    paths
 }
 
 pub static VCPKG_CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =

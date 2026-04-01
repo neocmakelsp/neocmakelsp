@@ -419,11 +419,10 @@ impl LanguageServer for Backend {
                         .into_boxed_str(),
                 ));
 
-                if let Ok(paths) = utils::make_vcpkg_package_search_path(&vcpkg_installed_path) {
-                    let mut vcpkg_libs = VCPKG_LIBS.lock().unwrap();
-                    for t in paths {
-                        vcpkg_libs.push(Box::leak(t.into_boxed_str()));
-                    }
+                let paths = utils::make_vcpkg_package_search_path(&vcpkg_installed_path);
+                let mut vcpkg_libs = VCPKG_LIBS.lock().unwrap();
+                for t in paths {
+                    vcpkg_libs.push(Box::leak(t.into_boxed_str()));
                 }
             }
         }
