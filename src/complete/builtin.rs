@@ -21,7 +21,7 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
         let para_begin = i;
         match parameters_char_vec[i] {
             '.' => {
-                while let Some('.') = parameters_char_vec.get(i + 1) {
+                while matches!(parameters_char_vec.get(i + 1), Some('.')) {
                     i += 1;
                 }
             }
@@ -41,7 +41,7 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
                         _ => (),
                     }
                 }
-                while let Some('.') = parameters_char_vec.get(i + 1) {
+                while matches!(parameters_char_vec.get(i + 1), Some('.')) {
                     i += 1;
                 }
             }
