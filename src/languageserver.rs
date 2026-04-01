@@ -32,7 +32,7 @@ use crate::{
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 
-pub(crate) async fn get_or_update_buffer_contents<P: AsRef<Path>>(
+pub async fn get_or_update_buffer_contents<P: AsRef<Path>>(
     path: P,
     documents: &DashMap<Uri, String>,
 ) -> std::io::Result<String> {
