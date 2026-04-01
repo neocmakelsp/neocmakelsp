@@ -20,7 +20,7 @@ const SPECIALCOMMANDS: [&str; 3] = [
 
 /// treesitter to lsp_types
 #[inline]
-pub fn point_to_position(input: Point) -> Position {
+pub const fn point_to_position(input: Point) -> Position {
     Position {
         line: input.row as u32,
         character: input.column as u32,
@@ -49,7 +49,7 @@ impl ToPoint for Position {
 
 /// lsp_types to treesitter
 #[inline]
-pub fn position_to_point(input: Position) -> Point {
+pub const fn position_to_point(input: Position) -> Point {
     Point {
         row: input.line as usize,
         column: input.character as usize,

@@ -249,7 +249,7 @@ pub struct CommandSignatureResource<'a> {
 }
 
 impl<'a> CommandSignatureResource<'a> {
-    fn new(signature: &'a str, parameters: Vec<&'a str>, raw_doc: &'a str) -> Self {
+    const fn new(signature: &'a str, parameters: Vec<&'a str>, raw_doc: &'a str) -> Self {
         CommandSignatureResource {
             signature,
             parameters,
