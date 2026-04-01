@@ -36,7 +36,7 @@ impl Default for Config {
 
 #[derive(Debug, Clone, Copy, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CommandCase {
+pub enum CommandCase {
     #[serde(alias = "upcase", alias = "upper_case")]
     Upper,
     #[serde(alias = "lowercase", alias = "lower_case")]

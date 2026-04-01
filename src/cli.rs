@@ -26,13 +26,13 @@ const STYLES: Styles = Styles::styled()
 #[command(version, long_about = None)]
 #[command(styles = STYLES)]
 #[command(propagate_version = true)]
-pub(crate) struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     pub(crate) command: Command,
 }
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum Command {
+pub enum Command {
     /// Start the language server over terminal input/output streams.
     Stdio,
 

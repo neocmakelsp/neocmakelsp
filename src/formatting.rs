@@ -22,7 +22,7 @@ const CLOSURE: &[&str] = &[
 ];
 
 // TODO: Maybe make this async and run formatting in parallel.
-pub(crate) fn format_file(
+pub fn format_file(
     path: &Path,
     inplace: bool,
     use_space: bool,

@@ -13,7 +13,7 @@ use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders}
 
 const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
 
-pub(crate) struct LintConfigInfo {
+pub struct LintConfigInfo {
     pub use_lint: bool,
     pub use_extra_cmake_lint: bool,
 }
