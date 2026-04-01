@@ -563,7 +563,7 @@ fn getsubdef<P: AsRef<Path>>(
             if include_files.contains(&subpath) {
                 continue;
             }
-            if let Ok(true) = subpath.try_exists() {
+            if matches!(subpath.try_exists(), Ok(true)) {
                 if let Some(mut comps) = include::scanner_include_defs(
                     &subpath,
                     postype,

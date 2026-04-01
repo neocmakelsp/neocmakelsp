@@ -365,7 +365,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             if include_files.contains(&subpath) {
                 continue;
             }
-            if let Ok(true) = subpath.try_exists() {
+            if matches!(subpath.try_exists(), Ok(true)) {
                 if let Some(mut comps) = includescanner::scanner_include_complete(
                     &subpath,
                     postype,

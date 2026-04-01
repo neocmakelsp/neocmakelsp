@@ -191,10 +191,8 @@ impl LanguageServer for Backend {
 
         if let Some(workspace) = initial.capabilities.workspace
             && let Some(watch_file) = workspace.did_change_watched_files
-            && let (Some(true), Some(true)) = (
-                watch_file.dynamic_registration,
-                watch_file.relative_pattern_support,
-            )
+            && watch_file.dynamic_registration == Some(true)
+            && watch_file.relative_pattern_support == Some(true)
         {
             // NOTE: I think it only contains one workspace
             if let Some(ref top_path) = initial
@@ -496,7 +494,7 @@ impl LanguageServer for Backend {
                 self.client
                     .log_message(MessageType::INFO, "CMakeCache changed")
                     .await;
-                if let FileChangeType::DELETED = change.typ {
+                if change.typ == FileChangeType::DELETED {
                     filewatcher::clear_error_packages();
                 } else {
                     filewatcher::refresh_error_packages(file_path);
