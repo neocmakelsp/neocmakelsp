@@ -1,3 +1,4 @@
+mod cache;
 mod config;
 #[cfg(test)]
 mod test;
@@ -513,14 +514,11 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let TextDocumentItem { uri, text, .. } = params.text_document;
-        self.documents.insert(uri.clone(), text.clone());
+        self.update_cache(uri.clone(), &text);
 
-        let path = match uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
-                tracing::error!("Can't create path from {}", uri.as_str());
-                return;
-            }
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Can't create path from {}", uri.as_str());
+            return;
         };
 
         complete::update_cache(&path, &text).await;
@@ -541,6 +539,11 @@ impl LanguageServer for Backend {
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let Some(text) = self.get_cached_buffer(&uri) else {
+            return Ok(None);
+        };
+
         let Some(toolong) = params
             .context
             .diagnostics
@@ -550,10 +553,6 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let uri = params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
-            return Ok(None);
-        };
         let line = params.range.start.line;
         Ok(quick_fix::lint_fix_action(&text, line, toolong, uri))
     }
@@ -561,8 +560,8 @@ impl LanguageServer for Backend {
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.content_changes.into_iter().next().unwrap().text;
-        self.documents.insert(uri.clone(), text);
-        let text = self.documents.get(&uri).unwrap();
+        self.update_cache(uri.clone(), &text);
+
         if text.lines().count() < 500 {
             self.publish_diagnostics(
                 uri.clone(),
@@ -581,25 +580,20 @@ impl LanguageServer for Backend {
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
-
-        let has_root = self.root_path().is_some();
-        let Some(text) = self.documents.get(&uri) else {
-            self.client
-                .log_message(MessageType::INFO, "file saved!")
-                .await;
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return;
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {}", uri.as_str());
-                return;
-            }
+
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {}", uri.as_str());
+            return;
         };
+
+        let has_root = self.root_path().is_some();
         if has_root {
-            scansubs::scan_dir(&file_path, false).await;
-            complete::update_cache(&file_path, &text).await;
-            jump::update_cache(&file_path, &text).await;
+            scansubs::scan_dir(&path, false).await;
+            complete::update_cache(&path, &text).await;
+            jump::update_cache(&path, &text).await;
         }
         self.publish_diagnostics(
             uri,
@@ -617,53 +611,56 @@ impl LanguageServer for Backend {
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
+
+        let position = params.text_document_position_params.position;
+
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
-        let output = hover::get_hovered_doc(position, tree.root_node(), &text).await;
-        match output {
-            Some(context) => Ok(Some(Hover {
-                contents: HoverContents::Scalar(MarkedString::String(context)),
-                range: Some(Range {
-                    start: position,
-                    end: position,
-                }),
-            })),
-            None => Ok(None),
-        }
+        let tree = parse.parse(&text, None).unwrap();
+
+        let Some(output) = hover::get_hovered_doc(position, tree.root_node(), &text).await else {
+            return Ok(None);
+        };
+        Ok(Some(Hover {
+            contents: HoverContents::Scalar(MarkedString::String(output)),
+            range: Some(Range {
+                start: position,
+                end: position,
+            }),
+        }))
     }
 
     async fn formatting(&self, input: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = input.text_document.uri;
+        let Some(text) = self.get_cached_buffer(&uri) else {
+            return Ok(None);
+        };
+
         self.client
             .log_message(
                 MessageType::INFO,
                 format!("formatting, space is {}", input.options.insert_spaces),
             )
             .await;
-        let uri = input.text_document.uri;
         let space_line = if input.options.insert_spaces {
             input.options.tab_size
         } else {
             1
         };
         let insert_final_newline = input.options.insert_final_newline.unwrap_or(false);
-        match self.documents.get(&uri) {
-            Some(text) => Ok(getformat(
-                self.root_path().map(|p| p.as_path()),
-                &text,
-                &self.client,
-                space_line,
-                input.options.insert_spaces,
-                insert_final_newline,
-            )
-            .await),
-            None => Ok(None),
-        }
+        Ok(getformat(
+            self.root_path().map(|p| p.as_path()),
+            &text,
+            &self.client,
+            space_line,
+            input.options.insert_spaces,
+            insert_final_newline,
+        )
+        .await)
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -677,23 +674,23 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client.log_message(MessageType::INFO, "Complete").await;
-        let location = input.text_document_position.position;
+
         let uri = input.text_document_position.text_document.uri;
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {}", uri.as_str());
-                return Err(LspError::internal_error());
-            }
-        };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
+
+        let location = input.text_document_position.position;
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {}", uri.as_str());
+            return Err(LspError::internal_error());
+        };
+
         Ok(complete::getcomplete(
             &text,
             location,
             &self.client,
-            &file_path,
+            &path,
             self.init_info().scan_cmake_in_package,
             &self.documents,
         )
@@ -702,21 +699,20 @@ impl LanguageServer for Backend {
 
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = input.text_document_position.text_document.uri;
-        let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
+
+        let location = input.text_document_position.position;
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {uri:?}");
+            return Err(LspError::internal_error());
         };
+
         Ok(jump::godef(
             location,
             &text,
-            &file_path,
+            &path,
             &self.client,
             false,
             false,
@@ -726,23 +722,22 @@ impl LanguageServer for Backend {
     }
 
     async fn rename(&self, input: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        let edited = input.new_name;
         let uri = input.text_document_position.text_document.uri;
-        let location = input.text_document_position.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
+
+        let edited = input.new_name;
+        let location = input.text_document_position.position;
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {uri:?}");
+            return Err(LspError::internal_error());
         };
+
         Ok(rename::rename(
             &edited,
             location,
-            file_path,
+            path,
             &self.client,
             &text,
             &self.documents,
@@ -755,62 +750,61 @@ impl LanguageServer for Backend {
         input: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
-        let location = input.text_document_position_params.position;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
 
+        let location = input.text_document_position_params.position;
+
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
+        let tree = parse.parse(&text, None).unwrap();
         let origin_selection_range = treehelper::get_position_range(location, tree.root_node());
 
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {uri:?}");
+            return Err(LspError::internal_error());
         };
-        match jump::godef(
+
+        let Some(range) = jump::godef(
             location,
             &text,
-            &file_path,
+            &path,
             &self.client,
             true,
             false,
             &self.documents,
         )
         .await
-        {
-            Some(range) => Ok(Some(GotoDefinitionResponse::Link({
-                range
-                    .iter()
-                    .filter(|input| match origin_selection_range {
-                        Some(origin) => origin != input.range,
-                        None => true,
-                    })
-                    .map(|range| LocationLink {
-                        origin_selection_range,
-                        target_uri: range.uri.clone(),
-                        target_range: range.range,
-                        target_selection_range: range.range,
-                    })
-                    .collect()
-            }))),
-            None => Ok(None),
-        }
+        else {
+            return Ok(None);
+        };
+
+        let locations = range
+            .iter()
+            .filter(|input| origin_selection_range.is_none_or(|origin| origin != input.range))
+            .map(|range| LocationLink {
+                origin_selection_range,
+                target_uri: range.uri.clone(),
+                target_range: range.range,
+                target_selection_range: range.range,
+            })
+            .collect();
+
+        Ok(Some(GotoDefinitionResponse::Link(locations)))
     }
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
-        let position = params.text_document_position_params.position;
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
+
+        let position = params.text_document_position_params.position;
+
         let mut parse = Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-        let tree = parse.parse(text.value(), None).unwrap();
+        let tree = parse.parse(&text, None).unwrap();
 
         Ok(get_signature_help(position, tree.root_node(), &text))
     }
@@ -820,10 +814,11 @@ impl LanguageServer for Backend {
         input: DocumentSymbolParams,
     ) -> Result<Option<DocumentSymbolResponse>> {
         let uri = input.text_document.uri;
-        match self.documents.get(&uri) {
-            Some(text) => Ok(document_symbol::get_symbol(&self.client, &text).await),
-            None => Ok(None),
-        }
+        let Some(text) = self.get_cached_buffer(&uri) else {
+            return Ok(None);
+        };
+
+        Ok(document_symbol::get_symbol(&self.client, &text).await)
     }
 
     async fn semantic_tokens_full(
@@ -831,25 +826,24 @@ impl LanguageServer for Backend {
         params: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         let uri = params.text_document.uri.clone();
+        let Some(text) = self.get_cached_buffer(&uri) else {
+            return Ok(None);
+        };
 
-        match self.documents.get(&uri) {
-            Some(text) => Ok(semantic_token::semantic_token(&self.client, &text).await),
-            None => Ok(None),
-        }
+        Ok(semantic_token::semantic_token(&self.client, &text).await)
     }
 
     async fn document_link(&self, input: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = input.text_document.uri;
-        let file_path = match uri.to_file_path() {
-            Ok(file_path) => file_path,
-            Err(_) => {
-                tracing::error!("Cannot get file_path from {uri:?}");
-                return Err(LspError::internal_error());
-            }
-        };
-        let Some(text) = self.documents.get(&uri) else {
+        let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
+
+        let Ok(file_path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {}", uri.as_str());
+            return Err(LspError::internal_error());
+        };
+
         Ok(document_link::document_link_search(&text, file_path))
     }
 }
