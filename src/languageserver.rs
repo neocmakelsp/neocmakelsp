@@ -27,7 +27,7 @@ use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
     BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
-    quick_fix, rename, scansubs, semantic_token, utils,
+    quick_fix, scansubs, semantic_token, utils,
 };
 
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
@@ -731,15 +731,9 @@ impl LanguageServer for Backend {
             return Err(LspError::internal_error());
         };
 
-        Ok(rename::rename(
-            &edited,
-            location,
-            path,
-            &self.client,
-            &text,
-            &self.documents,
-        )
-        .await)
+        Ok(self
+            .rename_symbol(&edited, location, path, &self.client, &text)
+            .await)
     }
 
     async fn goto_definition(

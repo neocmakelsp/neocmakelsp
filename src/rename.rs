@@ -1,31 +1,42 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use dashmap::DashMap;
-use tower_lsp::lsp_types::{Location, Position, TextEdit, Uri, WorkspaceEdit};
+use tower_lsp::lsp_types::{Location, Position, TextEdit, WorkspaceEdit};
 
-use crate::jump;
+use crate::{Backend, jump};
 
-pub async fn rename<P: AsRef<Path>>(
-    edited: &str,
-    location: Position,
-    originuri: P,
-    client: &tower_lsp::Client,
-    source: &str,
-    documents: &DashMap<Uri, String>,
-) -> Option<WorkspaceEdit> {
-    let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
-    let defs = jump::godef(location, source, originuri, client, false, true, documents).await?;
+impl Backend {
+    pub async fn rename_symbol<P: AsRef<Path>>(
+        &self,
+        edited: &str,
+        location: Position,
+        originuri: P,
+        client: &tower_lsp::Client,
+        source: &str,
+    ) -> Option<WorkspaceEdit> {
+        let definitions = jump::godef(
+            location,
+            source,
+            originuri,
+            client,
+            false,
+            true,
+            &self.documents,
+        )
+        .await?;
 
-    for Location { uri, range } in defs {
-        let edits = changes.entry(uri).or_default();
-        edits.push(TextEdit {
-            range,
-            new_text: edited.to_string(),
-        });
+        let changes =
+            definitions
+                .into_iter()
+                .fold(HashMap::new(), |mut map, Location { uri, range }| {
+                    let edit = TextEdit::new(range, edited.to_string());
+                    map.entry(uri).or_insert_with(Vec::new).push(edit);
+                    map
+                });
+
+        Some(WorkspaceEdit {
+            changes: Some(changes),
+            ..Default::default()
+        })
     }
-    Some(WorkspaceEdit {
-        changes: Some(changes),
-        ..Default::default()
-    })
 }
