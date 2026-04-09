@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
 
@@ -32,8 +30,7 @@ pub fn format_file(
     let content = std::fs::read_to_string(path)?;
     let formatted_content = get_format_cli(&content, indent_size, use_space, insert_final_newline)?;
     if inplace {
-        let mut file = File::open(path)?;
-        file.write_all(formatted_content.as_bytes())?;
+        std::fs::write(path, formatted_content)?;
     } else {
         println!("{formatted_content}");
     }
