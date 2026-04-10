@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-04-10
+
+### Changed
+
+- Fix: Format and save to file not work, by @qaqland
+- Fix: Bring back the completions of options
+- Feat: support jumping to function arguments
+- Feat: support completing the arguments of macros and functions
+- Fix: Builtin variables containing <LANG> are missing in completion (#273) by @Xiaomony
+- Feature: add signature_help for builtin cmake commands (#270) by @Xiaomony
+- Fix: Avoid possible dead lock by @idealseal
+- Chore: Rename gammar module to grammar
+- Fix: Set default snippet to false
+- Chore: Remove needless raw string hashes by @idealseal
+- Docs: Use stdio subcommand in README.md (#268) by @ikhovind
+- Refactor: modules, names, code styles and etc by @idealseal in (#281)
+
+
+[0.10.2]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.2...v0.10.1
+
 ## [0.10.1] - 2026-02-27
 
 ### Changed
@@ -16,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit test use rust conventions by @idealseal (https://github.com/neocmakelsp/neocmakelsp/pull/247)
 - Use serde default for lsp config
 
-[0.10.1]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.1...v0.10.1
+[0.10.1]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.1...v0.10.0
 
 ## [0.10.0] - 2026-01-26
 
