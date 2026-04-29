@@ -37,7 +37,7 @@ jobs:
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - uses: taiki-e/install-action@0c7a94999971db56e9df89df226240aab222e776 # v2.75.14
+      - uses: taiki-e/install-action@5f57d6cb7cd20b14a8a27f522884c4bc8a187458 # v2.75.19
         with:
           tool: cargo-tarpaulin
       - name: Run instrumented tests
