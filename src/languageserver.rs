@@ -426,23 +426,28 @@ impl LanguageServer for Backend {
                 }
             }
         }
+
         progress
-            .report_with_message("Start generating builtin commands", 50)
+            .report_with_message("Start generating builtin information", 50)
             .await;
-        complete::init_builtin_command();
-        progress
-            .report_with_message("Start generating builtin module", 55)
-            .await;
-        complete::init_builtin_module();
-        progress
-            .report_with_message("Start generating builtin variable", 60)
-            .await;
-        complete::init_builtin_variable();
-        progress
-            .report_with_message("Initializing system modules", 70)
-            .await;
-        complete::init_system_modules();
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                complete::init_builtin_command();
+            });
+            s.spawn(|| {
+                complete::init_builtin_module();
+            });
+            s.spawn(|| {
+                complete::init_builtin_variable();
+            });
+            s.spawn(|| {
+                complete::init_system_modules();
+            });
+        });
         progress.report_with_message("Scan finished", 100).await;
+
+        complete::init_builtin_command();
+
         progress.finish().await;
     }
 
