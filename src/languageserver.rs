@@ -446,8 +446,6 @@ impl LanguageServer for Backend {
         });
         progress.report_with_message("Scan finished", 100).await;
 
-        complete::init_builtin_command();
-
         progress.finish().await;
     }
 
