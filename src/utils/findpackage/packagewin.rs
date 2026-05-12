@@ -5,10 +5,11 @@ use std::sync::LazyLock;
 
 use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
-    get_cmake_message, get_version, handle_config_package,
+    get_cmake_message, get_version, get_version_cache, handle_config_package
 };
 use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
@@ -32,6 +33,10 @@ pub(super) fn get_cmake_message_with_prefixes(
     prefixes: &Vec<String>,
 ) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
+    let mut parser = tree_sitter::Parser::new();
+    let query = get_version_cache(&mut parser);
+    parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+
     for prefix in prefixes {
         let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
             continue;
@@ -51,7 +56,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 if CMAKECONFIGVERSION.is_match(f.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&f)
                 {
-                    version = get_version(&context);
+                    version = get_version(&context, &query, &mut parser);
                 }
             }
 
@@ -117,7 +122,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context);
+                                    version = get_version(&context, &query, &mut parser);
                                 }
                             }
                         }
