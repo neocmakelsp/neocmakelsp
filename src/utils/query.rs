@@ -26,13 +26,17 @@ const FUNCTION_QUERY: &str = r"(
             (argument_list ((argument)*) @args))) @function_def
 )";
 
-pub const NORMAL_COMMAND_QUERY: &str = r"(
+pub const NORMAL_COMMAND_QUERY: &str = r"
+(
     (normal_command) @normal_command
-)";
+)
+";
 
-const VARIABLE_QUERY: &str = r"(
+const VARIABLE_QUERY: &str = r"
+(
     (variable) @variable
-)";
+)
+";
 
 pub struct VariableNode<'a> {
     pub content: &'a str,
@@ -295,14 +299,14 @@ pub fn get_normal_commands<'a>(
         normal_command.identifier = identifier.utf8_text(source).unwrap();
         normal_command.identifier_node = Some(identifier);
         // NOTE: child 1 is "(", it is child 2 that argument_list
-        if let Some(arg_list) = node.child(2)
-            && arg_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
+        if let Some(argument_list) = node.child(2)
+            && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
         {
-            let mut walk = arg_list.walk();
-            for child in arg_list.children(&mut walk) {
+            let mut walk = argument_list.walk();
+            for child in argument_list.children(&mut walk) {
                 normal_command.args.push(child);
             }
-            if let Some(first_arg) = arg_list.child(0) {
+            if let Some(first_arg) = argument_list.child(0) {
                 normal_command.first_arg = first_arg.utf8_text(source).ok();
             }
         }
