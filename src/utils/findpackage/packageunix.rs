@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
-    get_cmake_message, get_version, handle_config_package,
+    get_cmake_message, handle_config_package, get_version
 };
 use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
@@ -45,7 +45,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&file)
                 {
-                    version = get_version(&context, &mut parser);
+                    version = get_version(&context.as_bytes(), &mut parser);
                 }
             }
             if !ispackage {
@@ -108,7 +108,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context, &mut parser);
+                                    version = get_version(&context.as_bytes(), &mut parser);
                                 }
                                 tojump.push(filepath);
                             }

@@ -5,7 +5,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_version,
-    handle_config_package,
+    handle_config_package
 };
 use crate::Uri;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
@@ -73,7 +73,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&file)
                 {
-                    version = get_version(&context, &mut parser);
+                    version = get_version(&context.as_bytes(), &mut parser);
                 }
             }
 
@@ -137,7 +137,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context, &mut parser);
+                                    version = get_version(&context.as_bytes(), &mut parser);
                                 }
                             }
                         }
