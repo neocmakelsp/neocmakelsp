@@ -251,28 +251,30 @@ pub static CACHE_CMAKE_PACKAGES_WITHKEYS: LazyLock<HashMap<String, CMakePackage>
     LazyLock::new(get_cmake_packages_withkeys);
 
 fn get_version(source: &[u8], parser: &mut Parser) -> Option<String> {
-    let tree = parser.parse(source, None)?;
+    let tree = match parser.parse(source, None) {
+        None => { return None; },
+        Some(t) => t
+    };
     let commands = query::get_normal_commands(source, tree.root_node(), None);
 
     for cmd in commands {
-        if cmd.args.len() < 2 {
-            continue;
-        }
         if !cmd.identifier.eq_ignore_ascii_case("set") {
             continue;
         }
 
-        let mut found_pkg_ver = false;
-        for arg in cmd.args {
-            let name = arg.utf8_text(source).unwrap();
-            if found_pkg_ver {
-                return Some(
-                    name.trim_matches(|m| m == '"' || m == '\n')
-                        .to_string()
-                );
-            } else if name == "PACKAGE_VERSION" {
-                found_pkg_ver = true;
-            }
+        let index_var = match cmd.args
+            .iter()
+            .position(|arg| arg.utf8_text(source).unwrap() == "PACKAGE_VERSION") {
+                None => { continue; },
+                Some(idx) => idx
+        };
+        if cmd.args.len() - 1 > index_var {
+            return Some(
+                cmd.args[index_var + 1].utf8_text(source)
+                    .unwrap()
+                    .trim_matches(|m| m == '"' || m == '\n')
+                    .to_string()
+            );
         }
     }
 
