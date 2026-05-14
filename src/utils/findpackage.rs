@@ -20,10 +20,9 @@ use self::packageunix as cmakepackage;
 use self::packagewin as cmakepackage;
 pub use self::vcpkg::*;
 use super::{CMakePackage, CMakePackageFrom, PackageType};
-use crate::utils::query;
 #[cfg(test)]
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-
+use crate::utils::query;
 
 const LIBS: &[Cow<'_, str>] = &[
     Cow::Borrowed("lib"),
@@ -251,34 +250,25 @@ pub static CACHE_CMAKE_PACKAGES_WITHKEYS: LazyLock<HashMap<String, CMakePackage>
     LazyLock::new(get_cmake_packages_withkeys);
 
 fn get_version(source: &[u8], parser: &mut Parser) -> Option<String> {
-    let tree = match parser.parse(source, None) {
-        None => { return None; },
-        Some(t) => t
-    };
+    let tree = parser.parse(source, None)?;
     let commands = query::get_normal_commands(source, tree.root_node(), None);
 
-    for cmd in commands {
-        if !cmd.identifier.eq_ignore_ascii_case("set") {
-            continue;
-        }
+    let cmd = commands.iter().find(|node| {
+        node.identifier.eq_ignore_ascii_case("set")
+            && node
+                .first_arg
+                .is_some_and(|arg| arg.eq_ignore_ascii_case("PACKAGE_VERSION"))
+    })?;
 
-        let index_var = match cmd.args
-            .iter()
-            .position(|arg| arg.utf8_text(source).unwrap() == "PACKAGE_VERSION") {
-                None => { continue; },
-                Some(idx) => idx
-        };
-        if cmd.args.len() - 1 > index_var {
-            return Some(
-                cmd.args[index_var + 1].utf8_text(source)
-                    .unwrap()
-                    .trim_matches(|m| m == '"' || m == '\n')
-                    .to_string()
-            );
-        }
+    if cmd.args.len() == 1 {
+        return None;
     }
+    let version = cmd.args[1]
+        .utf8_text(source)
+        .ok()?
+        .trim_matches(|c| c == '"' || c == '\n' || c == ' ');
 
-    None
+    Some(version.to_owned())
 }
 
 #[cfg(unix)]
@@ -425,17 +415,32 @@ mod tests {
         parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
 
         let projectversion = "set(PACKAGE_VERSION 5.11)";
-        assert_eq!(get_version(projectversion.as_bytes(), &mut parser), Some("5.11".to_string()));
+        assert_eq!(
+            get_version(projectversion.as_bytes(), &mut parser),
+            Some("5.11".to_string())
+        );
         let projectversion = "SET(PACKAGE_VERSION  5.11   )";
-        assert_eq!(get_version(projectversion.as_bytes(), &mut parser), Some("5.11".to_string()));
+        assert_eq!(
+            get_version(projectversion.as_bytes(), &mut parser),
+            Some("5.11".to_string())
+        );
         let projectversion = "set(PACKAGE_VERSION \"1.3.14
 \")";
-        assert_eq!(get_version(projectversion.as_bytes(), &mut parser), Some("1.3.14".to_string()));
+        assert_eq!(
+            get_version(projectversion.as_bytes(), &mut parser),
+            Some("1.3.14".to_string())
+        );
         let projectversion = "set(PACKAGE_VERSION \"1.3.14
 
 \")";
-        assert_eq!(get_version(projectversion.as_bytes(), &mut parser), Some("1.3.14".to_string()));
+        assert_eq!(
+            get_version(projectversion.as_bytes(), &mut parser),
+            Some("1.3.14".to_string())
+        );
         let qmlversion = include_str!("../../assets_for_test/Qt5QmlConfigVersion.cmake");
-        assert_eq!(get_version(qmlversion.as_bytes(), &mut parser), Some("5.15.6".to_string()));
+        assert_eq!(
+            get_version(qmlversion.as_bytes(), &mut parser),
+            Some("5.15.6".to_string())
+        );
     }
 }
