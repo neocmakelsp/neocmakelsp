@@ -8,6 +8,7 @@ use super::{
     handle_config_package,
 };
 use crate::Uri;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 #[inline]
@@ -50,6 +51,9 @@ fn get_available_libs() -> Vec<PathBuf> {
 fn get_cmake_message() -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
     let vcpkg_prefix = VCPKG_PREFIX.lock().unwrap();
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+
     for lib in vcpkg_prefix.iter() {
         let Ok(paths) = glob::glob(&format!("{lib}/share/*/cmake/")) else {
             continue;
@@ -69,7 +73,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&file)
                 {
-                    version = get_version(&context);
+                    version = get_version(context.as_bytes(), &mut parser);
                 }
             }
 
@@ -133,7 +137,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context);
+                                    version = get_version(context.as_bytes(), &mut parser);
                                 }
                             }
                         }

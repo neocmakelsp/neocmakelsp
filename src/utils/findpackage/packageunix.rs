@@ -8,6 +8,7 @@ use super::{
     get_cmake_message, get_version, handle_config_package,
 };
 use crate::Uri;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 pub(super) fn get_env_prefix() -> Option<String> {
@@ -22,6 +23,9 @@ pub(super) fn get_cmake_message_with_prefixes(
     prefixes: &Vec<String>,
 ) -> HashMap<String, CMakePackage> {
     let mut packages: HashMap<String, CMakePackage> = HashMap::new();
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+
     for prefix in prefixes {
         let Ok(paths) = glob::glob(&format!("{prefix}/share/*/cmake/")) else {
             continue;
@@ -41,7 +45,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 if CMAKECONFIGVERSION.is_match(file.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&file)
                 {
-                    version = get_version(&context);
+                    version = get_version(context.as_bytes(), &mut parser);
                 }
             }
             if !ispackage {
@@ -104,7 +108,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context);
+                                    version = get_version(context.as_bytes(), &mut parser);
                                 }
                                 tojump.push(filepath);
                             }
