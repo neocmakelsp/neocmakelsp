@@ -5,11 +5,11 @@ use std::sync::LazyLock;
 
 use super::{
     CMAKECONFIG, CMAKECONFIGVERSION, CMAKEREGEX, SPECIAL_PACKAGE_PATTERN, get_available_libs,
-    get_cmake_message, get_version, handle_config_package
+    get_cmake_message, get_version, handle_config_package,
 };
 use crate::Uri;
-use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::{CMakePackage, CMakePackageFrom, PackageType};
 
 pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
     LazyLock::new(|| get_cmake_message().into_values().collect());
