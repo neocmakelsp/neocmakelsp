@@ -55,7 +55,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                 if CMAKECONFIGVERSION.is_match(f.to_str().unwrap())
                     && let Ok(context) = fs::read_to_string(&f)
                 {
-                    version = get_version(&context.as_bytes(), &mut parser);
+                    version = get_version(context.as_bytes(), &mut parser);
                 }
             }
 
@@ -121,7 +121,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
-                                    version = get_version(&context.as_bytes(), &mut parser);
+                                    version = get_version(context.as_bytes(), &mut parser);
                                 }
                             }
                         }
