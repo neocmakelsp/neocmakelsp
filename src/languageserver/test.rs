@@ -4,12 +4,12 @@ use serde::Serialize;
 use tower::Service;
 use tower::util::ServiceExt;
 use tower_lsp::jsonrpc::Request;
+use tower_lsp::lsp_types::WorkspaceFolders;
 use tower_lsp::lsp_types::{
     CompletionParams, CompletionResponse, DidOpenTextDocumentParams, InitializeParams,
-    InitializeResult, PartialResultParams, Position, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensServerCapabilities,
-    TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Uri,
-    WorkDoneProgressOptions, WorkDoneProgressParams, WorkspaceFolder,
+    InitializeResult, PartialResultParams, Position, SemanticTokensLegend, SemanticTokensOptions,
+    SemanticTokensProvider, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
+    Uri, WorkDoneProgressOptions, WorkDoneProgressParams, WorkspaceFolder,
 };
 use tower_lsp::{LanguageServer, LspService};
 
@@ -45,10 +45,15 @@ async fn test_init() {
 
     #[cfg(unix)]
     let init_param = InitializeParams {
-        workspace_folders: Some(vec![WorkspaceFolder {
-            name: "main".to_string(),
-            uri: Uri::from_file_path("/tmp").unwrap(),
-        }]),
+        workspace_folders_initialize_params:
+            tower_lsp::lsp_types::WorkspaceFoldersInitializeParams {
+                workspace_folders: Some(WorkspaceFolders::WorkspaceFolderList(vec![
+                    WorkspaceFolder {
+                        name: "main".to_string(),
+                        uri: Uri::from_file_path("/tmp").unwrap(),
+                    },
+                ])),
+            },
         initialization_options: Some(
             serde_json::to_value(Config {
                 semantic_token: true,
@@ -60,10 +65,15 @@ async fn test_init() {
     };
     #[cfg(not(unix))]
     let init_param = InitializeParams {
-        workspace_folders: Some(vec![WorkspaceFolder {
-            name: "main".to_string(),
-            uri: Uri::from_file_path(r"C:\\Windows\\System").unwrap(),
-        }]),
+        workspace_folders_initialize_params:
+            tower_lsp::lsp_types::WorkspaceFoldersInitializeParams {
+                workspace_folders: Some(WorkspaceFolders::WorkspaceFolderList(vec![
+                    WorkspaceFolder {
+                        name: "main".to_string(),
+                        uri: Uri::from_file_path(r"C:\\Windows\\System").unwrap(),
+                    },
+                ])),
+            },
         initialization_options: Some(
             serde_json::to_value(Config {
                 semantic_token: true,
@@ -82,17 +92,17 @@ async fn test_init() {
 
     assert_eq!(
         init_result.capabilities.semantic_tokens_provider,
-        Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+        Some(SemanticTokensProvider::SemanticTokensOptions(
             SemanticTokensOptions {
                 work_done_progress_options: WorkDoneProgressOptions {
                     work_done_progress: None
                 },
                 legend: SemanticTokensLegend {
-                    token_types: LEGEND_TYPE.into(),
+                    token_types: LEGEND_TYPE.iter().map(|tp| tp.to_string()).collect(),
                     token_modifiers: [].to_vec()
                 },
                 range: None,
-                full: Some(SemanticTokensFullOptions::Bool(true)),
+                full: Some(true.into()),
             }
         ))
     );
@@ -114,13 +124,13 @@ async fn test_init() {
             uri: test_url.clone(),
             text: file_info.to_string(),
             version: 0,
-            language_id: "cmake".to_string(),
+            language_id: tower_lsp::lsp_types::LanguageKind::new("cmake"),
         },
     };
     backend.did_open(open_params).await;
 
     let complete_param = CompletionParams {
-        text_document_position: TextDocumentPositionParams {
+        text_document_position_params: TextDocumentPositionParams {
             position: Position {
                 line: 4,
                 character: 10,

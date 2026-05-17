@@ -100,7 +100,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 start_point,
                 end_point,
                 message,
-                severity: Some(DiagnosticSeverity::WARNING),
+                severity: Some(DiagnosticSeverity::Warning),
             });
         }
     }
@@ -125,9 +125,9 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
     for input in output_str.lines() {
         if let Some(m) = LINT_REGEX.captures(input) {
             let severity = match m.name("severity").unwrap().as_str() {
-                "E" => DiagnosticSeverity::ERROR,
-                "W" => DiagnosticSeverity::WARNING,
-                _ => DiagnosticSeverity::INFORMATION,
+                "E" => DiagnosticSeverity::Error,
+                "W" => DiagnosticSeverity::Warning,
+                _ => DiagnosticSeverity::Information,
             };
             let row = m.name("line").unwrap().as_str().parse().unwrap_or(1) - 1;
             let column = m
@@ -190,7 +190,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 start_point: input.start_position(),
                 end_point: input.end_position(),
                 message: "Grammar error".to_string(),
-                severity: Some(DiagnosticSeverity::ERROR),
+                severity: Some(DiagnosticSeverity::Error),
             });
         }
     }
@@ -207,7 +207,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 start_point: name_node.start_position(),
                 end_point: name_node.end_position(),
                 message: hint.to_owned(),
-                severity: Some(DiagnosticSeverity::HINT),
+                severity: Some(DiagnosticSeverity::Hint),
             });
         }
         let lowercase_name = name.to_lowercase();
@@ -224,7 +224,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                         start_point: child.start_position(),
                         end_point: child.end_position(),
                         message: "Cannot find such package".to_string(),
-                        severity: Some(DiagnosticSeverity::ERROR),
+                        severity: Some(DiagnosticSeverity::Error),
                     });
                 }
             }
@@ -248,7 +248,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                     start_point: first_arg_node.start_position(),
                     end_point: first_arg_node.end_position(),
                     message: "Argument is empty".to_string(),
-                    severity: Some(DiagnosticSeverity::ERROR),
+                    severity: Some(DiagnosticSeverity::Error),
                 });
                 continue;
             }
@@ -269,7 +269,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                                 start_point: first_arg_node.start_position(),
                                 end_point: first_arg_node.end_position(),
                                 message: "Error in include file".to_string(),
-                                severity: Some(DiagnosticSeverity::ERROR),
+                                severity: Some(DiagnosticSeverity::Error),
                             });
                         }
                     } else {
@@ -283,7 +283,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                                 "\"{}\" is a directory",
                                 include_path.to_str().unwrap()
                             ),
-                            severity: Some(DiagnosticSeverity::ERROR),
+                            severity: Some(DiagnosticSeverity::Error),
                         });
                     }
                 }
@@ -303,7 +303,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                         start_point: first_arg_node.start_position(),
                         end_point: first_arg_node.end_position(),
                         message,
-                        severity: Some(DiagnosticSeverity::WARNING),
+                        severity: Some(DiagnosticSeverity::Warning),
                     });
                 }
             }
@@ -403,7 +403,7 @@ add_subdirectory("unexist_subdir")
                         "File \"{}\" does not exist or is inaccessible",
                         hello_cmake_error.display()
                     ),
-                    severity: Some(DiagnosticSeverity::WARNING)
+                    severity: Some(DiagnosticSeverity::Warning)
                 },
                 ErrorInformation {
                     start_point: Point { row: 4, column: 17 },
@@ -412,7 +412,7 @@ add_subdirectory("unexist_subdir")
                         "Directory \"{}\" does not exist or is inaccessible",
                         unexist_subdir.display()
                     ),
-                    severity: Some(DiagnosticSeverity::WARNING)
+                    severity: Some(DiagnosticSeverity::Warning)
                 },
             ]
         );
@@ -460,7 +460,7 @@ include(abcd.text)
                     start_point: input.start_position(),
                     end_point: input.end_position(),
                     message: "Grammar error".to_string(),
-                    severity: Some(DiagnosticSeverity::ERROR),
+                    severity: Some(DiagnosticSeverity::Error),
                 }]
             })
         );

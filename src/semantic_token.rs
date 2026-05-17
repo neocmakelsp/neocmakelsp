@@ -1,9 +1,7 @@
 use std::sync::LazyLock;
 
 use tower_lsp::Client;
-use tower_lsp::lsp_types::{
-    SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensResult,
-};
+use tower_lsp::lsp_types::{SemanticToken, SemanticTokenTypes, SemanticTokens};
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -13,31 +11,31 @@ static NUMBERREGEX: LazyLock<regex::Regex> =
 const BOOL_VAL: &[&str] = &["ON", "OFF", "TRUE", "FALSE"];
 const UNIQUE_KEYWORD: &[&str] = &["AND", "NOT"];
 
-pub const LEGEND_TYPE: &[SemanticTokenType] = &[
-    SemanticTokenType::FUNCTION,
-    SemanticTokenType::METHOD,
-    SemanticTokenType::VARIABLE,
-    SemanticTokenType::STRING,
-    SemanticTokenType::COMMENT,
-    SemanticTokenType::NUMBER,
-    SemanticTokenType::KEYWORD,
-    SemanticTokenType::OPERATOR,
-    SemanticTokenType::PARAMETER,
+pub const LEGEND_TYPE: &[SemanticTokenTypes] = &[
+    SemanticTokenTypes::Function,
+    SemanticTokenTypes::Method,
+    SemanticTokenTypes::Variable,
+    SemanticTokenTypes::String,
+    SemanticTokenTypes::Comment,
+    SemanticTokenTypes::Number,
+    SemanticTokenTypes::Keyword,
+    SemanticTokenTypes::Operator,
+    SemanticTokenTypes::Parameter,
 ];
 
-fn get_token_position(tokentype: SemanticTokenType) -> u32 {
+fn get_token_position(tokentype: SemanticTokenTypes) -> u32 {
     LEGEND_TYPE
         .iter()
         .position(|data| *data == tokentype)
         .unwrap() as u32
 }
 
-pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticTokensResult> {
+pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticTokens> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree?;
-    Some(SemanticTokensResult::Tokens(SemanticTokens {
+    Some(SemanticTokens {
         result_id: None,
         data: sub_tokens(
             tree.root_node(),
@@ -46,7 +44,7 @@ pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticT
             &mut 0,
             false,
         ),
-    }))
+    })
 }
 
 fn sub_tokens(
@@ -73,7 +71,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::OPERATOR),
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -90,7 +88,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::VARIABLE),
+                    token_type: get_token_position(SemanticTokenTypes::Variable),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -114,7 +112,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::METHOD),
+                    token_type: get_token_position(SemanticTokenTypes::Method),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -134,7 +132,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::COMMENT),
+                    token_type: get_token_position(SemanticTokenTypes::Comment),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -159,7 +157,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::KEYWORD),
+                    token_type: get_token_position(SemanticTokenTypes::Keyword),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -180,7 +178,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::COMMENT),
+                            token_type: get_token_position(SemanticTokenTypes::Comment),
                             token_modifiers_bitset: 0,
                         });
                         *preline = h as u32;
@@ -198,7 +196,7 @@ fn sub_tokens(
                                 delta_line: h as u32 - *preline,
                                 delta_start: x as u32 - *prestart,
                                 length: (y - x) as u32,
-                                token_type: get_token_position(SemanticTokenType::STRING),
+                                token_type: get_token_position(SemanticTokenTypes::String),
                                 token_modifiers_bitset: 0,
                             });
                             *prestart = x as u32;
@@ -227,7 +225,7 @@ fn sub_tokens(
                                             delta_start: x as u32 - *prestart,
                                             length: (y - x) as u32,
                                             token_type: get_token_position(
-                                                SemanticTokenType::VARIABLE,
+                                                SemanticTokenTypes::Variable,
                                             ),
                                             token_modifiers_bitset: 0,
                                         });
@@ -239,7 +237,7 @@ fn sub_tokens(
                                         delta_line: h as u32 - *preline,
                                         delta_start: x as u32 - *prestart,
                                         length: (y - x) as u32,
-                                        token_type: get_token_position(SemanticTokenType::STRING),
+                                        token_type: get_token_position(SemanticTokenTypes::String),
                                         token_modifiers_bitset: 0,
                                     });
                                     *prestart = x as u32;
@@ -266,7 +264,7 @@ fn sub_tokens(
                                     delta_line: h as u32 - *preline,
                                     delta_start: x as u32 - *prestart,
                                     length: content.len() as u32,
-                                    token_type: get_token_position(SemanticTokenType::STRING),
+                                    token_type: get_token_position(SemanticTokenTypes::String),
                                     token_modifiers_bitset: 0,
                                 });
                                 *prestart = x as u32;
@@ -279,7 +277,7 @@ fn sub_tokens(
                                     delta_line: h2 as u32 - *preline,
                                     delta_start: 0,
                                     length: content.len() as u32,
-                                    token_type: get_token_position(SemanticTokenType::STRING),
+                                    token_type: get_token_position(SemanticTokenTypes::String),
                                     token_modifiers_bitset: 0,
                                 });
                                 *prestart = 0;
@@ -291,7 +289,7 @@ fn sub_tokens(
                                 delta_line: column as u32 - *preline,
                                 delta_start: 0,
                                 length: content.len() as u32,
-                                token_type: get_token_position(SemanticTokenType::STRING),
+                                token_type: get_token_position(SemanticTokenTypes::String),
                                 token_modifiers_bitset: 0,
                             });
                             *prestart = 0;
@@ -320,7 +318,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::VARIABLE),
+                            token_type: get_token_position(SemanticTokenTypes::Variable),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
@@ -333,7 +331,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::NUMBER),
+                            token_type: get_token_position(SemanticTokenTypes::Number),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
@@ -345,7 +343,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::KEYWORD),
+                            token_type: get_token_position(SemanticTokenTypes::Keyword),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
@@ -358,7 +356,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::KEYWORD),
+                            token_type: get_token_position(SemanticTokenTypes::Keyword),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
@@ -371,7 +369,7 @@ fn sub_tokens(
                             delta_line: h as u32 - *preline,
                             delta_start: x as u32 - *prestart,
                             length: (y - x) as u32,
-                            token_type: get_token_position(SemanticTokenType::VARIABLE),
+                            token_type: get_token_position(SemanticTokenTypes::Variable),
                             token_modifiers_bitset: 0,
                         });
                         *prestart = x as u32;
@@ -395,7 +393,7 @@ fn sub_tokens(
                     delta_line: h as u32 - *preline,
                     delta_start: x as u32 - *prestart,
                     length: (y - x) as u32,
-                    token_type: get_token_position(SemanticTokenType::KEYWORD),
+                    token_type: get_token_position(SemanticTokenTypes::Keyword),
                     token_modifiers_bitset: 0,
                 });
                 *preline = h as u32;
@@ -440,12 +438,12 @@ mod tests {
         assert!(NUMBERREGEX.is_match("222"));
     }
 
-    fn semantic_token_test(context: &str) -> Option<SemanticTokensResult> {
+    fn semantic_token_test(context: &str) -> Option<SemanticTokens> {
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None);
         let tree = thetree?;
-        Some(SemanticTokensResult::Tokens(SemanticTokens {
+        Some(SemanticTokens {
             result_id: None,
             data: sub_tokens(
                 tree.root_node(),
@@ -454,7 +452,7 @@ mod tests {
                 &mut 0,
                 false,
             ),
-        }))
+        })
     }
 
     #[test]

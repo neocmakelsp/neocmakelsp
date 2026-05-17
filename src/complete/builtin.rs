@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use anyhow::Result;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
-    ParameterInformation, ParameterLabel,
+    ParameterInformation, ParameterInformationLabel,
 };
 
 use crate::languageserver::to_use_snippet;
@@ -138,7 +138,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
 
             if client_support_snippet {
                 detail = "Function (Snippet)";
-                insert_text_format = InsertTextFormat::SNIPPET;
+                insert_text_format = InsertTextFormat::Snippet;
                 let para = commandinfo
                     .parameters
                     .iter()
@@ -150,7 +150,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                 uppercase_insert_text = format!("{}({})", name.to_uppercase(), para);
             } else {
                 detail = "Function";
-                insert_text_format = InsertTextFormat::PLAIN_TEXT;
+                insert_text_format = InsertTextFormat::PlainText;
                 insert_text = name.to_string();
                 uppercase_insert_text = name.to_uppercase();
             }
@@ -158,7 +158,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
             [
                 CompletionItem {
                     label: name.to_lowercase(),
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some(detail.to_string()),
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(insert_text),
@@ -167,7 +167,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                 },
                 CompletionItem {
                     label: name.to_uppercase(),
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some(detail.to_string()),
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(uppercase_insert_text),
@@ -187,7 +187,7 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
     let mut push_item = |label: String, doc: &str| {
         result.push(CompletionItem {
             label,
-            kind: Some(CompletionItemKind::VARIABLE),
+            kind: Some(CompletionItemKind::Variable),
             detail: Some("Variable".to_string()),
             documentation: Some(Documentation::MarkupContent(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -232,7 +232,7 @@ fn gen_builtin_modules(raw_info: &str) -> Vec<CompletionItem> {
     zip(key, context)
         .map(|(akey, message)| CompletionItem {
             label: akey.to_string(),
-            kind: Some(CompletionItemKind::MODULE),
+            kind: Some(CompletionItemKind::Module),
             detail: Some("Module".to_string()),
             documentation: Some(Documentation::String(message.trim().to_string())),
             ..Default::default()
@@ -275,7 +275,7 @@ impl<'a> CommandSignatureResource<'a> {
                 self.parameters
                     .iter()
                     .map(|&para| ParameterInformation {
-                        label: ParameterLabel::Simple(para.to_string()),
+                        label: ParameterInformationLabel::String(para.to_string()),
                         documentation: None,
                     })
                     .collect(),

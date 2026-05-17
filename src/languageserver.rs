@@ -103,7 +103,7 @@ impl Backend {
             tracing::error!("Cannot transport {uri:?} to file_path");
             self.client
                 .log_message(
-                    MessageType::ERROR,
+                    MessageType::Error,
                     format!("Cannot transport {uri:?} to file_path"),
                 )
                 .await;
@@ -197,9 +197,13 @@ impl LanguageServer for Backend {
         {
             // NOTE: I think it only contains one workspace
             if let Some(ref top_path) = initial
+                .workspace_folders_initialize_params
                 .workspace_folders
                 .as_ref()
-                .and_then(|folders| folders.first())
+                .and_then(|folders| match folders {
+                    WorkspaceFolders::Null => None,
+                    WorkspaceFolders::WorkspaceFolderList(list) => list.first(),
+                })
                 .and_then(|folder| folder.uri.to_file_path().ok())
             {
                 let path = top_path.join("build").join("CMakeCache.txt");
@@ -238,9 +242,13 @@ impl LanguageServer for Backend {
         }
 
         if let Some(ref project_root) = initial
+            .workspace_folders_initialize_params
             .workspace_folders
             .as_ref()
-            .and_then(|folders| folders.first())
+            .and_then(|folders| match folders {
+                WorkspaceFolders::Null => None,
+                WorkspaceFolders::WorkspaceFolderList(list) => list.first(),
+            })
             .and_then(|folder| folder.uri.to_file_path().ok())
         {
             self.root_path
@@ -257,17 +265,15 @@ impl LanguageServer for Backend {
                 version: Some(version),
             }),
             capabilities: ServerCapabilities {
-                rename_provider: Some(OneOf::Left(true)),
-                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::FULL),
-                        will_save: Some(false),
-                        will_save_wait_until: Some(false),
-                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
-                    },
-                )),
+                rename_provider: Some(RenameProvider::Bool(true)),
+                code_action_provider: Some(CodeActionProvider::Bool(true)),
+                text_document_sync: Some(TextDocumentSync::Options(TextDocumentSyncOptions {
+                    open_close: Some(true),
+                    change: Some(TextDocumentSyncKind::Full),
+                    will_save: Some(false),
+                    will_save_wait_until: Some(false),
+                    save: Some(Save::Bool(true)),
+                })),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
                     trigger_characters: None,
@@ -280,51 +286,52 @@ impl LanguageServer for Backend {
                     retrigger_characters: None,
                     work_done_progress_options: Default::default(),
                 }),
-                document_symbol_provider: Some(OneOf::Left(true)),
-                definition_provider: Some(OneOf::Left(true)),
-                document_formatting_provider: if do_format {
-                    Some(OneOf::Left(true))
-                } else {
-                    None
-                },
-                hover_provider: Some(HoverProviderCapability::Simple(true)),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                document_symbol_provider: Some(DocumentSymbolProvider::Bool(true)),
+                definition_provider: Some(DefinitionProvider::Bool(true)),
+                document_formatting_provider: if do_format { Some(true.into()) } else { None },
+                hover_provider: Some(true.into()),
+                workspace: Some(WorkspaceOptions::new(
+                    Some(WorkspaceFoldersServerCapabilities {
                         supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
+                        change_notifications: Some(true.into()),
                     }),
-                    file_operations: None,
-                }),
+                    None,
+                    None,
+                )),
                 semantic_tokens_provider: if initial_config.enable_semantic_token() {
-                    Some(
-                        SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
-                            SemanticTokensRegistrationOptions {
-                                text_document_registration_options: {
-                                    TextDocumentRegistrationOptions {
-                                        document_selector: Some(vec![DocumentFilter {
-                                            language: Some("cmake".to_string()),
+                    Some(SemanticTokensProvider::SemanticTokensRegistrationOptions(
+                        SemanticTokensRegistrationOptions {
+                            text_document_registration_options: {
+                                TextDocumentRegistrationOptions {
+                                    document_selector: Some(vec![
+                                        TextDocumentFilter::Language(TextDocumentFilterLanguage {
+                                            language: "cmake".to_string(),
                                             scheme: Some("file".to_string()),
                                             pattern: None,
-                                        }]),
-                                    }
-                                },
-                                semantic_tokens_options: SemanticTokensOptions {
-                                    work_done_progress_options: WorkDoneProgressOptions::default(),
-                                    legend: SemanticTokensLegend {
-                                        token_types: LEGEND_TYPE.into(),
-                                        token_modifiers: vec![],
-                                    },
-                                    range: None,
-                                    full: Some(SemanticTokensFullOptions::Bool(true)),
-                                },
-                                static_registration_options: StaticRegistrationOptions::default(),
+                                        })
+                                        .into(),
+                                    ]),
+                                }
                             },
-                        ),
-                    )
+                            semantic_tokens_options: SemanticTokensOptions {
+                                work_done_progress_options: WorkDoneProgressOptions::default(),
+                                legend: SemanticTokensLegend {
+                                    token_types: LEGEND_TYPE
+                                        .iter()
+                                        .map(|tp| tp.to_string())
+                                        .collect(),
+                                    token_modifiers: vec![],
+                                },
+                                range: None,
+                                full: Some(true.into()),
+                            },
+                            static_registration_options: StaticRegistrationOptions::default(),
+                        },
+                    ))
                 } else {
                     None
                 },
-                references_provider: Some(OneOf::Left(true)),
+                references_provider: Some(true.into()),
 
                 document_link_provider: Some(DocumentLinkOptions {
                     resolve_provider: Some(true),
@@ -341,15 +348,23 @@ impl LanguageServer for Backend {
         let cachefilechangeparms = DidChangeWatchedFilesRegistrationOptions {
             watchers: vec![
                 FileSystemWatcher {
-                    glob_pattern: GlobPattern::String("**/CMakeCache.txt".to_string()),
-                    kind: Some(lsp_types::WatchKind::all()),
+                    glob_pattern: GlobPattern::Pattern("**/CMakeCache.txt".to_string()),
+                    kind: Some(
+                        lsp_types::WatchKind::Create
+                            | lsp_types::WatchKind::Delete
+                            | lsp_types::WatchKind::Change,
+                    ),
                 },
                 FileSystemWatcher {
-                    glob_pattern: GlobPattern::String("**/.cmake/api/v1/reply/*.json".to_string()),
-                    kind: Some(lsp_types::WatchKind::all()),
+                    glob_pattern: GlobPattern::Pattern("**/.cmake/api/v1/reply/*.json".to_string()),
+                    kind: Some(
+                        lsp_types::WatchKind::Create
+                            | lsp_types::WatchKind::Delete
+                            | lsp_types::WatchKind::Change,
+                    ),
                 },
                 FileSystemWatcher {
-                    glob_pattern: GlobPattern::String("**/CMakeLists.txt".to_string()),
+                    glob_pattern: GlobPattern::Pattern("**/CMakeLists.txt".to_string()),
                     kind: Some(lsp_types::WatchKind::Create | lsp_types::WatchKind::Delete),
                 },
             ],
@@ -367,10 +382,10 @@ impl LanguageServer for Backend {
             .unwrap();
 
         self.client
-            .log_message(MessageType::INFO, "initialized!")
+            .log_message(MessageType::Info, "initialized!")
             .await;
 
-        let work_done_token = ProgressToken::Number(1);
+        let work_done_token = ProgressToken::Int(1);
         let progress = self
             .client
             .progress(work_done_token, "Initializing workspace")
@@ -458,13 +473,13 @@ impl LanguageServer for Backend {
 
     async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
         self.client
-            .log_message(MessageType::INFO, "workspace folders changed!")
+            .log_message(MessageType::Info, "workspace folders changed!")
             .await;
     }
 
     async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
         self.client
-            .log_message(MessageType::INFO, "configuration changed!")
+            .log_message(MessageType::Info, "configuration changed!")
             .await;
     }
 
@@ -495,9 +510,9 @@ impl LanguageServer for Backend {
                     continue;
                 }
                 self.client
-                    .log_message(MessageType::INFO, "CMakeCache changed")
+                    .log_message(MessageType::Info, "CMakeCache changed")
                     .await;
-                if change.typ == FileChangeType::DELETED {
+                if change.kind == FileChangeType::Deleted {
                     filewatcher::clear_error_packages();
                 } else {
                     filewatcher::refresh_error_packages(file_path);
@@ -508,7 +523,7 @@ impl LanguageServer for Backend {
             self.update_diagnostics().await;
         }
         self.client
-            .log_message(MessageType::INFO, "watched files have changed!")
+            .log_message(MessageType::Info, "watched files have changed!")
             .await;
     }
 
@@ -534,11 +549,14 @@ impl LanguageServer for Backend {
         .await;
 
         self.client
-            .log_message(MessageType::INFO, format!("Opened file {}", path.display()))
+            .log_message(MessageType::Info, format!("Opened file {}", path.display()))
             .await;
     }
 
-    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> Result<Option<Vec<CodeActionResponse>>> {
         let uri = params.text_document.uri;
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
@@ -558,8 +576,15 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.content_changes.into_iter().next().unwrap().text;
+        let uri = params.text_document.text_document_identifier.uri;
+        let text = match params.content_changes.into_iter().next().unwrap() {
+            TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(document) => {
+                document.text
+            }
+            _ => {
+                return;
+            }
+        };
         self.update_cache(uri.clone(), &text);
 
         if text.lines().count() < 500 {
@@ -574,7 +599,7 @@ impl LanguageServer for Backend {
             .await;
         }
         self.client
-            .log_message(MessageType::INFO, &format!("update file: {}", uri.as_str()))
+            .log_message(MessageType::Info, &format!("update file: {}", uri.as_str()))
             .await;
     }
 
@@ -606,7 +631,7 @@ impl LanguageServer for Backend {
         .await;
 
         self.client
-            .log_message(MessageType::INFO, "file saved!")
+            .log_message(MessageType::Info, "file saved!")
             .await;
     }
 
@@ -626,7 +651,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         Ok(Some(Hover {
-            contents: HoverContents::Scalar(MarkedString::String(output)),
+            contents: Contents::MarkedString(MarkedString::String(output)),
             range: Some(Range {
                 start: position,
                 end: position,
@@ -642,7 +667,7 @@ impl LanguageServer for Backend {
 
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!("formatting, space is {}", input.options.insert_spaces),
             )
             .await;
@@ -666,21 +691,21 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!("file {:?} closed!", params.text_document.uri),
             )
             .await;
     }
 
     async fn completion(&self, input: CompletionParams) -> Result<Option<CompletionResponse>> {
-        self.client.log_message(MessageType::INFO, "Complete").await;
+        self.client.log_message(MessageType::Info, "Complete").await;
 
-        let uri = input.text_document_position.text_document.uri;
+        let uri = input.text_document_position_params.text_document.uri;
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
 
-        let location = input.text_document_position.position;
+        let location = input.text_document_position_params.position;
         let Ok(path) = uri.to_file_path() else {
             tracing::error!("Cannot get path from {}", uri.as_str());
             return Err(LspError::internal_error());
@@ -698,12 +723,12 @@ impl LanguageServer for Backend {
     }
 
     async fn references(&self, input: ReferenceParams) -> Result<Option<Vec<Location>>> {
-        let uri = input.text_document_position.text_document.uri;
+        let uri = input.text_document_position_params.text_document.uri;
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
 
-        let location = input.text_document_position.position;
+        let location = input.text_document_position_params.position;
         let Ok(path) = uri.to_file_path() else {
             tracing::error!("Cannot get path from {uri:?}");
             return Err(LspError::internal_error());
@@ -722,13 +747,13 @@ impl LanguageServer for Backend {
     }
 
     async fn rename(&self, input: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        let uri = input.text_document_position.text_document.uri;
+        let uri = input.text_document_position_params.text_document.uri;
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
 
         let edited = input.new_name;
-        let location = input.text_document_position.position;
+        let location = input.text_document_position_params.position;
         let Ok(path) = uri.to_file_path() else {
             tracing::error!("Cannot get path from {uri:?}");
             return Err(LspError::internal_error());
@@ -739,10 +764,7 @@ impl LanguageServer for Backend {
             .await)
     }
 
-    async fn goto_definition(
-        &self,
-        input: GotoDefinitionParams,
-    ) -> Result<Option<GotoDefinitionResponse>> {
+    async fn goto_definition(&self, input: DefinitionParams) -> Result<Option<DefinitionResponse>> {
         let uri = input.text_document_position_params.text_document.uri;
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
@@ -785,7 +807,7 @@ impl LanguageServer for Backend {
             })
             .collect();
 
-        Ok(Some(GotoDefinitionResponse::Link(locations)))
+        Ok(Some(DefinitionResponse::DefinitionLinkList(locations)))
     }
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
@@ -818,7 +840,7 @@ impl LanguageServer for Backend {
     async fn semantic_tokens_full(
         &self,
         params: SemanticTokensParams,
-    ) -> Result<Option<SemanticTokensResult>> {
+    ) -> Result<Option<SemanticTokens>> {
         let uri = params.text_document.uri.clone();
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);

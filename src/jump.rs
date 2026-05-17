@@ -186,7 +186,7 @@ pub async fn godef<P: AsRef<Path>>(
     .await;
     if locations.is_none() {
         client
-            .log_message(MessageType::INFO, "Not find any locations")
+            .log_message(MessageType::Info, "Not find any locations")
             .await;
     }
     locations

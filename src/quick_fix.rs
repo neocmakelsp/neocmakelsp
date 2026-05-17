@@ -2,9 +2,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use tower_lsp::lsp_types::{
-    CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionResponse, Diagnostic,
-    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit,
-    TextEdit, WorkspaceEdit,
+    CodeAction, CodeActionKind, CodeActionResponse, Diagnostic, DocumentChange, Edit,
+    OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit, TextEdit, WorkspaceEdit,
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -18,7 +17,7 @@ pub fn lint_fix_action(
     line: u32,
     diagnose: &Diagnostic,
     uri: tower_lsp::lsp_types::Uri,
-) -> Option<CodeActionResponse> {
+) -> Option<Vec<CodeActionResponse>> {
     let caps = LINT_REGEX.captures(&diagnose.message)?;
     let longest = caps["max"].parse().unwrap();
     let mut parse = tree_sitter::Parser::new();
@@ -35,7 +34,7 @@ fn sub_lint_fix_action(
     diagnose: &Diagnostic,
     longest: usize,
     uri: &tower_lsp::lsp_types::Uri,
-) -> Option<CodeActionResponse> {
+) -> Option<Vec<CodeActionResponse>> {
     let argument_lists = get_argument_lists(source.as_bytes(), input, None);
     let argument_list = argument_lists.into_iter().find(|argument| {
         let node = argument.main_node.unwrap();
@@ -69,25 +68,28 @@ fn sub_lint_fix_action(
         }
         new_text.push_str(arg);
     }
-    Some(vec![CodeActionOrCommand::CodeAction(CodeAction {
+    Some(vec![CodeActionResponse::CodeAction(CodeAction {
         title: "too long lint fix".to_string(),
-        kind: Some(CodeActionKind::QUICKFIX),
+        kind: Some(CodeActionKind::QuickFix),
         diagnostics: Some(vec![diagnose.clone()]),
         edit: Some(WorkspaceEdit {
             changes: None,
             change_annotations: None,
-            document_changes: Some(DocumentChanges::Edits(vec![TextDocumentEdit {
+            document_changes: Some(vec![DocumentChange::TextDocumentEdit(TextDocumentEdit {
                 text_document: OptionalVersionedTextDocumentIdentifier {
-                    uri: uri.clone(),
                     version: None,
+                    text_document_identifier: tower_lsp::lsp_types::TextDocumentIdentifier {
+                        uri: uri.clone(),
+                    },
                 },
-                edits: vec![OneOf::Left(TextEdit { range, new_text })],
-            }])),
+                edits: vec![Edit::TextEdit(TextEdit { range, new_text })],
+            })]),
         }),
         command: None,
         is_preferred: None,
         disabled: None,
         data: None,
+        tags: None,
     })])
 }
 
