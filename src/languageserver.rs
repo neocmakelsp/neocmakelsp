@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
+use tower_lsp::lsp_extensions::TextDocumentContentChangeEventEx;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
 use tree_sitter::Parser;
@@ -165,6 +166,31 @@ impl Backend {
             )
             .await;
         }
+    }
+}
+
+impl Backend {
+    async fn did_change_inner(&self, params: DidChangeTextDocumentParams) -> Option<()> {
+        let uri = params.text_document.text_document_identifier.uri;
+        let content_change = params.content_changes.into_iter().next()?;
+        let text = content_change.whole_content()?;
+        self.update_cache(uri.clone(), text);
+
+        if text.lines().count() < 500 {
+            self.publish_diagnostics(
+                uri.clone(),
+                text,
+                LintConfigInfo {
+                    use_lint: self.init_info().enable_lint,
+                    use_extra_cmake_lint: false,
+                },
+            )
+            .await;
+        }
+        self.client
+            .log_message(MessageType::Info, &format!("update file: {}", uri.as_str()))
+            .await;
+        None
     }
 }
 
@@ -576,31 +602,7 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let uri = params.text_document.text_document_identifier.uri;
-        let text = match params.content_changes.into_iter().next().unwrap() {
-            TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(document) => {
-                document.text
-            }
-            _ => {
-                return;
-            }
-        };
-        self.update_cache(uri.clone(), &text);
-
-        if text.lines().count() < 500 {
-            self.publish_diagnostics(
-                uri.clone(),
-                &text,
-                LintConfigInfo {
-                    use_lint: self.init_info().enable_lint,
-                    use_extra_cmake_lint: false,
-                },
-            )
-            .await;
-        }
-        self.client
-            .log_message(MessageType::Info, &format!("update file: {}", uri.as_str()))
-            .await;
+        self.did_change_inner(params).await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
