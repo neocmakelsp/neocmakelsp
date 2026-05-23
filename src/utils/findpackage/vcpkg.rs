@@ -76,27 +76,38 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     version = get_version(context.as_bytes(), &mut parser);
                 }
             }
-
+            let Some(parent_path) = path.parent() else {
+                continue;
+            };
+            let Some(mut packagename) = parent_path
+                .file_name()
+                .and_then(|file_name| file_name.to_str())
+            else {
+                continue;
+            };
             if let Some(config_file_location) = tojump
                 .iter()
                 .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
                 && config_file_location != 0
             {
                 tojump.swap(0, config_file_location);
+                let config_file = tojump[0].to_str().unwrap();
+                if let Some(config_package_name) = config_file.strip_suffix("-config.cmake") {
+                    packagename = config_package_name;
+                }
+                if let Some(config_package_name) = config_file.strip_suffix("Config.cmake") {
+                    packagename = config_package_name;
+                }
+                // NOTE: LLVM is wired
+                if let Some(config_package_name) = config_file.strip_suffix("-Config.cmake") {
+                    packagename = config_package_name;
+                }
             }
 
             if !ispackage {
                 continue;
             }
-            let Some(parent_path) = path.parent() else {
-                continue;
-            };
-            let Some(packagename) = parent_path
-                .file_name()
-                .and_then(|file_name| file_name.to_str())
-            else {
-                continue;
-            };
+
             let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
@@ -127,6 +138,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
                         continue;
                     };
+                    let mut package_name = pathname.clone();
                     for path in paths.flatten() {
                         let filepath = safe_canonicalize(&path.path()).unwrap();
                         if path.metadata().is_ok_and(|metadata| metadata.is_file()) {
@@ -134,6 +146,22 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                             let filename = path_name.to_str().unwrap();
                             if CMAKEREGEX.is_match(filename) {
                                 tojump.push(filepath.clone());
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("-config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("Config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
+                                // NOTE: LLVM is wired
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("-Config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
@@ -142,7 +170,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                             }
                         }
                     }
-                    (PackageType::Dir, pathname)
+                    (PackageType::Dir, package_name)
                 } else {
                     let filepath = safe_canonicalize(&path.path()).unwrap();
                     tojump.push(filepath);

@@ -54,19 +54,31 @@ pub(super) fn get_cmake_message_with_prefixes(
             let Some(parent_path) = path.parent() else {
                 continue;
             };
-            let Some(packagename) = parent_path
+            let Some(mut packagename) = parent_path
                 .file_name()
                 .and_then(|file_name| file_name.to_str())
             else {
                 continue;
             };
 
-            let config_file_location = tojump
+            if let Some(config_file_location) = tojump
                 .iter()
                 .position(|file| CMAKECONFIG.is_match(file.to_str().unwrap()))
-                .unwrap();
-            if config_file_location != 0 {
+                && config_file_location != 0
+            {
                 tojump.swap(0, config_file_location);
+
+                let config_file = tojump[0].to_str().unwrap();
+                if let Some(config_package_name) = config_file.strip_suffix("-config.cmake") {
+                    packagename = config_package_name;
+                }
+                if let Some(config_package_name) = config_file.strip_suffix("Config.cmake") {
+                    packagename = config_package_name;
+                }
+                // NOTE: LLVM is wired
+                if let Some(config_package_name) = config_file.strip_suffix("-Config.cmake") {
+                    packagename = config_package_name;
+                }
             }
 
             let location = Uri::from_file_path(&path).unwrap();
@@ -99,12 +111,29 @@ pub(super) fn get_cmake_message_with_prefixes(
                     let Ok(paths) = std::fs::read_dir(path.path()) else {
                         continue;
                     };
+                    let mut package_name = pathname.clone();
                     for path in paths.flatten() {
                         let filepath = path.path().canonicalize().unwrap();
                         if path.metadata().is_ok_and(|metadata| metadata.is_file()) {
                             let path_name = path.file_name();
                             let filename = path_name.to_str().unwrap();
                             if CMAKEREGEX.is_match(filename) {
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("-config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("Config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
+                                // NOTE: LLVM is wired
+                                if let Some(config_package_name) =
+                                    filename.strip_suffix("-Config.cmake")
+                                {
+                                    package_name = config_package_name.to_owned();
+                                }
                                 if CMAKECONFIGVERSION.is_match(filename)
                                     && let Ok(context) = fs::read_to_string(&filepath)
                                 {
@@ -114,7 +143,7 @@ pub(super) fn get_cmake_message_with_prefixes(
                             }
                         }
                     }
-                    (PackageType::Dir, pathname)
+                    (PackageType::Dir, package_name)
                 } else {
                     tojump.push(path.path().canonicalize().unwrap());
                     let Some(pathname) = handle_config_package(&pathname) else {
