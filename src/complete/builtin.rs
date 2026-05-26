@@ -294,7 +294,13 @@ static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
 /// Resource for generating builtin signatures and commands
 /// the key is command name, not signature
 pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<HashMap<&str, CommandSignatureResource>> =
-    LazyLock::new(|| gen_builtin_command_signature_resource(CMAKE_COMMANDS_HELP.as_ref().unwrap()));
+    LazyLock::new(|| {
+        CMAKE_COMMANDS_HELP
+            .as_ref()
+            .map(String::as_str)
+            .map(gen_builtin_command_signature_resource)
+            .unwrap_or(HashMap::new())
+    });
 
 /// CMake builtin commands
 pub static BUILTIN_COMMAND: LazyLock<Vec<CompletionItem>> = LazyLock::new(gen_builtin_commands);
