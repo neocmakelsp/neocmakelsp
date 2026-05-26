@@ -299,7 +299,7 @@ pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<HashMap<&str, CommandSignatur
             .as_ref()
             .map(String::as_str)
             .map(gen_builtin_command_signature_resource)
-            .unwrap_or(HashMap::new())
+            .unwrap_or_default()
     });
 
 /// CMake builtin commands
