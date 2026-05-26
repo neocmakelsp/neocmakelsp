@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
-use tower_lsp::lsp_extensions::TextDocumentContentChangeEventEx;
+use tower_lsp::lsp_extensions::{MessageEx, TextDocumentContentChangeEventEx};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
 use tree_sitter::Parser;
@@ -137,7 +137,7 @@ impl Backend {
                     code: None,
                     code_description: None,
                     source: None,
-                    message,
+                    message: message.into(),
                     related_information: None,
                     tags: None,
                     data: None,
@@ -592,7 +592,7 @@ impl LanguageServer for Backend {
             .context
             .diagnostics
             .iter()
-            .find(|dia| dia.message.starts_with("[C0301]"))
+            .find(|dia| dia.message.content_str().starts_with("[C0301]"))
         else {
             return Ok(None);
         };
