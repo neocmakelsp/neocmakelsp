@@ -138,7 +138,7 @@ pub async fn getformat(
             Err(err) => {
                 client
                     .log_message(
-                        MessageType::WARNING,
+                        MessageType::Warning,
                         format!("Error running external formatter: {err:?}"),
                     )
                     .await;
@@ -155,7 +155,7 @@ pub async fn getformat(
             if let Err(err) = stdin.write_all(source.as_bytes()).await {
                 client
                     .log_message(
-                        MessageType::WARNING,
+                        MessageType::Warning,
                         format!("Error writing to stdin of external formatter: {err:?}"),
                     )
                     .await;
@@ -171,7 +171,7 @@ pub async fn getformat(
             Err(err) => {
                 client
                     .log_message(
-                        MessageType::WARNING,
+                        MessageType::Warning,
                         format!("Error reading output from external formatter: {err:?}"),
                     )
                     .await;
@@ -182,7 +182,7 @@ pub async fn getformat(
         if !output.status.success() {
             client
                 .log_message(
-                    MessageType::WARNING,
+                    MessageType::Warning,
                     format!(
                         "External formatter exited with error code: {}",
                         output.status.code().unwrap_or(-1)
@@ -196,7 +196,7 @@ pub async fn getformat(
             Err(err) => {
                 client
                     .log_message(
-                        MessageType::WARNING,
+                        MessageType::Warning,
                         format!("Error converting output to UTF-8 string: {err:?}"),
                     )
                     .await;
@@ -231,7 +231,7 @@ pub async fn getformat(
 
     if tree.root_node().has_error() {
         client
-            .log_message(MessageType::WARNING, "Error source")
+            .log_message(MessageType::Warning, "Error source")
             .await;
         return None;
     }

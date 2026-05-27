@@ -21,7 +21,7 @@ fn vcpkg_document_fmt(context: &PkgConfig) -> String {
 PackageName: {}
 PackagePath: {}
 ",
-        context.libname, *context.path,
+        context.libname, context.path,
     )
 }
 

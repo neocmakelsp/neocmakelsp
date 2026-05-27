@@ -137,13 +137,12 @@ endfunction()
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some("Function".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined function\nfrom: {}",
                         another_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -155,18 +154,18 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::VALUE),
+                    kind: Some(CompletionItemKind::Value),
                     detail: Some("Value".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined variable\nfrom: {}",
                         another_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -178,7 +177,8 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
             ]
         );
@@ -223,13 +223,12 @@ endfunction()
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some("Function".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined function\nfrom: {}",
                         another_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -241,18 +240,18 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::VALUE),
+                    kind: Some(CompletionItemKind::Value),
                     detail: Some("Value".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined variable\nfrom: {}",
                         another_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -264,7 +263,8 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
             ]
         );

@@ -64,7 +64,7 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
         .map(|line| &line[13..])
         .map(|line| CompletionItem {
             label: line.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
+            kind: Some(CompletionItemKind::Function),
             detail: Some("Command".to_string()),
             documentation: Some(Documentation::String(format!(
                 "defined command from {filename}\n{doc}"
@@ -197,17 +197,17 @@ pub async fn getcomplete<P: AsRef<Path>>(
             }
         }
         PositionType::Comment => {
-            client.log_message(MessageType::INFO, "Empty").await;
+            client.log_message(MessageType::Info, "Empty").await;
             return None;
         }
         _ => {}
     }
 
     if complete.is_empty() {
-        client.log_message(MessageType::INFO, "Empty").await;
+        client.log_message(MessageType::Info, "Empty").await;
         None
     } else {
-        Some(CompletionResponse::Array(complete))
+        Some(CompletionResponse::CompletionItemList(complete))
     }
 }
 
@@ -275,7 +275,7 @@ fn getsubcomplete<P: AsRef<Path>>(
         }
         complete.push(CompletionItem {
             label: name.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
+            kind: Some(CompletionItemKind::Function),
             detail: Some("Function".to_string()),
             documentation: Some(Documentation::String(document_info)),
             ..Default::default()
@@ -286,7 +286,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             for FunMarcoArg { content, .. } in fun.args(source_bytes) {
                 complete.push(CompletionItem {
                     label: content.to_string(),
-                    kind: Some(CompletionItemKind::VARIABLE),
+                    kind: Some(CompletionItemKind::Variable),
                     detail: Some("VARIABLE".to_string()),
                     documentation: Some(Documentation::String(variable_info.clone())),
                     ..Default::default()
@@ -312,7 +312,7 @@ fn getsubcomplete<P: AsRef<Path>>(
         }
         complete.push(CompletionItem {
             label: name.to_string(),
-            kind: Some(CompletionItemKind::FUNCTION),
+            kind: Some(CompletionItemKind::Function),
             detail: Some("Function".to_string()),
             documentation: Some(Documentation::String(document_info)),
             ..Default::default()
@@ -323,7 +323,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             for FunMarcoArg { content, .. } in macro_node.args(source_bytes) {
                 complete.push(CompletionItem {
                     label: content.to_string(),
-                    kind: Some(CompletionItemKind::VARIABLE),
+                    kind: Some(CompletionItemKind::Variable),
                     detail: Some("VARIABLE".to_string()),
                     documentation: Some(Documentation::String(variable_info.clone())),
                     ..Default::default()
@@ -381,7 +381,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 let variable = arg.utf8_text(source_bytes).unwrap();
                 complete.push(CompletionItem {
                     label: variable.to_string(),
-                    kind: Some(CompletionItemKind::VARIABLE),
+                    kind: Some(CompletionItemKind::Variable),
                     detail: Some("Variable".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined var\nfrom: {}",
@@ -407,7 +407,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 }
                 complete.push(CompletionItem {
                     label: name.to_string(),
-                    kind: Some(CompletionItemKind::VALUE),
+                    kind: Some(CompletionItemKind::Value),
                     detail: Some("Value".to_string()),
                     documentation: Some(Documentation::String(document_info)),
                     ..Default::default()
@@ -456,7 +456,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     for component in components {
                         complete.push(CompletionItem {
                             label: component,
-                            kind: Some(CompletionItemKind::VARIABLE),
+                            kind: Some(CompletionItemKind::Variable),
                             detail: Some("Variable".to_string()),
                             documentation: Some(Documentation::String(format!(
                                 "package from: {package_name}",
@@ -469,7 +469,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
                     complete.push(CompletionItem {
                         label: format!("{package_name}_LIBRARIES"),
-                        kind: Some(CompletionItemKind::VARIABLE),
+                        kind: Some(CompletionItemKind::Variable),
                         detail: Some("Variable".to_string()),
                         documentation: Some(Documentation::String(format!(
                             "package: {package_name}",
@@ -484,7 +484,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 ) {
                     complete.push(CompletionItem {
                         label: format!("{package_name}_INCLUDE_DIRS"),
-                        kind: Some(CompletionItemKind::VARIABLE),
+                        kind: Some(CompletionItemKind::Variable),
                         detail: Some("Variable".to_string()),
                         documentation: Some(Documentation::String(format!(
                             "package: {package_name}",
@@ -527,7 +527,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 {
                     complete.push(CompletionItem {
                         label: format!("PkgConfig::{package_name}"),
-                        kind: Some(CompletionItemKind::VARIABLE),
+                        kind: Some(CompletionItemKind::Variable),
                         detail: Some("Package".to_string()),
                         documentation: Some(Documentation::String(format!(
                             "package: {package_name}",
@@ -538,7 +538,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
                     complete.push(CompletionItem {
                         label: format!("{package_name}_LIBRARIES"),
-                        kind: Some(CompletionItemKind::VARIABLE),
+                        kind: Some(CompletionItemKind::Variable),
                         detail: Some("Package".to_string()),
                         documentation: Some(Documentation::String(format!(
                             "package: {package_name}",
@@ -552,7 +552,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 ) {
                     complete.push(CompletionItem {
                         label: format!("{package_name}_INCLUDE_DIRS"),
-                        kind: Some(CompletionItemKind::VARIABLE),
+                        kind: Some(CompletionItemKind::Variable),
                         detail: Some("Package".to_string()),
                         documentation: Some(Documentation::String(format!(
                             "package: {package_name}",
@@ -874,13 +874,13 @@ endfunction()
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some("Function".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined function\nfrom: {}",
                         root_cmake.display()
                     ))),
-                    deprecated: None,
+                    text_edit_text: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -892,18 +892,19 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::VALUE),
+                    kind: Some(CompletionItemKind::Value),
                     detail: Some("Value".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined variable\nfrom: {}",
                         root_cmake.display()
                     ))),
-                    deprecated: None,
+                    text_edit_text: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -915,7 +916,8 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    ..Default::default()
                 },
             ]
         );
@@ -955,13 +957,12 @@ endfunction()
                 CompletionItem {
                     label: "bb".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::FUNCTION),
+                    kind: Some(CompletionItemKind::Function),
                     detail: Some("Function".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined function\nfrom: {}\n\ntest hello",
                         root_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -973,18 +974,19 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    text_edit_text: None,
+                    tags: None,
+                    ..Default::default()
                 },
                 CompletionItem {
                     label: "AB".to_string(),
                     label_details: None,
-                    kind: Some(CompletionItemKind::VALUE),
+                    kind: Some(CompletionItemKind::Value),
                     detail: Some("Value".to_string()),
                     documentation: Some(Documentation::String(format!(
                         "defined variable\nfrom: {}",
                         root_cmake.display()
                     ))),
-                    deprecated: None,
                     preselect: None,
                     sort_text: None,
                     filter_text: None,
@@ -996,7 +998,10 @@ endfunction()
                     command: None,
                     commit_characters: None,
                     data: None,
-                    tags: None
+                    tags: None,
+                    text_edit_text: None,
+
+                    ..Default::default()
                 },
             ]
         );

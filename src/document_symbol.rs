@@ -17,14 +17,14 @@ pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbol
     let line = context.lines().count();
     if line > 10000 {
         client
-            .log_message(MessageType::INFO, "use simple ast")
+            .log_message(MessageType::Info, "use simple ast")
             .await;
     }
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
     get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
-        .map(DocumentSymbolResponse::Nested)
+        .map(DocumentSymbolResponse::DocumentSymbolList)
 }
 
 #[allow(deprecated)]
@@ -54,7 +54,7 @@ fn get_sub_symbol(
                 asts.push(DocumentSymbol {
                     name: name.to_string(),
                     detail: None,
-                    kind: SymbolKind::FUNCTION,
+                    kind: SymbolKind::Function,
                     tags: None,
                     deprecated: None,
                     range: lsp_types::Range {
@@ -100,7 +100,7 @@ fn get_sub_symbol(
                 asts.push(DocumentSymbol {
                     name: name.to_string(),
                     detail: None,
-                    kind: SymbolKind::FUNCTION,
+                    kind: SymbolKind::Function,
                     tags: None,
                     deprecated: None,
                     range: lsp_types::Range {
@@ -140,7 +140,7 @@ fn get_sub_symbol(
                 asts.push(DocumentSymbol {
                     name: "Closure".to_string(),
                     detail: None,
-                    kind: SymbolKind::NAMESPACE,
+                    kind: SymbolKind::Namespace,
                     tags: None,
                     deprecated: None,
                     range: lsp_types::Range {
@@ -200,7 +200,7 @@ fn get_sub_symbol(
                         asts.push(DocumentSymbol {
                             name: format!("{command_name}: {varname}"),
                             detail: None,
-                            kind: SymbolKind::VARIABLE,
+                            kind: SymbolKind::Variable,
                             tags: None,
                             deprecated: None,
                             range: lsp_types::Range { start, end },

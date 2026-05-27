@@ -42,7 +42,7 @@ impl CacheEntry {
                 self.r#type, self.value
             ))),
             detail: Some("Cached Values".to_string()),
-            kind: Some(CompletionItemKind::VALUE),
+            kind: Some(CompletionItemKind::Value),
             ..Default::default()
         }
     }
@@ -69,7 +69,7 @@ mod tests {
                     "type: Path, value: /usr/share".to_string()
                 )),
                 detail: Some("Cached Values".to_string()),
-                kind: Some(CompletionItemKind::VALUE),
+                kind: Some(CompletionItemKind::Value),
                 ..Default::default()
             }
         );
