@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-06-03
+
+### Changed
+
+- Refactor: switch to gen-lsp-types in #308
+- Fix: builtin commands generator panics when it is without cmake
+- Fix: package like llvm cannot be found, better package scan strategy
+- Perf: remove a large copy in get_version() and reuse parser in #305 by @worldptr
+
+[0.10.3]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.3...v0.10.2
+
 ## [0.10.2] - 2026-04-10
 
 ### Changed
