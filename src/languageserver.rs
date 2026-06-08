@@ -654,7 +654,7 @@ impl LanguageServer for Backend {
         };
         Ok(Some(Hover {
             contents: Contents::MarkupContent(MarkupContent {
-                kind: MarkupKind::PlainText,
+                kind: MarkupKind::Markdown,
                 value,
             }),
             range: Some(Range {
