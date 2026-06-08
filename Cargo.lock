@@ -456,9 +456,9 @@ dependencies = [
 
 [[package]]
 name = "gen-lsp-types"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "350109106fab270b81d632ca3d70ddab124fe96a19ba92cb298a1bbcb9d2ff27"
+checksum = "0af56ad77049db9a3ccf0ec5605561d71c674688b467c429175df54ea5886151"
 dependencies = [
  "serde",
  "serde_json",
@@ -1088,9 +1088,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.149"
+version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86"
+checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
  "indexmap",
  "itoa",
@@ -1360,9 +1360,9 @@ checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
 
 [[package]]
 name = "tower-lsp-f"
-version = "0.25.0-rc3"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83d86a9bf0e4a4beeb1fb21e6b2d97c0bd99147705f96b169496b17416ed4187"
+checksum = "55c54496d893d7b5a8a47aa0f362cfd5ce516a5b6f49f2333aec998c65953c5b"
 dependencies = [
  "auto_impl",
  "bytes",

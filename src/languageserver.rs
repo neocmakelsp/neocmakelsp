@@ -649,11 +649,14 @@ impl LanguageServer for Backend {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let tree = parse.parse(&text, None).unwrap();
 
-        let Some(output) = hover::get_hovered_doc(position, tree.root_node(), &text).await else {
+        let Some(value) = hover::get_hovered_doc(position, tree.root_node(), &text).await else {
             return Ok(None);
         };
         Ok(Some(Hover {
-            contents: Contents::MarkedString(MarkedString::String(output)),
+            contents: Contents::MarkupContent(MarkupContent {
+                kind: MarkupKind::PlainText,
+                value,
+            }),
             range: Some(Range {
                 start: position,
                 end: position,
