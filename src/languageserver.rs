@@ -175,18 +175,15 @@ impl Backend {
         let content_change = params.content_changes.into_iter().next()?;
         let text = content_change.whole_content()?;
         self.update_cache(uri.clone(), text);
-
-        if text.lines().count() < 500 {
-            self.publish_diagnostics(
-                uri.clone(),
-                text,
-                LintConfigInfo {
-                    use_lint: self.init_info().enable_lint,
-                    use_extra_cmake_lint: false,
-                },
-            )
-            .await;
-        }
+        self.publish_diagnostics(
+            uri.clone(),
+            text,
+            LintConfigInfo {
+                use_lint: self.init_info().enable_lint,
+                use_extra_cmake_lint: false,
+            },
+        )
+        .await;
         self.client
             .log_message(MessageType::Info, &format!("update file: {}", uri.as_str()))
             .await;
