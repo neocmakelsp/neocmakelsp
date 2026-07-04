@@ -147,14 +147,14 @@ pub async fn getcomplete<P: AsRef<Path>>(
         | PositionType::TargetLink
         | PositionType::TargetInclude
         | PositionType::ArgumentOrList => {
-            let mut cached_completion = get_cached_completion(local_path, documents).await;
+            let cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
-                complete.append(&mut cached_completion);
+                complete.extend(cached_completion);
             }
-            if let Some(mut cmake_cache) = fileapi::get_complete_data() {
-                complete.append(&mut cmake_cache);
+            if let Some(cmake_cache) = fileapi::get_complete_data() {
+                complete.extend(cmake_cache);
             }
-            if let Some(mut message) = getsubcomplete(
+            if let Some(message) = getsubcomplete(
                 tree.root_node(),
                 source,
                 Path::new(local_path),
@@ -165,37 +165,37 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 true,
                 find_cmake_in_package,
             ) {
-                complete.append(&mut message);
+                complete.extend(message);
             }
 
             if !matches!(postype, PositionType::ArgumentOrList) {
                 let messages = &*BUILTIN_COMMAND;
-                complete.append(&mut messages.clone());
+                complete.extend(messages.clone());
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {
-                complete.append(&mut messages.clone());
+                complete.extend(messages.clone());
             }
         }
         PositionType::FindPackageSpace(space) => {
-            complete.append(&mut findpackage::completion_items_with_prefix(space));
+            complete.extend(findpackage::completion_items_with_prefix(space));
         }
         PositionType::FindPackage => {
-            complete.append(&mut findpackage::CMAKE_SOURCE.clone());
+            complete.extend(findpackage::CMAKE_SOURCE.clone());
         }
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
-            complete.append(&mut findpackage::PKGCONFIG_SOURCE.clone());
+            complete.extend(findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
-            let mut cached_completion = get_cached_completion(local_path, documents).await;
+            let cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
-                complete.append(&mut cached_completion);
+                complete.extend(cached_completion);
             }
-            if let Some(mut cmake_cache) = fileapi::get_complete_data() {
-                complete.append(&mut cmake_cache);
+            if let Some(cmake_cache) = fileapi::get_complete_data() {
+                complete.extend(cmake_cache);
             }
             if let Ok(messages) = &*BUILTIN_MODULE {
-                complete.append(&mut messages.clone());
+                complete.extend(messages.clone());
             }
         }
         PositionType::Comment => {
@@ -293,7 +293,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     let normal_commands = get_normal_commands(source_bytes, input, max_height);
     // NOTE: check bracket_comments
     for bracket_comment in bracket_comments {
-        complete.append(&mut rst_doc_read(
+        complete.extend(rst_doc_read(
             bracket_comment.content,
             local_path.file_name().unwrap().to_str().unwrap(),
         ));
@@ -405,7 +405,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 continue;
             }
             if matches!(subpath.try_exists(), Ok(true)) {
-                if let Some(mut comps) = includescanner::scanner_include_complete(
+                if let Some(comps) = includescanner::scanner_include_complete(
                     &subpath,
                     postype,
                     include_files,
@@ -413,7 +413,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     find_cmake_in_package,
                     is_builtin,
                 ) {
-                    complete.append(&mut comps);
+                    complete.extend(comps);
                 }
                 include_files.push(subpath);
             }
@@ -538,7 +538,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                         continue;
                     }
                     complete_packages.push(package.clone());
-                    let Some(mut completeitem) = get_cmake_package_complete(
+                    let Some(completeitem) = get_cmake_package_complete(
                         package.as_str(),
                         postype,
                         include_files,
@@ -546,7 +546,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     ) else {
                         continue;
                     };
-                    complete.append(&mut completeitem);
+                    complete.extend(completeitem);
                 }
             }
 
@@ -621,7 +621,7 @@ fn get_cmake_package_complete(
     let mut complete_infos = Vec::new();
 
     for path in packageinfo.tojump.iter() {
-        let Some(mut packages) = includescanner::scanner_package_complete(
+        let Some(packages) = includescanner::scanner_package_complete(
             path,
             postype,
             include_files,
@@ -629,7 +629,7 @@ fn get_cmake_package_complete(
         ) else {
             continue;
         };
-        complete_infos.append(&mut packages);
+        complete_infos.extend(packages);
     }
 
     Some(complete_infos)
