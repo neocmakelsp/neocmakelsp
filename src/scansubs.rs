@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::NeoStrExt;
 use crate::utils::query::get_normal_commands;
-use crate::utils::remove_quotation_and_replace_placeholders;
 use crate::{complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
@@ -92,7 +92,7 @@ fn scan_node<P: AsRef<Path>>(
             let Some(first_arg) = command.first_arg else {
                 continue;
             };
-            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(file_name) = first_arg.try_replace_placeholders() else {
                 continue;
             };
 
@@ -107,7 +107,7 @@ fn scan_node<P: AsRef<Path>>(
             let Some(first_arg) = command.first_arg else {
                 continue;
             };
-            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(file_name) = first_arg.try_replace_placeholders() else {
                 continue;
             };
 
@@ -187,7 +187,7 @@ fn get_subdir_from_tree(source: &str, tree: tree_sitter::Node, parent: &Path) ->
             let Some(first_arg) = command.first_arg else {
                 continue;
             };
-            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(file_name) = first_arg.try_replace_placeholders() else {
                 continue;
             };
 

@@ -61,8 +61,34 @@ pub fn include_is_module(file_name: &str) -> bool {
     !file_name.ends_with(".cmake")
 }
 
-pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
-    replace_placeholders(origin_template.trim_matches('"'))
+pub trait NeoStrExt {
+    /// just remote the quotation
+    fn remove_quotation(&self) -> &str;
+
+    /// [NeoStrExt::try_replace_placeholders] should run [NeoStrExt::remove_quotation] first, and
+    /// try to replace the placeholder, if cannot find the key, it should give up and return None
+    fn try_replace_placeholders(&self) -> Option<String>;
+}
+
+/// Some extension used in neocmakelsp for str and String
+impl NeoStrExt for str {
+    fn remove_quotation(&self) -> &str {
+        self.trim_matches('"')
+    }
+
+    fn try_replace_placeholders(&self) -> Option<String> {
+        replace_placeholders(self.remove_quotation())
+    }
+}
+
+impl NeoStrExt for String {
+    fn remove_quotation(&self) -> &str {
+        self.trim_matches('"')
+    }
+
+    fn try_replace_placeholders(&self) -> Option<String> {
+        replace_placeholders(self.remove_quotation())
+    }
 }
 
 pub fn replace_placeholders(template: &str) -> Option<String> {
@@ -174,7 +200,7 @@ mod tests {
         }
         assert_eq!(
             "/tmp/wezterm",
-            replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
+            "$ENV{TempDir}/wezterm".try_replace_placeholders().unwrap()
         );
     }
 

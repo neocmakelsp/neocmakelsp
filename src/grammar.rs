@@ -9,7 +9,7 @@ use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
-use crate::utils::{include_is_module, remove_quotation_and_replace_placeholders};
+use crate::utils::{NeoStrExt, include_is_module};
 
 const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
 
@@ -238,7 +238,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             let Some(first_arg) = query_now.first_arg else {
                 continue;
             };
-            let Some(first_arg) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(first_arg) = first_arg.try_replace_placeholders() else {
                 continue;
             };
             let first_arg_node = query_now.args[0];

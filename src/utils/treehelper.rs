@@ -27,6 +27,16 @@ pub const fn point_to_position(input: Point) -> Position {
     }
 }
 
+pub trait NodeExt {
+    fn contain(self, loc: Point) -> bool;
+}
+
+impl<'a> NodeExt for Node<'a> {
+    fn contain(self, loc: Point) -> bool {
+        location_range_contain(loc, self)
+    }
+}
+
 pub trait ToPosition {
     fn to_position(&self) -> Position;
 }
