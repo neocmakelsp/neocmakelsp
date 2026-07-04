@@ -2,6 +2,7 @@ pub mod builtin;
 mod findpackage;
 mod includescanner;
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
@@ -197,6 +198,15 @@ pub async fn getcomplete<P: AsRef<Path>>(
             if let Ok(messages) = &*BUILTIN_MODULE {
                 complete.extend(messages.clone());
             }
+            if let Some(command) =
+                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
+                && let Some(first_arg) = command.first_arg
+                && command.args[0].contain(location.to_point())
+                && let Some(prompt) = first_arg.try_replace_placeholders()
+                && let Some(list) = get_include_completions(&prompt, local_path)
+            {
+                complete.extend(list);
+            }
         }
         PositionType::Comment => {
             client.log_message(MessageType::Info, "Empty").await;
@@ -224,6 +234,49 @@ pub async fn getcomplete<P: AsRef<Path>>(
     }
 }
 
+fn get_include_completions<P: AsRef<Path>>(
+    prompt: &str,
+    local_path: P,
+) -> Option<Vec<CompletionItem>> {
+    let current_dir = local_path.as_ref().parent()?;
+    let dir_str = current_dir.to_str()?;
+    let pattern1 = format!("{dir_str}/{prompt}*/**/*.cmake");
+
+    let mut lists: Vec<CompletionItem> = glob(&pattern1)
+        .ok()?
+        .flatten()
+        .filter_map(|path| pathdiff::diff_paths(path, current_dir))
+        .map(|pa| {
+            let label = pa.to_string_lossy().to_string();
+            CompletionItem {
+                label,
+                kind: Some(CompletionItemKind::File),
+                ..Default::default()
+            }
+        })
+        .collect();
+    let pattern2 = format!("{dir_str}/{prompt}*.cmake");
+    let lists2: Vec<CompletionItem> = glob(&pattern2)
+        .ok()?
+        .flatten()
+        .filter_map(|pa| {
+            let mut file = std::fs::File::open(&pa).ok()?;
+            let mut document = String::new();
+            file.read_to_string(&mut document).ok()?;
+            let pa = pathdiff::diff_paths(pa, current_dir)?;
+            let label = pa.to_string_lossy().to_string();
+            Some(CompletionItem {
+                label,
+                kind: Some(CompletionItemKind::File),
+                documentation: Some(Documentation::String(document.to_string())),
+                ..Default::default()
+            })
+        })
+        .collect();
+    lists.extend(lists2);
+    Some(lists)
+}
+
 fn get_subdir_completions<P: AsRef<Path>>(
     prompt: &str,
     local_path: P,
@@ -244,7 +297,6 @@ fn get_subdir_completions<P: AsRef<Path>>(
                 CompletionItem {
                     label,
                     kind: Some(CompletionItemKind::Folder),
-                    detail: Some("sub directory".to_string()),
                     ..Default::default()
                 }
             })
