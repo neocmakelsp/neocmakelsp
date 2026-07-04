@@ -145,7 +145,7 @@ impl Backend {
                 pusheddiagnoses.push(diagnose);
             }
             self.client
-                .publish_diagnostics(uri, pusheddiagnoses, Some(1))
+                .publish_diagnostics(uri, pusheddiagnoses, None)
                 .await;
         } else {
             self.client.publish_diagnostics(uri, vec![], None).await;
