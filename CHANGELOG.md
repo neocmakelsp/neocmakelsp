@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.4] - 2026-06-03
+
+### Changed
+
+- Feat: support completing path and sub directory
+- Fix: send null version in publishDiagnostics by @ecoezen
+- Fix(ci): bump codecov version by @ApprentiecofEnder
+- Fix: remove the restriction for gammar check because we are using tree-sitter query now
+
+[0.10.4]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.10.4...v0.10.3
+
 ## [0.10.3] - 2026-06-03
 
 ### Changed
