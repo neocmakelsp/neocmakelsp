@@ -7,6 +7,7 @@ use std::sync::{Arc, LazyLock};
 
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use dashmap::DashMap;
+use glob::glob;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType, Position,
@@ -19,11 +20,13 @@ use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
-    get_normal_commands,
+    get_normal_commands, try_find_normal_command,
 };
-use crate::utils::treehelper::{PositionType, ToPoint, get_pos_type, location_range_contain};
+use crate::utils::treehelper::{
+    NodeExt, PositionType, ToPoint, get_pos_type, location_range_contain,
+};
 use crate::utils::{
-    CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, include_is_module,
+    CACHE_CMAKE_PACKAGES_WITHKEYS, NeoStrExt, gen_module_pattern, include_is_module,
     remove_quotation_and_replace_placeholders,
 };
 
@@ -200,6 +203,17 @@ pub async fn getcomplete<P: AsRef<Path>>(
             client.log_message(MessageType::Info, "Empty").await;
             return None;
         }
+        PositionType::SubDir => {
+            if let Some(command) =
+                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
+                && let Some(first_arg) = command.first_arg
+                && command.args[0].contain(location.to_point())
+                && let prompt = first_arg.remove_quotation().replace_placeholders()
+                && let Some(list) = get_subdir_completions(&prompt, local_path)
+            {
+                complete.extend(list);
+            }
+        }
         _ => {}
     }
 
@@ -209,6 +223,34 @@ pub async fn getcomplete<P: AsRef<Path>>(
     } else {
         Some(CompletionResponse::CompletionItemList(complete))
     }
+}
+
+fn get_subdir_completions<P: AsRef<Path>>(
+    prompt: &str,
+    local_path: P,
+) -> Option<Vec<CompletionItem>> {
+    let current_dir = local_path.as_ref().parent()?;
+    let dir_str = current_dir.to_str()?;
+    let pattern = format!("{dir_str}/{prompt}*/**/CMakeLists.txt");
+    Some(
+        glob(&pattern)
+            .ok()?
+            .flatten()
+            .filter_map(|path| {
+                path.parent()
+                    .and_then(|path| pathdiff::diff_paths(path, current_dir))
+            })
+            .map(|pa| {
+                let label = pa.to_string_lossy().to_string();
+                CompletionItem {
+                    label,
+                    kind: Some(CompletionItemKind::Folder),
+                    detail: Some("sub directory".to_string()),
+                    ..Default::default()
+                }
+            })
+            .collect(),
+    )
 }
 
 /// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude | ArgumentOrList

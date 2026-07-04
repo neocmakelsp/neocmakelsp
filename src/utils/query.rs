@@ -1,4 +1,4 @@
-use tree_sitter::{Node, Query, QueryCapture, QueryCursor, StreamingIterator};
+use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, StreamingIterator};
 
 use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 
@@ -273,10 +273,34 @@ pub fn get_normal_commands<'a>(
     node: Node<'a>,
     max_height: impl Into<Option<u32>>,
 ) -> Vec<NormalCommandNode<'a>> {
+    get_normal_commands_inner(source, node, max_height, None)
+}
+
+/// try get the command
+#[must_use]
+pub fn try_find_normal_command<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    point: Point,
+) -> Option<NormalCommandNode<'a>> {
+    get_normal_commands_inner(source, node, None, point)
+        .into_iter()
+        .next()
+}
+
+fn get_normal_commands_inner<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: impl Into<Option<u32>>,
+    point: impl Into<Option<Point>>,
+) -> Vec<NormalCommandNode<'a>> {
     let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut commands = vec![];
     let query_cmd = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
     let mut cursor_cmd = QueryCursor::new();
+    if let Some(point) = point.into() {
+        cursor_cmd.set_point_range(point..point);
+    }
     let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
 
     while let Some(m) = matches_cmd.next() {

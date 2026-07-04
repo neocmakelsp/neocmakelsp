@@ -61,6 +61,40 @@ pub fn include_is_module(file_name: &str) -> bool {
     !file_name.ends_with(".cmake")
 }
 
+pub trait NeoStrExt {
+    fn remove_quotation(&self) -> &str;
+
+    fn replace_placeholders(&self) -> String;
+    fn try_replace_placeholders(&self) -> Option<String>;
+}
+
+/// some extension used in neocmakelsp for str and String
+impl NeoStrExt for str {
+    fn remove_quotation(&self) -> &str {
+        self.trim_matches('"')
+    }
+
+    fn replace_placeholders(&self) -> String {
+        self.try_replace_placeholders().unwrap_or(self.to_string())
+    }
+
+    fn try_replace_placeholders(&self) -> Option<String> {
+        replace_placeholders(self)
+    }
+}
+
+impl NeoStrExt for String {
+    fn remove_quotation(&self) -> &str {
+        self.trim_matches('"')
+    }
+    fn replace_placeholders(&self) -> String {
+        self.try_replace_placeholders().unwrap_or(self.clone())
+    }
+    fn try_replace_placeholders(&self) -> Option<String> {
+        replace_placeholders(self)
+    }
+}
+
 pub fn remove_quotation_and_replace_placeholders(origin_template: &str) -> Option<String> {
     replace_placeholders(origin_template.trim_matches('"'))
 }
@@ -174,7 +208,7 @@ mod tests {
         }
         assert_eq!(
             "/tmp/wezterm",
-            replace_placeholders("$ENV{TempDir}/wezterm").unwrap()
+            "$ENV{TempDir}/wezterm".try_replace_placeholders().unwrap()
         );
     }
 
