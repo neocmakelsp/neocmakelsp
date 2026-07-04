@@ -27,7 +27,6 @@ use crate::utils::treehelper::{
 };
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, NeoStrExt, gen_module_pattern, include_is_module,
-    remove_quotation_and_replace_placeholders,
 };
 
 pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
@@ -208,7 +207,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
                 && let Some(first_arg) = command.first_arg
                 && command.args[0].contain(location.to_point())
-                && let prompt = first_arg.remove_quotation().replace_placeholders()
+                && let Some(prompt) = first_arg.try_replace_placeholders()
                 && let Some(list) = get_subdir_completions(&prompt, local_path)
             {
                 complete.extend(list);
@@ -381,7 +380,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             let Some(first_arg) = command.first_arg else {
                 continue;
             };
-            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(file_name) = first_arg.try_replace_placeholders() else {
                 continue;
             };
             let (is_builtin, subpath) = {

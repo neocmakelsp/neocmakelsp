@@ -5,9 +5,7 @@ use tower_lsp::lsp_types::{DocumentLink, Position, Range};
 use crate::Uri;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
-use crate::utils::{
-    gen_module_pattern, include_is_module, remove_quotation_and_replace_placeholders,
-};
+use crate::utils::{NeoStrExt, gen_module_pattern, include_is_module};
 
 const LINK_NODE_KIND: &[&str] = &["include", "add_subdirectory"];
 
@@ -55,7 +53,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
                 {
                     continue;
                 }
-                let Some(filename) = remove_quotation_and_replace_placeholders(arg) else {
+                let Some(filename) = arg.try_replace_placeholders() else {
                     continue;
                 };
                 let file_path = current_parent.as_ref().join(filename);
@@ -89,7 +87,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
         let Some(first_arg) = command.first_arg else {
             continue;
         };
-        let Some(filename) = remove_quotation_and_replace_placeholders(first_arg) else {
+        let Some(filename) = first_arg.try_replace_placeholders() else {
             continue;
         };
         let (final_uri, builtin) = if is_subdirectory {

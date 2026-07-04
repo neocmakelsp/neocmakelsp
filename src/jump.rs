@@ -8,7 +8,7 @@ use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
 use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_CMAKE_MAP;
-use crate::utils::remove_quotation_and_replace_placeholders;
+use crate::utils::NeoStrExt;
 /// provide go to definition
 use crate::{
     consts::TREESITTER_CMAKE_LANGUAGE,
@@ -537,7 +537,7 @@ fn getsubdef<P: AsRef<Path>>(
             let Some(first_arg) = command.first_arg else {
                 continue;
             };
-            let Some(file_name) = remove_quotation_and_replace_placeholders(first_arg) else {
+            let Some(file_name) = first_arg.try_replace_placeholders() else {
                 continue;
             };
             let (is_builtin, subpath) = {
