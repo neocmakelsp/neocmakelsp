@@ -21,7 +21,7 @@ use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
-    get_normal_commands, try_find_normal_command,
+    get_normal_commands, try_get_normal_command,
 };
 use crate::utils::treehelper::{
     NodeExt, PositionType, ToPoint, get_pos_type, location_range_contain,
@@ -199,7 +199,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 complete.extend(messages.clone());
             }
             if let Some(command) =
-                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
+                try_get_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
                 && let Some(first_arg) = command.first_arg
                 && command.args[0].contain(location.to_point())
                 && let Some(prompt) = first_arg.try_replace_placeholders()
@@ -214,7 +214,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
         }
         PositionType::SubDir => {
             if let Some(command) =
-                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
+                try_get_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
                 && let Some(first_arg) = command.first_arg
                 && command.args[0].contain(location.to_point())
                 && let Some(prompt) = first_arg.try_replace_placeholders()
