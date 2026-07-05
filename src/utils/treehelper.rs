@@ -283,18 +283,25 @@ impl<'a> CurrentNodeInfo<'a> {
     fn get_command(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
         let command = try_get_normal_command(source, node, location)?;
         let identifier = command.identifier.to_lowercase();
-        let (node_idx, node) = command
-            .args
-            .into_iter()
-            .enumerate()
-            .find(|(_, arg)| arg.contain(location))?;
+        let (argument_index, node) = if command.identifier_node.unwrap().contain(location) {
+            (None, command.identifier_node.unwrap())
+        } else {
+            command
+                .args
+                .into_iter()
+                .enumerate()
+                .map(|(idx, node)| (Some(idx), node))
+                .find(|(_, arg)| arg.contain(location))?
+        };
         let content = node.utf8_text(source).unwrap();
         let typ = match identifier.as_str() {
             "find_package" => {
                 let argument_list = command.argument_list?.utf8_text(source).unwrap();
                 let val = command.first_arg?;
 
-                if argument_list.contains("COMPONENTS") && node_idx >= 2 && content != "COMPONENTS"
+                if argument_list.contains("COMPONENTS")
+                    && argument_index.is_some_and(|index| index >= 2)
+                    && content != "COMPONENTS"
                 {
                     PositionType::FindPackageSpace(val)
                 } else {
@@ -313,7 +320,7 @@ impl<'a> CurrentNodeInfo<'a> {
             node: Some(node),
             typ,
             content: Some(content),
-            argument_index: Some(node_idx),
+            argument_index,
         })
     }
 
