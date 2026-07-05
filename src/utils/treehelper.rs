@@ -227,7 +227,7 @@ pub struct CurrentNodeInfo<'a> {
 }
 
 impl<'a> CurrentNodeInfo<'a> {
-    pub fn pos_type(&'a self) -> PositionType<'a> {
+    pub const fn pos_type(&'a self) -> PositionType<'a> {
         self.typ
     }
 
@@ -239,7 +239,7 @@ impl<'a> CurrentNodeInfo<'a> {
         self.argument_index.is_some_and(|index| index == 0)
     }
 
-    pub fn in_argument_list(&'a self) -> bool {
+    pub const fn in_argument_list(&'a self) -> bool {
         self.argument_index.is_some()
     }
 
@@ -293,15 +293,13 @@ impl<'a> CurrentNodeInfo<'a> {
             "find_package" => {
                 let argument_list = command.argument_list?.utf8_text(source).unwrap();
                 let val = command.first_arg?;
-                let typ = if argument_list.contains("COMPONENTS")
-                    && node_idx >= 2
-                    && content != "COMPONENTS"
+
+                if argument_list.contains("COMPONENTS") && node_idx >= 2 && content != "COMPONENTS"
                 {
                     PositionType::FindPackageSpace(val)
                 } else {
                     PositionType::FindPackage
-                };
-                typ
+                }
             }
             #[cfg(unix)]
             "pkg_check_modules" => PositionType::FindPkgConfig,
