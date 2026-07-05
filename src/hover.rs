@@ -8,9 +8,8 @@ use crate::jump::JUMP_CACHE;
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PkgConfig;
-use crate::utils::treehelper::{
-    MESSAGE_STORAGE, PositionType, ToPoint, get_point_string, get_pos_type,
-};
+use crate::utils::treehelper::CurrentNodeInfo;
+use crate::utils::treehelper::{MESSAGE_STORAGE, PositionType, ToPoint};
 use crate::utils::{CACHE_CMAKE_PACKAGES_WITHKEYS, CMakePackage, PackageType, get_the_packagename};
 
 #[inline]
@@ -47,9 +46,9 @@ PackageVersion: {}
 
 /// get the doc for on hover
 pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
-    let current_point = location.to_point();
-    let message = get_point_string(current_point, root, source.as_bytes())?;
-    let inner_result = match get_pos_type(current_point, root, source) {
+    let current_node_info = CurrentNodeInfo::get(source, root, location.to_point());
+    let message = current_node_info.content()?;
+    let inner_result = match current_node_info.pos_type() {
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
             let package = get_the_packagename(message);

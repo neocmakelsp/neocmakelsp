@@ -21,11 +21,9 @@ use crate::languageserver::get_or_update_buffer_contents;
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
-    get_normal_commands, try_find_normal_command,
+    get_normal_commands,
 };
-use crate::utils::treehelper::{
-    NodeExt, PositionType, ToPoint, get_pos_type, location_range_contain,
-};
+use crate::utils::treehelper::{CurrentNodeInfo, PositionType, ToPoint, location_range_contain};
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, NeoStrExt, gen_module_pattern, include_is_module,
 };
@@ -142,12 +140,10 @@ pub async fn getcomplete<P: AsRef<Path>>(
     let mut complete: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
-    let postype = get_pos_type(current_point, tree.root_node(), source);
+    let node_info = CurrentNodeInfo::get(source, tree.root_node(), current_point);
+    let postype = node_info.pos_type();
     match postype {
-        PositionType::VarOrFun
-        | PositionType::TargetLink
-        | PositionType::TargetInclude
-        | PositionType::ArgumentOrList => {
+        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             let cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
                 complete.extend(cached_completion);
@@ -169,7 +165,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 complete.extend(message);
             }
 
-            if !matches!(postype, PositionType::ArgumentOrList) {
+            if !node_info.in_argument_list() {
                 let messages = &*BUILTIN_COMMAND;
                 complete.extend(messages.clone());
             }
@@ -198,12 +194,19 @@ pub async fn getcomplete<P: AsRef<Path>>(
             if let Ok(messages) = &*BUILTIN_MODULE {
                 complete.extend(messages.clone());
             }
-            if let Some(command) =
-                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
-                && let Some(first_arg) = command.first_arg
-                && command.args[0].contain(location.to_point())
-                && let Some(prompt) = first_arg.try_replace_placeholders()
+            if let Some(prompt) = node_info.content()
+                && node_info.is_first_argument()
+                && let Some(prompt) = prompt.try_replace_placeholders()
                 && let Some(list) = get_include_completions(&prompt, local_path)
+            {
+                complete.extend(list);
+            }
+        }
+        PositionType::SubDir => {
+            if let Some(promopt) = node_info.content()
+                && node_info.is_first_argument()
+                && let Some(prompt) = promopt.try_replace_placeholders()
+                && let Some(list) = get_subdir_completions(&prompt, local_path)
             {
                 complete.extend(list);
             }
@@ -211,17 +214,6 @@ pub async fn getcomplete<P: AsRef<Path>>(
         PositionType::Comment => {
             client.log_message(MessageType::Info, "Empty").await;
             return None;
-        }
-        PositionType::SubDir => {
-            if let Some(command) =
-                try_find_normal_command(source.as_bytes(), tree.root_node(), location.to_point())
-                && let Some(first_arg) = command.first_arg
-                && command.args[0].contain(location.to_point())
-                && let Some(prompt) = first_arg.try_replace_placeholders()
-                && let Some(list) = get_subdir_completions(&prompt, local_path)
-            {
-                complete.extend(list);
-            }
         }
         _ => {}
     }
@@ -321,10 +313,7 @@ fn getsubcomplete<P: AsRef<Path>>(
 ) -> Option<Vec<CompletionItem>> {
     assert!(matches!(
         postype,
-        PositionType::VarOrFun
-            | PositionType::TargetLink
-            | PositionType::TargetInclude
-            | PositionType::ArgumentOrList
+        PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
     ));
     let local_path = local_path.as_ref();
     if let Some(location) = location
@@ -488,7 +477,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 let Some(name) = command.first_arg else {
                     continue;
                 };
-                let row = command.identifier_node.unwrap().start_position().row;
+                let row = command.identifier_node.start_position().row;
                 let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 
                 if let Some(line_comment) = comments
