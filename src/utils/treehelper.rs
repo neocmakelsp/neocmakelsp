@@ -8,15 +8,18 @@ use lsp_types::{Position, Range};
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};
 
-use crate::CMakeNodeKinds;
+use crate::{
+    CMakeNodeKinds,
+    utils::{
+        NeoStrExt,
+        query::{
+            try_get_bracket_comment, try_get_function, try_get_line_comment, try_get_macro,
+            try_get_normal_command, try_get_variable,
+        },
+    },
+};
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
-
-const SPECIALCOMMANDS: [&str; 3] = [
-    "find_package",
-    "target_link_libraries",
-    "target_include_directories",
-];
 
 /// treesitter to lsp_types
 #[inline]
@@ -64,36 +67,6 @@ pub const fn position_to_point(input: Position) -> Point {
         row: input.line as usize,
         column: input.character as usize,
     }
-}
-
-/// get the position of the string
-pub fn get_point_string<'a>(location: Point, root: Node, source: &'a [u8]) -> Option<&'a str> {
-    let mut course = root.walk();
-    for child in root.children(&mut course) {
-        if !location_range_contain(location, child) {
-            continue;
-        }
-        if BLACK_POS_STRING.contains(&child.kind()) {
-            continue;
-        }
-        if child.child_count() != 0 {
-            let mabepos = get_point_string(location, child, source);
-            if mabepos
-                .as_ref()
-                .is_some_and(|message| !BLACK_POS_STRING.contains(message))
-            {
-                return mabepos;
-            }
-        }
-        // if is the same line
-        if child.start_position().row == child.end_position().row
-            && location.column <= child.end_position().column
-            && location.column >= child.start_position().column
-        {
-            return child.utf8_text(source).ok();
-        }
-    }
-    None
 }
 
 /// from the position to get range
@@ -186,19 +159,18 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
     storage
 });
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PositionType<'a> {
+    #[default]
     VarOrFun, // the variable defined in cmake file or macro or fun
     FunOrMacroIdentifier,
-    ArgumentOrList, // Not the ${abc} kind, just normake argument
-    FindPackage,    // normal_command start with find_package
+    FindPackage, // normal_command start with find_package
     FindPackageSpace(&'a str),
     #[cfg(unix)]
     FindPkgConfig, // PkgConfig file
     SubDir,
     Include,
     FunOrMacroArgs,
-    Unknown, // Unknown type, use as the input
     TargetInclude,
     TargetLink,
     Comment,
@@ -245,144 +217,169 @@ pub fn contain_comment(location: Point, root: Node) -> bool {
     false
 }
 
-#[inline]
-pub fn get_pos_type<'a>(location: Point, root: Node, source: &'a str) -> PositionType<'a> {
-    get_pos_type_inner(location, root, source.as_bytes(), PositionType::Unknown)
+#[derive(Debug, Default)]
+pub struct CurrentNodeInfo<'a> {
+    #[allow(unused)]
+    node: Option<Node<'a>>,
+    typ: PositionType<'a>,
+    content: Option<&'a str>,
+    argument_index: Option<usize>,
 }
 
-fn get_pos_type_inner<'a>(
-    location: Point,
-    root: Node,
-    source: &'a [u8],
-    input_type: PositionType<'a>,
-) -> PositionType<'a> {
-    let mut course = root.walk();
-    for child in root.children(&mut course) {
-        if !location_range_contain(location, child) {
-            continue;
+impl<'a> CurrentNodeInfo<'a> {
+    pub fn pos_type(&'a self) -> PositionType<'a> {
+        self.typ
+    }
+
+    pub fn content(&'a self) -> Option<&'a str> {
+        self.content.map(|content| content.remove_quotation())
+    }
+
+    pub fn is_first_argument(&'a self) -> bool {
+        self.argument_index.is_some_and(|index| index == 0)
+    }
+
+    pub fn in_argument_list(&'a self) -> bool {
+        self.argument_index.is_some()
+    }
+
+    pub fn get(source: &'a str, node: Node<'a>, location: Point) -> Self {
+        let source = source.as_bytes();
+
+        if let Some(variable) = Self::get_variable(source, node, location) {
+            return variable;
         }
 
-        let jumptype = match child.kind() {
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let identifier = child.child(0).unwrap();
-                let name = identifier.utf8_text(source).unwrap().to_lowercase();
-                match name.as_str() {
-                    "find_package" => PositionType::FindPackage,
-                    #[cfg(unix)]
-                    "pkg_check_modules" => PositionType::FindPkgConfig,
-                    "include" => PositionType::Include,
-                    "add_subdirectory" => PositionType::SubDir,
-                    "target_include_directories" => PositionType::TargetInclude,
-                    "target_link_libraries" => PositionType::TargetLink,
-                    _ => PositionType::VarOrFun,
-                }
+        if let Some(command) = Self::get_command(source, node, location) {
+            return command;
+        }
+
+        if let Some(r#macro) = Self::get_macro(source, node, location) {
+            return r#macro;
+        }
+
+        if let Some(function) = Self::get_function(source, node, location) {
+            return function;
+        }
+
+        if let Some(line_comment) = Self::get_line_comment(source, node, location) {
+            return line_comment;
+        }
+
+        Self::get_bracket_comment(source, node, location).unwrap_or_default()
+    }
+
+    fn get_variable(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let variable = try_get_variable(source, node, location)?;
+
+        Some(Self {
+            node: Some(variable.node),
+            typ: PositionType::VarOrFun,
+            content: Some(variable.content),
+            argument_index: None,
+        })
+    }
+
+    fn get_command(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let command = try_get_normal_command(source, node, location)?;
+        let identifier = command.identifier.to_lowercase();
+        let (node_idx, node) = command
+            .args
+            .into_iter()
+            .enumerate()
+            .find(|(_, arg)| arg.contain(location))?;
+        let content = node.utf8_text(source).unwrap();
+        let typ = match identifier.as_str() {
+            "find_package" => {
+                let argument_list = command.argument_list?.utf8_text(source).unwrap();
+                let val = command.first_arg?;
+                let typ = if argument_list.contains("COMPONENTS")
+                    && node_idx >= 2
+                    && content != "COMPONENTS"
+                {
+                    PositionType::FindPackageSpace(val)
+                } else {
+                    PositionType::FindPackage
+                };
+                typ
             }
-            CMakeNodeKinds::ARGUMENT_LIST => {
-                let child_count = child.child_count();
-                if child.child_count() >= 1 {
-                    let first_argument = child.child(0).unwrap();
-                    let node_source = child.utf8_text(source).unwrap();
-                    let val = first_argument.utf8_text(source).unwrap();
-                    if child_count >= 2
-                        && !location_range_contain(location, first_argument)
-                        && input_type == PositionType::FindPackage
-                        && node_source.contains("COMPONENTS")
-                    {
-                        return PositionType::FindPackageSpace(val);
-                    }
-                    if input_type == PositionType::FunOrMacroArgs
-                        && location_range_contain(location, first_argument)
-                    {
-                        return PositionType::FunOrMacroIdentifier;
-                    }
-                }
-                PositionType::ArgumentOrList
-            }
-            CMakeNodeKinds::FUNCTION_COMMAND | CMakeNodeKinds::MACRO_COMMAND => {
-                PositionType::FunOrMacroArgs
-            }
-            CMakeNodeKinds::UNQUOTED_ARGUMENT | CMakeNodeKinds::QUOTED_ELEMENT => {
-                PositionType::ArgumentOrList
-            }
-            CMakeNodeKinds::NORMAL_VAR
-            | CMakeNodeKinds::VARIABLE_REF
-            | CMakeNodeKinds::VARIABLE => PositionType::VarOrFun,
-            CMakeNodeKinds::ARGUMENT => match input_type {
-                PositionType::FindPackage | PositionType::SubDir | PositionType::Include => {
-                    input_type
-                }
-                #[cfg(unix)]
-                PositionType::FindPkgConfig => input_type,
-                _ => PositionType::VarOrFun,
-            },
-            CMakeNodeKinds::LINE_COMMENT
-            | CMakeNodeKinds::BRACKET_COMMENT
-            | CMakeNodeKinds::BRACKET_COMMENT_CONTENT
-            | CMakeNodeKinds::BRACKET_COMMENT_CLOSE
-            | CMakeNodeKinds::BRACKET_COMMENT_OPEN
-            | CMakeNodeKinds::BRACKET_ARGUMENT_OPEN => PositionType::Comment,
+            #[cfg(unix)]
+            "pkg_check_modules" => PositionType::FindPkgConfig,
+            "include" => PositionType::Include,
+            "add_subdirectory" => PositionType::SubDir,
+            "target_include_directories" => PositionType::TargetInclude,
+            "target_link_libraries" => PositionType::TargetLink,
             _ => PositionType::VarOrFun,
         };
-
-        if child.child_count() != 0 {
-            match jumptype {
-                PositionType::FindPackage
-                | PositionType::SubDir
-                | PositionType::Include
-                | PositionType::TargetInclude
-                | PositionType::TargetLink => {
-                    let inner_type = get_pos_type_inner(location, child, source, jumptype);
-                    if matches!(
-                        inner_type,
-                        PositionType::VarOrFun | PositionType::FindPackageSpace(_)
-                    ) {
-                        return inner_type;
-                    }
-                    let name = get_point_string(location, root, source);
-                    if let Some(name) = name {
-                        let name = name.to_lowercase();
-                        if SPECIALCOMMANDS.contains(&name.as_str()) {
-                            return PositionType::Unknown;
-                        }
-                    }
-                    return jumptype;
-                }
-                #[cfg(unix)]
-                PositionType::FindPkgConfig => {
-                    let name = get_point_string(location, root, source);
-                    if let Some(name) = name
-                        && name.to_lowercase() == "pkg_check_modules"
-                    {
-                        return PositionType::Unknown;
-                    }
-                    return jumptype;
-                }
-                PositionType::VarOrFun => {
-                    let currenttype =
-                        get_pos_type_inner(location, child, source, PositionType::VarOrFun);
-                    match currenttype {
-                        PositionType::Unknown => {}
-                        _ => return currenttype,
-                    }
-                }
-                PositionType::Unknown
-                | PositionType::Comment
-                | PositionType::ArgumentOrList
-                | PositionType::FunOrMacroArgs => {
-                    return get_pos_type_inner(location, child, source, jumptype);
-                }
-                // NOTE: it should be designed to cannot be reach
-                PositionType::FindPackageSpace(_) | PositionType::FunOrMacroIdentifier => {
-                    unreachable!()
-                }
-            }
-        } else {
-            // if is the same line
-            return jumptype;
-        }
+        Some(Self {
+            node: Some(node),
+            typ,
+            content: Some(content),
+            argument_index: Some(node_idx),
+        })
     }
-    PositionType::Unknown
+
+    fn get_macro(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let command = try_get_macro(source, node, location)?;
+        for (index, arg) in command.arguments.into_iter().enumerate() {
+            if !arg.contain(location) {
+                continue;
+            }
+            let typ = if index == 0 {
+                PositionType::FunOrMacroIdentifier
+            } else {
+                PositionType::FunOrMacroArgs
+            };
+            return Some(Self {
+                node: Some(arg),
+                typ,
+                content: Some(arg.utf8_text(source).unwrap()),
+                argument_index: None,
+            });
+        }
+        None
+    }
+    fn get_function(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let command = try_get_function(source, node, location)?;
+        for (index, arg) in command.arguments.into_iter().enumerate() {
+            if !arg.contain(location) {
+                continue;
+            }
+            let typ = if index == 0 {
+                PositionType::FunOrMacroIdentifier
+            } else {
+                PositionType::FunOrMacroArgs
+            };
+            return Some(Self {
+                node: Some(arg),
+                typ,
+                content: Some(arg.utf8_text(source).unwrap()),
+                argument_index: None,
+            });
+        }
+        None
+    }
+
+    fn get_line_comment(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let comment = try_get_line_comment(source, node, location)?;
+        Some(Self {
+            node: Some(comment.node),
+            typ: PositionType::Comment,
+            content: Some(comment.content),
+            argument_index: None,
+        })
+    }
+    fn get_bracket_comment(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
+        let comment = try_get_bracket_comment(source, node, location)?;
+        Some(Self {
+            node: Some(comment.node),
+            typ: PositionType::Comment,
+            content: Some(comment.content),
+            argument_index: None,
+        })
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -447,14 +444,15 @@ include("abcd/efg.cmake")
     "#;
         let tree = parse_tree(source);
         let input = tree.root_node();
-        let source_lines = source.as_bytes();
-        let pos_str_1 = get_point_string(Point { row: 2, column: 4 }, input, source_lines).unwrap();
+        let node_1 = CurrentNodeInfo::get(source, input, Point { row: 2, column: 4 });
+        let pos_str_1 = node_1.content().unwrap();
         assert_eq!(pos_str_1, "ABC");
-        let pos_str_2 =
-            get_point_string(Point { row: 3, column: 12 }, input, source_lines).unwrap();
+        let node_2 = CurrentNodeInfo::get(source, input, Point { row: 3, column: 12 });
+
+        let pos_str_2 = node_2.content().unwrap();
         assert_eq!(pos_str_2, "ABC");
-        let pos_str_3 =
-            get_point_string(Point { row: 3, column: 16 }, input, source_lines).unwrap();
+        let node_3 = CurrentNodeInfo::get(source, input, Point { row: 3, column: 16 });
+        let pos_str_3 = node_3.content().unwrap();
         assert_eq!(pos_str_3, "${ABC}eft");
     }
 
@@ -469,7 +467,7 @@ find_package(PkgConfig)
 pkg_check_modules(zlib)
 target_link_libraries(ABC PUBLIC
     ${zlib_LIBRARIES}
-    ${abcd}
+    abcd
 )
 include("abcd/efg.cmake")
 #[[.rst:
@@ -484,92 +482,97 @@ endmacro()
         let input = tree.root_node();
 
         assert_eq!(
-            get_pos_type(Point { row: 1, column: 3 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 1, column: 3 },).pos_type(),
             PositionType::Comment
         );
         assert_eq!(
-            get_pos_type(Point { row: 2, column: 4 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 2, column: 4 },).pos_type(),
             PositionType::VarOrFun
         );
         assert_eq!(
-            get_pos_type(Point { row: 3, column: 5 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 3, column: 5 }).pos_type(),
             PositionType::VarOrFun
         );
         assert_eq!(
-            get_pos_type(Point { row: 5, column: 15 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 5, column: 15 }).pos_type(),
             PositionType::FindPackage
         );
         assert_eq!(
-            get_pos_type(Point { row: 5, column: 1 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 5, column: 1 }).pos_type(),
             PositionType::VarOrFun
         );
+
         #[cfg(unix)]
         assert_eq!(
-            get_pos_type(Point { row: 6, column: 22 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 6, column: 22 }).pos_type(),
             PositionType::FindPkgConfig
         );
         assert_eq!(
-            get_pos_type(Point { row: 8, column: 2 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 9, column: 4 }).pos_type(),
             PositionType::TargetLink
         );
         assert_eq!(
-            get_pos_type(Point { row: 8, column: 4 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 8, column: 7 }).pos_type(),
             PositionType::VarOrFun
         );
         assert_eq!(
-            get_pos_type(Point { row: 9, column: 6 }, input, source,),
-            PositionType::VarOrFun
+            CurrentNodeInfo::get(source, input, Point { row: 9, column: 6 }).pos_type(),
+            PositionType::TargetLink
         );
         assert_eq!(
-            get_pos_type(
+            CurrentNodeInfo::get(
+                source,
+                input,
                 Point {
                     row: 11,
                     column: 11
                 },
-                input,
-                source,
-            ),
+            )
+            .pos_type(),
             PositionType::Include
         );
         assert_eq!(
-            get_pos_type(Point { row: 13, column: 3 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 13, column: 3 },).pos_type(),
             PositionType::Comment
         );
         assert_eq!(
-            get_pos_type(
+            CurrentNodeInfo::get(
+                source,
+                input,
                 Point {
                     row: 15,
                     column: 30
                 },
-                input,
-                source,
-            ),
+            )
+            .pos_type(),
             PositionType::FindPackageSpace("Qt5")
         );
         assert_eq!(
-            get_pos_type(
+            CurrentNodeInfo::get(
+                source,
+                input,
                 Point {
                     row: 15,
                     column: 15
                 },
-                input,
-                source,
-            ),
+            )
+            .pos_type(),
             PositionType::FindPackage
         );
         assert_eq!(
-            get_pos_type(
+            CurrentNodeInfo::get(
+                source,
+                input,
                 Point {
                     row: 16,
                     column: 21
                 },
-                input,
-                source,
-            ),
+            )
+            .pos_type(),
             PositionType::FindPackage
         );
         assert_eq!(
-            get_pos_type(Point { row: 17, column: 8 }, input, source,),
+            CurrentNodeInfo::get(source, input, Point { row: 17, column: 8 },).pos_type(),
             PositionType::FunOrMacroIdentifier
         );
     }

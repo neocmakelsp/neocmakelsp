@@ -52,8 +52,10 @@ pub struct LineCommentNode<'a> {
     pub content: &'a str,
     pub node: Node<'a>,
 }
+
 pub struct BracketCommentNode<'a> {
     pub content: &'a str,
+    pub node: Node<'a>,
 }
 
 pub struct MacroNode<'a> {
@@ -103,8 +105,20 @@ impl<'a> FuncNode<'a> {
 pub struct NormalCommandNode<'a> {
     pub identifier: &'a str,
     pub identifier_node: Option<Node<'a>>,
+    pub argument_list: Option<Node<'a>>,
     pub first_arg: Option<&'a str>,
     pub args: Vec<Node<'a>>,
+}
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use None
+pub fn try_get_variable<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    point: Point,
+) -> Option<VariableNode<'a>> {
+    get_variables_inner(source, node, None, point)
+        .into_iter()
+        .next()
 }
 
 /// max_height means when over this line, it will not count,
@@ -114,10 +128,23 @@ pub fn get_variables<'a>(
     node: Node<'a>,
     max_height: impl Into<Option<u32>>,
 ) -> Vec<VariableNode<'a>> {
+    get_variables_inner(source, node, max_height, None)
+}
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use None
+fn get_variables_inner<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: impl Into<Option<u32>>,
+    point: impl Into<Option<Point>>,
+) -> Vec<VariableNode<'a>> {
     let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut variables = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, VARIABLE_QUERY).unwrap();
     let mut cursor_vars = QueryCursor::new();
+    if let Some(point) = point.into() {
+        cursor_vars.set_point_range(point..point);
+    }
     let mut matches_comments = cursor_vars.matches(&query_comment, node, source);
     'out: while let Some(m) = matches_comments.next() {
         for c in m.captures {
@@ -176,7 +203,7 @@ pub fn get_line_comments<'a>(
 
 /// try get the brack comment
 #[must_use]
-pub fn try_line_comment<'a>(
+pub fn try_get_line_comment<'a>(
     source: &'a [u8],
     node: Node<'a>,
     point: Point,
@@ -231,7 +258,7 @@ pub fn get_bracket_comments<'a>(
 }
 /// try get the brack comment
 #[must_use]
-pub fn try_bracket_comment<'a>(
+pub fn try_get_bracket_comment<'a>(
     source: &'a [u8],
     node: Node<'a>,
     point: Point,
@@ -266,6 +293,7 @@ fn get_bracket_comments_inner<'a>(
             }
             comments.push(BracketCommentNode {
                 content: node.utf8_text(source).unwrap(),
+                node,
             });
         }
     }
@@ -379,6 +407,7 @@ fn get_normal_commands_inner<'a>(
             identifier: "",
             identifier_node: None,
             first_arg: None,
+            argument_list: None,
             args: vec![],
         };
         let node = m.nodes_for_capture_index(0).next().unwrap();
@@ -397,6 +426,7 @@ fn get_normal_commands_inner<'a>(
         if let Some(argument_list) = node.child(2)
             && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
         {
+            normal_command.argument_list = Some(argument_list);
             let mut walk = argument_list.walk();
             for child in argument_list.children(&mut walk) {
                 normal_command.args.push(child);

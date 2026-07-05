@@ -16,7 +16,7 @@ use crate::{
     utils::{
         CACHE_CMAKE_PACKAGES_WITHKEYS, gen_module_pattern, get_the_packagename, include_is_module,
         replace_placeholders,
-        treehelper::{ToPoint, ToPosition, get_point_string},
+        treehelper::{ToPoint, ToPosition},
     },
 };
 mod findpackage;
@@ -24,7 +24,7 @@ mod include;
 mod subdirectory;
 use tree_sitter::Node;
 
-use crate::utils::treehelper::{PositionType, get_pos_type, location_range_contain};
+use crate::utils::treehelper::{CurrentNodeInfo, PositionType, location_range_contain};
 
 use crate::utils::query::{
     get_functions, get_line_comments, get_macros, get_normal_commands, get_variables,
@@ -204,25 +204,23 @@ async fn godef_inner<P: AsRef<Path>>(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(source, None)?;
 
-    let tofind = get_point_string(location, tree.root_node(), source.as_bytes())?;
-
-    let jumptype = get_pos_type(location, tree.root_node(), source);
+    let current_node_info = CurrentNodeInfo::get(source, tree.root_node(), location);
+    let jumptype = current_node_info.pos_type();
+    let tofind = current_node_info.content()?;
 
     // NOTE: when just find the var or fun, then we need to skip other position type
     // Because when value in arguments, then it maybe definition, so we also need to handle this
     // part
     if !matches!(
         jumptype,
-        PositionType::VarOrFun | PositionType::ArgumentOrList | PositionType::FunOrMacroIdentifier
+        PositionType::VarOrFun | PositionType::FunOrMacroIdentifier
     ) && just_var_or_fun
     {
         return None;
     }
 
     match jumptype {
-        PositionType::VarOrFun
-        | PositionType::ArgumentOrList
-        | PositionType::FunOrMacroIdentifier => {
+        PositionType::VarOrFun | PositionType::FunOrMacroIdentifier => {
             let mut locations = vec![];
             let Some(ReferenceInfo {
                 loc: jump_cache,
@@ -264,7 +262,7 @@ async fn godef_inner<P: AsRef<Path>>(
             findpackage::cmpfindpackage(tofind)
         }
         // NOTE: here is reserve to do next time
-        PositionType::Unknown | PositionType::Comment | PositionType::FunOrMacroArgs => None,
+        PositionType::Comment | PositionType::FunOrMacroArgs => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
         PositionType::Include => {
