@@ -504,7 +504,7 @@ endmacro()
         );
         assert_eq!(
             CurrentNodeInfo::get(source, input, Point { row: 5, column: 1 }).pos_type(),
-            PositionType::VarOrFun
+            PositionType::FindPackage
         );
 
         #[cfg(unix)]
