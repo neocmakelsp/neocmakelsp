@@ -385,7 +385,7 @@ fn query_reference<P: AsRef<Path>, L: Into<Option<tree_sitter::Point>>>(
             if cmd_name != tofind {
                 continue;
             }
-            let cmd_node = cmd.identifier_node.unwrap();
+            let cmd_node = cmd.identifier_node;
             definitions.push(Location {
                 uri: Uri::from_file_path(originuri.as_ref()).unwrap(),
                 range: Range {
@@ -631,7 +631,7 @@ fn getsubdef<P: AsRef<Path>>(
             let Some(name) = command.first_arg else {
                 continue;
             };
-            let row = command.identifier_node.unwrap().start_position().row;
+            let row = command.identifier_node.start_position().row;
             let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 
             let val_name = command.args[0];

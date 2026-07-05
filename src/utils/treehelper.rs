@@ -283,8 +283,8 @@ impl<'a> CurrentNodeInfo<'a> {
     fn get_command(source: &'a [u8], node: Node<'a>, location: Point) -> Option<Self> {
         let command = try_get_normal_command(source, node, location)?;
         let identifier = command.identifier.to_lowercase();
-        let (argument_index, node) = if command.identifier_node.unwrap().contain(location) {
-            (None, command.identifier_node.unwrap())
+        let (argument_index, node) = if command.identifier_node.contain(location) {
+            (None, command.identifier_node)
         } else {
             command
                 .args

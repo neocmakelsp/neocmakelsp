@@ -477,7 +477,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 let Some(name) = command.first_arg else {
                     continue;
                 };
-                let row = command.identifier_node.unwrap().start_position().row;
+                let row = command.identifier_node.start_position().row;
                 let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 
                 if let Some(line_comment) = comments

@@ -104,7 +104,7 @@ impl<'a> FuncNode<'a> {
 
 pub struct NormalCommandNode<'a> {
     pub identifier: &'a str,
-    pub identifier_node: Option<Node<'a>>,
+    pub identifier_node: Node<'a>,
     pub argument_list: Option<Node<'a>>,
     pub first_arg: Option<&'a str>,
     pub args: Vec<Node<'a>>,
@@ -403,13 +403,6 @@ fn get_normal_commands_inner<'a>(
     let mut matches_cmd = cursor_cmd.matches(&query_cmd, node, source);
 
     while let Some(m) = matches_cmd.next() {
-        let mut normal_command = NormalCommandNode {
-            identifier: "",
-            identifier_node: None,
-            first_arg: None,
-            argument_list: None,
-            args: vec![],
-        };
         let node = m.nodes_for_capture_index(0).next().unwrap();
         if node.start_position().row as u32 > max_height {
             continue;
@@ -420,8 +413,15 @@ fn get_normal_commands_inner<'a>(
         if identifier.kind() != CMakeNodeKinds::IDENTIFIER {
             continue;
         }
-        normal_command.identifier = identifier.utf8_text(source).unwrap();
-        normal_command.identifier_node = Some(identifier);
+        let identifier_node = identifier;
+        let identifier = identifier.utf8_text(source).unwrap();
+        let mut normal_command = NormalCommandNode {
+            identifier,
+            identifier_node,
+            first_arg: None,
+            argument_list: None,
+            args: vec![],
+        };
         // NOTE: child 1 is "(", it is child 2 that argument_list
         if let Some(argument_list) = node.child(2)
             && argument_list.kind() == CMakeNodeKinds::ARGUMENT_LIST
