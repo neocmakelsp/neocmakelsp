@@ -62,6 +62,7 @@ impl<'a> GetToken for HighLightNode<'a> {
             {
                 return Some(SemanticTokenTypes::Number);
             }
+            // FIXME: use a better one
             return Some(SemanticTokenTypes::Keyword);
         }
         if self.highlights.iter().any(|hl| hl.starts_with("keyword")) {
@@ -148,6 +149,10 @@ impl<'a> HighLightNode<'a> {
         let start_byte = range.start_byte;
         let end_byte = range.end_byte;
         let end_point = range.end_point;
+        let start_point = range.start_point;
+        if start_point.row > cursor.row {
+            cursor.column = 0;
+        }
 
         let mut current_start_point = range.start_point;
         let mut current_byte = start_byte;
@@ -165,7 +170,7 @@ impl<'a> HighLightNode<'a> {
             );
 
             // Insert the origin highlight
-            if child_start_point.row != cursor.row || child_start_point.column - cursor.column > 1 {
+            if child_start_point.row != cursor.row || child_start_point.column >= cursor.column {
                 let mut delta_start = 0;
                 if end_point.row == cursor.row {
                     delta_start = (current_start_point.column - cursor.column) as u32
@@ -177,6 +182,7 @@ impl<'a> HighLightNode<'a> {
                     token_type: otoken,
                     token_modifiers_bitset: 0,
                 });
+                *cursor = current_start_point;
             }
 
             tokens.extend(node.get_semantic_tokens(cursor, source));
@@ -186,14 +192,11 @@ impl<'a> HighLightNode<'a> {
         }
 
         if end_point.row > cursor.row
-            || (end_point.row == cursor.row && end_point.column > cursor.column)
+            || (end_point.row == cursor.row && end_point.column >= cursor.column)
         {
-            let mut delta_start = 0;
-            if end_point.row == cursor.row {
-                delta_start = (end_point.column - cursor.column) as u32
-            }
+            let delta_start = (current_start_point.column - cursor.column) as u32;
             tokens.push(SemanticToken {
-                delta_line: (end_point.row - cursor.row) as u32,
+                delta_line: (start_point.row - cursor.row) as u32,
                 delta_start,
                 length: (end_byte - current_byte) as u32,
                 token_type: otoken,
@@ -201,7 +204,7 @@ impl<'a> HighLightNode<'a> {
             });
         }
 
-        *cursor = end_point;
+        *cursor = start_point;
 
         tokens
     }
@@ -247,11 +250,6 @@ impl<'a> HighLightNodeContainer<'a> {
         let mut cursor = Point::new(0, 0);
         let mut tokens = vec![];
         for node in &self.nodes {
-            let start_point = node.range().start_point;
-            if start_point.row > cursor.row {
-                cursor.row = start_point.row;
-                cursor.column = 0;
-            }
             tokens.extend(node.get_semantic_tokens(&mut cursor, source));
         }
         tokens
@@ -298,8 +296,11 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
             container.insert_node(e.node, names[e.index as usize]);
         }
     }
-    println!("abcv");
-    container.get_semantic_tokens(source)
+    let tokens = container.get_semantic_tokens(source);
+    for token in &tokens {
+        println!("tokens = {token:?}");
+    }
+    tokens
 }
 
 #[cfg(test)]
