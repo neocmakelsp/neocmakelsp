@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
 use tower_lsp::Client;
@@ -6,6 +7,10 @@ use tower_lsp::lsp_types::{SemanticToken, SemanticTokenTypes, SemanticTokens};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 
 use tree_sitter::{Node, Point, Query, QueryCursor, Range, StreamingIterator};
+
+const NONE_TYPE: &str = "none";
+
+const NONE_TYPE_COW: Cow<'static, str> = Cow::Borrowed(NONE_TYPE);
 
 pub const LEGEND_TYPE: &[SemanticTokenTypes] = &[
     SemanticTokenTypes::Function,
@@ -16,7 +21,10 @@ pub const LEGEND_TYPE: &[SemanticTokenTypes] = &[
     SemanticTokenTypes::Number,
     SemanticTokenTypes::Keyword,
     SemanticTokenTypes::Operator,
+    SemanticTokenTypes::Modifier,
     SemanticTokenTypes::Parameter,
+    SemanticTokenTypes::EnumMember,
+    SemanticTokenTypes::Custom(NONE_TYPE_COW),
 ];
 
 fn get_token_position(tokentype: SemanticTokenTypes) -> u32 {
@@ -26,15 +34,11 @@ fn get_token_position(tokentype: SemanticTokenTypes) -> u32 {
         .unwrap() as u32
 }
 
-trait GetToken {
-    fn hl_token(&self, source: &str) -> Option<SemanticTokenTypes>;
-    fn hl_token_index(&self, source: &str) -> Option<u32> {
-        Some(get_token_position(self.hl_token(source)?))
-    }
-}
-
 static NUMBERREGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"^\d+(?:\.+\d*)?$").unwrap());
+
+static KEYWORDREGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^([A-Z-_]+)$").unwrap());
 
 #[derive(Debug, PartialEq, Eq)]
 struct HighLightNode<'a> {
@@ -43,42 +47,51 @@ struct HighLightNode<'a> {
     children: Vec<HighLightNode<'a>>,
 }
 
-impl<'a> GetToken for HighLightNode<'a> {
-    fn hl_token(&self, source: &str) -> Option<SemanticTokenTypes> {
+impl<'a> HighLightNode<'a> {
+    fn hl_token_index(&self, source: &str) -> u32 {
+        get_token_position(self.hl_token(source))
+    }
+    fn hl_token(&self, source: &str) -> SemanticTokenTypes {
         if self.highlights.contains(&"function") {
-            return Some(SemanticTokenTypes::Function);
+            return SemanticTokenTypes::Function;
         }
         if self.highlights.contains(&"string") {
-            return Some(SemanticTokenTypes::String);
+            return SemanticTokenTypes::String;
         }
         if self.highlights.contains(&"comment") && self.highlights.contains(&"spell") {
-            return Some(SemanticTokenTypes::Comment);
+            return SemanticTokenTypes::Comment;
         }
         if self.highlights.contains(&"constant") {
-            if self
-                .node
-                .utf8_text(source.as_bytes())
-                .is_ok_and(|txt| NUMBERREGEX.is_match(txt))
-            {
-                return Some(SemanticTokenTypes::Number);
+            match self.node.utf8_text(source.as_bytes()) {
+                Ok(txt) if NUMBERREGEX.is_match(txt) => {
+                    return SemanticTokenTypes::Number;
+                }
+                Ok(txt) if KEYWORDREGEX.is_match(txt) => {
+                    return SemanticTokenTypes::EnumMember;
+                }
+                _ => {}
             }
-            // FIXME: use a better one
-            return Some(SemanticTokenTypes::Keyword);
-        }
-        if self.highlights.iter().any(|hl| hl.starts_with("keyword")) {
-            return Some(SemanticTokenTypes::Keyword);
         }
         if self
             .highlights
             .iter()
-            .any(|hl| hl.starts_with("punctuation"))
+            .any(|hl| hl.starts_with("punctuation") || hl.ends_with("operator"))
         {
-            return Some(SemanticTokenTypes::Operator);
+            return SemanticTokenTypes::Operator;
+        }
+        if self.highlights.contains(&"keyword.modifier") {
+            return SemanticTokenTypes::Modifier;
+        }
+        if self.highlights.iter().any(|hl| hl.starts_with("keyword")) {
+            return SemanticTokenTypes::Keyword;
+        }
+        if self.highlights.contains(&"variable.parameter") {
+            return SemanticTokenTypes::Parameter;
         }
         if self.highlights.contains(&"variable") {
-            return Some(SemanticTokenTypes::Variable);
+            return SemanticTokenTypes::Variable;
         }
-        None
+        SemanticTokenTypes::Custom(NONE_TYPE_COW)
     }
 }
 
@@ -114,7 +127,7 @@ impl<'a> HighLightNode<'a> {
     fn range(&self) -> Range {
         self.node.range()
     }
-    fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) -> bool {
+    fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
         assert!(self.children.is_sorted());
         if let Some(hnode) = self
             .children
@@ -122,7 +135,7 @@ impl<'a> HighLightNode<'a> {
             .find(|hnode| hnode.range() == node.range())
         {
             hnode.highlights.push(highlight);
-            return false;
+            return;
         }
         if let Some(hnode) = self
             .children
@@ -137,13 +150,12 @@ impl<'a> HighLightNode<'a> {
             children: Vec::new(),
         });
         self.children.sort();
-        true
     }
+
     fn get_semantic_tokens(&self, cursor: &mut Point, source: &str) -> Vec<SemanticToken> {
         assert!(self.children.is_sorted());
-        let Some(otoken) = self.hl_token_index(source) else {
-            return vec![];
-        };
+
+        let otoken = self.hl_token_index(source);
         let mut tokens = vec![];
         let range = self.range();
         let start_byte = range.start_byte;
@@ -154,12 +166,9 @@ impl<'a> HighLightNode<'a> {
             cursor.column = 0;
         }
 
-        let mut current_start_point = range.start_point;
+        let mut current_start_point = start_point;
         let mut current_byte = start_byte;
         for node in &self.children {
-            if node.hl_token(source).is_none() {
-                continue;
-            };
             let child_range = node.range();
             let child_start_point = child_range.start_point;
             let child_end_point = child_range.end_point;
@@ -171,10 +180,10 @@ impl<'a> HighLightNode<'a> {
 
             // Insert the origin highlight
             if child_start_point.row != cursor.row || child_start_point.column >= cursor.column {
-                let mut delta_start = 0;
-                if end_point.row == cursor.row {
-                    delta_start = (current_start_point.column - cursor.column) as u32
+                if child_start_point.row > cursor.row {
+                    cursor.column = 0;
                 }
+                let delta_start = (current_start_point.column - cursor.column) as u32;
                 tokens.push(SemanticToken {
                     delta_line: (current_start_point.row - cursor.row) as u32,
                     delta_start,
@@ -204,7 +213,7 @@ impl<'a> HighLightNode<'a> {
             });
         }
 
-        *cursor = start_point;
+        *cursor = current_start_point;
 
         tokens
     }
@@ -296,11 +305,7 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
             container.insert_node(e.node, names[e.index as usize]);
         }
     }
-    let tokens = container.get_semantic_tokens(source);
-    for token in &tokens {
-        println!("tokens = {token:?}");
-    }
-    tokens
+    container.get_semantic_tokens(source)
 }
 
 #[cfg(test)]
@@ -311,6 +316,14 @@ mod tests {
     fn test_number() {
         assert!(NUMBERREGEX.is_match("1.1"));
         assert!(NUMBERREGEX.is_match("222"));
+        assert!(!NUMBERREGEX.is_match("222abcd"));
+    }
+    #[test]
+    fn test_keywordr() {
+        assert!(!NUMBERREGEX.is_match("abcd"));
+        assert!(!NUMBERREGEX.is_match("abcd_WORLD"));
+        assert!(KEYWORDREGEX.is_match("HELLO_WORLD"));
+        assert!(!KEYWORDREGEX.is_match("Qt6::WaylandClient"));
     }
 
     fn semantic_token_test(context: &str) -> Option<SemanticTokens> {
