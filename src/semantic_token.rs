@@ -12,19 +12,21 @@ const NONE_TYPE: &str = "none";
 
 const NONE_TYPE_COW: Cow<'static, str> = Cow::Borrowed(NONE_TYPE);
 
+const NONE_SEMANTIC_TOKEN: SemanticTokenTypes = SemanticTokenTypes::Custom(NONE_TYPE_COW);
+
 pub const LEGEND_TYPE: &[SemanticTokenTypes] = &[
-    SemanticTokenTypes::Function,
-    SemanticTokenTypes::Method,
-    SemanticTokenTypes::Variable,
-    SemanticTokenTypes::String,
-    SemanticTokenTypes::Comment,
-    SemanticTokenTypes::Number,
-    SemanticTokenTypes::Keyword,
-    SemanticTokenTypes::Operator,
-    SemanticTokenTypes::Modifier,
-    SemanticTokenTypes::Parameter,
-    SemanticTokenTypes::EnumMember,
-    SemanticTokenTypes::Custom(NONE_TYPE_COW),
+    SemanticTokenTypes::Function,   // index 0
+    SemanticTokenTypes::Method,     // index 1
+    SemanticTokenTypes::Variable,   // index 2
+    SemanticTokenTypes::String,     // index 3
+    SemanticTokenTypes::Comment,    // index 4
+    SemanticTokenTypes::Number,     // index 5
+    SemanticTokenTypes::Keyword,    // index 6
+    SemanticTokenTypes::Operator,   // index 7
+    SemanticTokenTypes::Modifier,   // index 8
+    SemanticTokenTypes::Parameter,  // index 9
+    SemanticTokenTypes::EnumMember, // index 10
+    NONE_SEMANTIC_TOKEN,            // index 11
 ];
 
 fn get_token_position(tokentype: SemanticTokenTypes) -> u32 {
@@ -96,7 +98,7 @@ impl<'a> HighLightNode<'a> {
         if self.highlights.contains(&"variable") {
             return SemanticTokenTypes::Variable;
         }
-        SemanticTokenTypes::Custom(NONE_TYPE_COW)
+        NONE_SEMANTIC_TOKEN
     }
 }
 
@@ -344,8 +346,122 @@ mod tests {
 
     #[test]
     fn test_hl() {
-        semantic_token_test(include_str!(
+        let tokens = semantic_token_test(include_str!(
             "../assets_for_test/highlight/bracket_argument.cmake"
-        ));
+        ))
+        .unwrap()
+        .data;
+        assert_eq!(
+            tokens,
+            vec![
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 3,
+                    token_type: get_token_position(SemanticTokenTypes::Function),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 3,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 1,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Variable),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 2,
+                    length: 5,
+                    token_type: get_token_position(SemanticTokenTypes::String),
+                    token_modifiers_bitset: 0
+                },
+                // NOTE: it is for arguments, which should not have highlight
+                // But our logic needs it
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 5,
+                    length: 0,
+                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 1,
+                    length: 0,
+                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 1,
+                    length: 0,
+                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 4,
+                    token_type: get_token_position(SemanticTokenTypes::Variable),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 4,
+                    length: 0,
+                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 1,
+                    length: 0,
+                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 5,
+                    token_type: get_token_position(SemanticTokenTypes::String),
+                    token_modifiers_bitset: 0
+                },
+                SemanticToken {
+                    delta_line: 0,
+                    delta_start: 5,
+                    length: 1,
+                    token_type: get_token_position(SemanticTokenTypes::Operator),
+                    token_modifiers_bitset: 0
+                }
+            ]
+        );
     }
 }
