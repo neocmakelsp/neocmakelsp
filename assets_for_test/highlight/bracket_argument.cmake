@@ -1,2 +1,1 @@
-set(A [[===
-  ]] )
+set(a "ABC ${ABCD} EFG")
