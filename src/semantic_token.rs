@@ -66,7 +66,12 @@ impl<'a> HighLightNode<'a> {
                 Ok(txt) if NUMBERREGEX.is_match(txt) => {
                     return SemanticTokenTypes::Number;
                 }
-                Ok(txt) if KEYWORDREGEX.is_match(txt) => {
+                Ok(txt)
+                    if KEYWORDREGEX.is_match(txt)
+                        // NOTE: exclude the "-D" and "CMAKE_CXX" like
+                        && !txt.starts_with("-")
+                        && !txt.starts_with("CMAKE_") =>
+                {
                     return SemanticTokenTypes::EnumMember;
                 }
                 _ => {}
