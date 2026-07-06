@@ -46,7 +46,7 @@ static KEYWORDREGEX: LazyLock<regex::Regex> =
 struct HighLightNode<'a> {
     node: Node<'a>,
     highlights: Vec<&'a str>,
-    children: Vec<HighLightNode<'a>>,
+    children: Vec<Self>,
 }
 
 impl<'a> HighLightNode<'a> {
@@ -232,7 +232,7 @@ struct HighLightNodeContainer<'a> {
 }
 
 impl<'a> HighLightNodeContainer<'a> {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self { nodes: Vec::new() }
     }
     fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
@@ -274,16 +274,7 @@ impl<'a> HighLightNodeContainer<'a> {
 
 impl<'a> PartialOrd for HighLightNode<'a> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.range().start_byte >= other.range().end_byte {
-            return Some(std::cmp::Ordering::Greater);
-        }
-        if self.range().end_byte <= other.range().start_byte {
-            return Some(std::cmp::Ordering::Less);
-        }
-        if self.range() == other.range() {
-            return Some(std::cmp::Ordering::Equal);
-        }
-        None
+        Some(self.cmp(other))
     }
 }
 
@@ -294,7 +285,7 @@ pub async fn semantic_token(_client: &Client, context: &str) -> Option<SemanticT
     let tree = thetree?;
     Some(SemanticTokens {
         result_id: None,
-        data: get_tokens(tree.root_node(), &context),
+        data: get_tokens(tree.root_node(), context),
     })
 }
 
