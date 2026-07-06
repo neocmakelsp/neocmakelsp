@@ -1458,9 +1458,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-cmake"
-version = "0.7.1"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c1b35d1dd7396d24b3e826bb0f975b915ec7e9125b989d5e9d24ebb6a08509a"
+checksum = "98cd30b7fdc0e09af3b2acaaa2c1b06c81ae31413de911e70dab66e4e8d58a83"
 dependencies = [
  "cc",
  "tree-sitter-language",
