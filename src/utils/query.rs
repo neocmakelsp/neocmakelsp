@@ -5,7 +5,9 @@ use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 #[derive(Debug, PartialEq, Eq)]
 pub struct AstNode<'a> {
     pub node: Node<'a>,
-    pub highlights: Vec<&'a str>,
+    /// names of captured nodes
+    /// it can be the highlight name
+    pub names: Vec<&'a str>,
     pub children: Vec<Self>,
 }
 
@@ -44,35 +46,37 @@ impl<'a> PartialOrd for AstNode<'a> {
 }
 
 impl<'a> AstNode<'a> {
+    pub fn new(node: Node<'a>, highlight: &'a str) -> Self {
+        Self {
+            node,
+            names: vec![highlight],
+            children: vec![],
+        }
+    }
     pub fn range(&self) -> Range {
         self.node.range()
     }
-    pub fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
+    pub fn insert_node(&mut self, ast_node: Self) {
         assert!(self.children.is_sorted());
         if let Some(hnode) = self
             .children
             .iter_mut()
-            .find(|hnode| hnode.range() == node.range())
+            .find(|hnode| hnode.range() == ast_node.range())
         {
-            hnode.highlights.push(highlight);
+            hnode.names.extend(ast_node.names);
             return;
         }
         if let Some(hnode) = self
             .children
             .iter_mut()
-            .find(|hnode| hnode.range().contain(&node.range()))
+            .find(|hnode| hnode.range().contain(&ast_node.range()))
         {
-            return hnode.insert_node(node, highlight);
+            return hnode.insert_node(ast_node);
         }
-        self.children.push(AstNode {
-            node,
-            highlights: vec![highlight],
-            children: Vec::new(),
-        });
+        self.children.push(ast_node);
         self.children.sort();
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AstNodeContainer<'a> {
@@ -83,33 +87,28 @@ impl<'a> AstNodeContainer<'a> {
     pub const fn new() -> Self {
         Self { nodes: Vec::new() }
     }
-    pub fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
+    pub fn insert_node(&mut self, ast_node: AstNode<'a>) {
         assert!(self.nodes.is_sorted());
         if let Some(hnode) = self
             .nodes
             .iter_mut()
-            .find(|hnode| hnode.range() == node.range())
+            .find(|hnode| hnode.range() == ast_node.range())
         {
-            hnode.highlights.push(highlight);
+            hnode.names.extend(ast_node.names);
             return;
         }
         if let Some(hnode) = self
             .nodes
             .iter_mut()
-            .find(|hnode| hnode.range().contain(&node.range()))
+            .find(|hnode| hnode.range().contain(&ast_node.range()))
         {
-            hnode.insert_node(node, highlight);
+            hnode.insert_node(ast_node);
             return;
         }
-        self.nodes.push(AstNode {
-            node,
-            highlights: vec![highlight],
-            children: Vec::new(),
-        });
+        self.nodes.push(ast_node);
         self.nodes.sort();
     }
 }
-
 
 const ARGUMENT_LIST_QUERY: &str = r"(
     (argument_list) @argument_list

@@ -60,16 +60,16 @@ impl<'a> NodeGetToken for AstNode<'a> {
         get_token_position(self.hl_token(source))
     }
     fn hl_token(&self, source: &str) -> SemanticTokenTypes {
-        if self.highlights.contains(&"function") {
+        if self.names.contains(&"function") {
             return SemanticTokenTypes::Function;
         }
-        if self.highlights.contains(&"string") {
+        if self.names.contains(&"string") {
             return SemanticTokenTypes::String;
         }
-        if self.highlights.contains(&"comment") && self.highlights.contains(&"spell") {
+        if self.names.contains(&"comment") && self.names.contains(&"spell") {
             return SemanticTokenTypes::Comment;
         }
-        if self.highlights.contains(&"constant") {
+        if self.names.contains(&"constant") {
             match self.node.utf8_text(source.as_bytes()) {
                 Ok(txt) if NUMBERREGEX.is_match(txt) => {
                     return SemanticTokenTypes::Number;
@@ -86,22 +86,22 @@ impl<'a> NodeGetToken for AstNode<'a> {
             }
         }
         if self
-            .highlights
+            .names
             .iter()
             .any(|hl| hl.starts_with("punctuation") || hl.ends_with("operator"))
         {
             return SemanticTokenTypes::Operator;
         }
-        if self.highlights.contains(&"keyword.modifier") {
+        if self.names.contains(&"keyword.modifier") {
             return SemanticTokenTypes::Modifier;
         }
-        if self.highlights.iter().any(|hl| hl.starts_with("keyword")) {
+        if self.names.iter().any(|hl| hl.starts_with("keyword")) {
             return SemanticTokenTypes::Keyword;
         }
-        if self.highlights.contains(&"variable.parameter") {
+        if self.names.contains(&"variable.parameter") {
             return SemanticTokenTypes::Parameter;
         }
-        if self.highlights.contains(&"variable") {
+        if self.names.contains(&"variable") {
             return SemanticTokenTypes::Variable;
         }
         NONE_SEMANTIC_TOKEN
@@ -207,7 +207,8 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
     let names = query.capture_names();
     while let Some(m) = matches.next() {
         for e in m.captures {
-            container.insert_node(e.node, names[e.index as usize]);
+            let ast_node = AstNode::new(e.node, names[e.index as usize]);
+            container.insert_node(ast_node);
         }
     }
     container.get_semantic_tokens(source)
