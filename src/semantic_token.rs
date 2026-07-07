@@ -167,60 +167,30 @@ impl<'a> HighLightNode<'a> {
         let range = self.range();
         let start_byte = range.start_byte;
         let end_byte = range.end_byte;
-        let end_point = range.end_point;
         let start_point = range.start_point;
         if start_point.row > cursor.row {
             cursor.column = 0;
         }
 
-        let mut current_start_point = start_point;
-        let mut current_byte = start_byte;
+        tokens.push(SemanticToken {
+            delta_line: (start_point.row - cursor.row) as u32,
+            delta_start: (start_point.column - cursor.column) as u32,
+            length: (end_byte - start_byte) as u32,
+            token_type: otoken,
+            token_modifiers_bitset: 0,
+        });
+        *cursor = start_point;
         for node in &self.children {
             let child_range = node.range();
             let child_start_point = child_range.start_point;
-            let child_end_point = child_range.end_point;
             assert!(
                 child_start_point.row > cursor.row
                     || (child_start_point.row == cursor.row
                         && child_start_point.column >= cursor.column)
             );
 
-            // Insert the origin highlight
-            if child_start_point.row != cursor.row || child_start_point.column >= cursor.column {
-                if child_start_point.row > cursor.row {
-                    cursor.column = 0;
-                }
-                let delta_start = (current_start_point.column - cursor.column) as u32;
-                tokens.push(SemanticToken {
-                    delta_line: (current_start_point.row - cursor.row) as u32,
-                    delta_start,
-                    length: (child_range.start_byte - current_byte) as u32,
-                    token_type: otoken,
-                    token_modifiers_bitset: 0,
-                });
-                *cursor = current_start_point;
-            }
-
             tokens.extend(node.get_semantic_tokens(cursor, source));
-
-            current_start_point = child_end_point;
-            current_byte = child_range.end_byte;
         }
-
-        if end_point.row > cursor.row
-            || (end_point.row == cursor.row && end_point.column >= cursor.column)
-        {
-            let delta_start = (current_start_point.column - cursor.column) as u32;
-            tokens.push(SemanticToken {
-                delta_line: (start_point.row - cursor.row) as u32,
-                delta_start,
-                length: (end_byte - current_byte) as u32,
-                token_type: otoken,
-                token_modifiers_bitset: 0,
-            });
-        }
-
-        *cursor = current_start_point;
 
         tokens
     }
@@ -369,16 +339,14 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 2,
-                    length: 5,
+                    length: 17,
                     token_type: get_token_position(SemanticTokenTypes::String),
                     token_modifiers_bitset: 0
                 },
-                // NOTE: it is for arguments, which should not have highlight
-                // But our logic needs it
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 5,
-                    length: 0,
+                    length: 7,
                     token_type: get_token_position(NONE_SEMANTIC_TOKEN),
                     token_modifiers_bitset: 0
                 },
@@ -392,13 +360,6 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
@@ -406,13 +367,6 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 4,
                     token_type: get_token_position(SemanticTokenTypes::Variable),
                     token_modifiers_bitset: 0
@@ -420,34 +374,13 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 4,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
                 },
                 SemanticToken {
                     delta_line: 0,
-                    delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
-                    length: 5,
-                    token_type: get_token_position(SemanticTokenTypes::String),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 5,
+                    delta_start: 6,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
