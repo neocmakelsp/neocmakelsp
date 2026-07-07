@@ -5,8 +5,9 @@ use tower_lsp::Client;
 use tower_lsp::lsp_types::{SemanticToken, SemanticTokenTypes, SemanticTokens};
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::query::{AstNode, AstNodeContainer};
 
-use tree_sitter::{Node, Point, Query, QueryCursor, Range, StreamingIterator};
+use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
 const NONE_TYPE: &str = "none";
 
@@ -42,14 +43,19 @@ static NUMBERREGEX: LazyLock<regex::Regex> =
 static KEYWORDREGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^([A-Z-_]+)$").unwrap());
 
-#[derive(Debug, PartialEq, Eq)]
-struct HighLightNode<'a> {
-    node: Node<'a>,
-    highlights: Vec<&'a str>,
-    children: Vec<Self>,
+trait NodeGetToken {
+    fn hl_token(&self, source: &str) -> SemanticTokenTypes;
+    fn hl_token_index(&self, source: &str) -> u32 {
+        get_token_position(self.hl_token(source))
+    }
+    fn get_semantic_tokens(&self, cursor: &mut Point, source: &str) -> Vec<SemanticToken>;
 }
 
-impl<'a> HighLightNode<'a> {
+trait ContainerGetTokens {
+    fn get_semantic_tokens(&self, source: &str) -> Vec<SemanticToken>;
+}
+
+impl<'a> NodeGetToken for AstNode<'a> {
     fn hl_token_index(&self, source: &str) -> u32 {
         get_token_position(self.hl_token(source))
     }
@@ -100,65 +106,6 @@ impl<'a> HighLightNode<'a> {
         }
         NONE_SEMANTIC_TOKEN
     }
-}
-
-trait RangeContain {
-    fn contain(&self, other: &Self) -> bool;
-}
-
-impl RangeContain for Range {
-    fn contain(&self, other: &Self) -> bool {
-        self.start_byte <= other.start_byte && self.end_byte >= other.end_byte
-    }
-}
-
-impl<'a> RangeContain for HighLightNode<'a> {
-    fn contain(&self, other: &Self) -> bool {
-        self.node.range().contain(&other.node.range())
-    }
-}
-
-impl<'a> Ord for HighLightNode<'a> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.range().start_byte >= other.range().end_byte {
-            return std::cmp::Ordering::Greater;
-        }
-        if self.range().end_byte <= other.range().start_byte {
-            return std::cmp::Ordering::Less;
-        }
-        std::cmp::Ordering::Equal
-    }
-}
-
-impl<'a> HighLightNode<'a> {
-    fn range(&self) -> Range {
-        self.node.range()
-    }
-    fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
-        assert!(self.children.is_sorted());
-        if let Some(hnode) = self
-            .children
-            .iter_mut()
-            .find(|hnode| hnode.range() == node.range())
-        {
-            hnode.highlights.push(highlight);
-            return;
-        }
-        if let Some(hnode) = self
-            .children
-            .iter_mut()
-            .find(|hnode| hnode.range().contain(&node.range()))
-        {
-            return hnode.insert_node(node, highlight);
-        }
-        self.children.push(HighLightNode {
-            node,
-            highlights: vec![highlight],
-            children: Vec::new(),
-        });
-        self.children.sort();
-    }
-
     fn get_semantic_tokens(&self, cursor: &mut Point, source: &str) -> Vec<SemanticToken> {
         assert!(self.children.is_sorted());
 
@@ -226,41 +173,7 @@ impl<'a> HighLightNode<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct HighLightNodeContainer<'a> {
-    nodes: Vec<HighLightNode<'a>>,
-}
-
-impl<'a> HighLightNodeContainer<'a> {
-    const fn new() -> Self {
-        Self { nodes: Vec::new() }
-    }
-    fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
-        assert!(self.nodes.is_sorted());
-        if let Some(hnode) = self
-            .nodes
-            .iter_mut()
-            .find(|hnode| hnode.range() == node.range())
-        {
-            hnode.highlights.push(highlight);
-            return;
-        }
-        if let Some(hnode) = self
-            .nodes
-            .iter_mut()
-            .find(|hnode| hnode.range().contain(&node.range()))
-        {
-            hnode.insert_node(node, highlight);
-            return;
-        }
-        self.nodes.push(HighLightNode {
-            node,
-            highlights: vec![highlight],
-            children: Vec::new(),
-        });
-        self.nodes.sort();
-    }
-
+impl<'a> ContainerGetTokens for AstNodeContainer<'a> {
     fn get_semantic_tokens(&self, source: &str) -> Vec<SemanticToken> {
         assert!(self.nodes.is_sorted());
         let mut cursor = Point::new(0, 0);
@@ -269,12 +182,6 @@ impl<'a> HighLightNodeContainer<'a> {
             tokens.extend(node.get_semantic_tokens(&mut cursor, source));
         }
         tokens
-    }
-}
-
-impl<'a> PartialOrd for HighLightNode<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -296,7 +203,7 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
     let mut cursor = QueryCursor::new();
     let mut matches = cursor.matches(&query, node, source.as_bytes());
 
-    let mut container = HighLightNodeContainer::new();
+    let mut container = AstNodeContainer::new();
     let names = query.capture_names();
     while let Some(m) = matches.next() {
         for e in m.captures {

@@ -1,6 +1,115 @@
-use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, StreamingIterator};
+use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, Range, StreamingIterator};
 
 use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AstNode<'a> {
+    pub node: Node<'a>,
+    pub highlights: Vec<&'a str>,
+    pub children: Vec<Self>,
+}
+
+pub trait RangeContain {
+    fn contain(&self, other: &Self) -> bool;
+}
+
+impl RangeContain for Range {
+    fn contain(&self, other: &Self) -> bool {
+        self.start_byte <= other.start_byte && self.end_byte >= other.end_byte
+    }
+}
+
+impl<'a> RangeContain for AstNode<'a> {
+    fn contain(&self, other: &Self) -> bool {
+        self.node.range().contain(&other.node.range())
+    }
+}
+
+impl<'a> Ord for AstNode<'a> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.range().start_byte >= other.range().end_byte {
+            return std::cmp::Ordering::Greater;
+        }
+        if self.range().end_byte <= other.range().start_byte {
+            return std::cmp::Ordering::Less;
+        }
+        std::cmp::Ordering::Equal
+    }
+}
+
+impl<'a> PartialOrd for AstNode<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> AstNode<'a> {
+    pub fn range(&self) -> Range {
+        self.node.range()
+    }
+    pub fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
+        assert!(self.children.is_sorted());
+        if let Some(hnode) = self
+            .children
+            .iter_mut()
+            .find(|hnode| hnode.range() == node.range())
+        {
+            hnode.highlights.push(highlight);
+            return;
+        }
+        if let Some(hnode) = self
+            .children
+            .iter_mut()
+            .find(|hnode| hnode.range().contain(&node.range()))
+        {
+            return hnode.insert_node(node, highlight);
+        }
+        self.children.push(AstNode {
+            node,
+            highlights: vec![highlight],
+            children: Vec::new(),
+        });
+        self.children.sort();
+    }
+}
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AstNodeContainer<'a> {
+    pub nodes: Vec<AstNode<'a>>,
+}
+
+impl<'a> AstNodeContainer<'a> {
+    pub const fn new() -> Self {
+        Self { nodes: Vec::new() }
+    }
+    pub fn insert_node(&mut self, node: Node<'a>, highlight: &'a str) {
+        assert!(self.nodes.is_sorted());
+        if let Some(hnode) = self
+            .nodes
+            .iter_mut()
+            .find(|hnode| hnode.range() == node.range())
+        {
+            hnode.highlights.push(highlight);
+            return;
+        }
+        if let Some(hnode) = self
+            .nodes
+            .iter_mut()
+            .find(|hnode| hnode.range().contain(&node.range()))
+        {
+            hnode.insert_node(node, highlight);
+            return;
+        }
+        self.nodes.push(AstNode {
+            node,
+            highlights: vec![highlight],
+            children: Vec::new(),
+        });
+        self.nodes.sort();
+    }
+}
+
 
 const ARGUMENT_LIST_QUERY: &str = r"(
     (argument_list) @argument_list
