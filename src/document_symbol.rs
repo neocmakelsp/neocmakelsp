@@ -1,9 +1,9 @@
-use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
+use lsp_types::{DocumentSymbol, DocumentSymbolResponse, SymbolKind};
 use tower_lsp::{Client, lsp_types};
+use tree_sitter::{Node, Query, QueryCursor, StreamingIterator};
 
-use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::treehelper::ToPosition;
+use crate::utils::query::{AstNode, AstNodeContainer, ToLspRange};
 
 const COMMAND_KEYWORDS: [&str; 5] = [
     "set",
@@ -13,222 +13,202 @@ const COMMAND_KEYWORDS: [&str; 5] = [
     "target_include_directories",
 ];
 
-pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
-    let line = context.lines().count();
-    if line > 10000 {
-        client
-            .log_message(MessageType::Info, "use simple ast")
-            .await;
-    }
+pub async fn get_symbol(_client: &Client, context: &str) -> Option<DocumentSymbolResponse> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
-    get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
-        .map(DocumentSymbolResponse::DocumentSymbolList)
+    let symbols = get_symbols(tree.root_node(), context);
+    if symbols.is_empty() {
+        None
+    } else {
+        Some(DocumentSymbolResponse::DocumentSymbolList(symbols))
+    }
 }
 
-#[allow(deprecated)]
-fn get_sub_symbol(
-    input: tree_sitter::Node,
-    source: &[u8],
-    simple: bool,
-) -> Option<Vec<DocumentSymbol>> {
-    let mut course = input.walk();
-    let mut asts: Vec<DocumentSymbol> = vec![];
-    for child in input.children(&mut course) {
-        match child.kind() {
-            CMakeNodeKinds::FUNCTION_DEF => {
-                let Some(ids) = child.child(0) else {
-                    continue;
-                };
-                let Some(argumentlists) = ids.child(2) else {
-                    continue;
-                };
-                let Some(function_name) = argumentlists.child(0) else {
-                    continue;
-                };
-                let Ok(name) = function_name.utf8_text(source) else {
-                    continue;
-                };
+const QUERY_SOURCE: &str = include_str!("../misc/document_symbol.scm");
 
-                asts.push(DocumentSymbol {
-                    name: name.to_string(),
-                    detail: None,
-                    kind: SymbolKind::Function,
-                    tags: None,
-                    deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    children: if simple {
-                        None
-                    } else {
-                        get_sub_symbol(child, source, simple)
-                    },
-                });
-            }
-            CMakeNodeKinds::MACRO_DEF => {
-                let Some(ids) = child.child(0) else {
-                    continue;
-                };
-                let Some(argumentlists) = ids.child(2) else {
-                    continue;
-                };
-                let Some(marco_name) = argumentlists.child(0) else {
-                    continue;
-                };
-                let Ok(name) = marco_name.utf8_text(source) else {
-                    continue;
-                };
-                asts.push(DocumentSymbol {
-                    name: name.to_string(),
-                    detail: None,
-                    kind: SymbolKind::Function,
-                    tags: None,
-                    deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    children: if simple {
-                        None
-                    } else {
-                        get_sub_symbol(child, source, simple)
-                    },
-                });
-            }
-            CMakeNodeKinds::BODY => {
-                let Some(mut bodycontent) = get_sub_symbol(child, source, simple) else {
-                    continue;
-                };
-                asts.append(&mut bodycontent);
-            }
-            CMakeNodeKinds::IF_CONDITION | CMakeNodeKinds::FOREACH_LOOP => {
-                asts.push(DocumentSymbol {
-                    name: "Closure".to_string(),
+#[derive(Debug, Default)]
+enum SymbolData<'a> {
+    #[default]
+    Block,
+    IFBlock,
+    Function {
+        name: &'a str,
+    },
+    Command {
+        name: &'a str,
+        target: &'a str,
+        target_node: Node<'a>,
+    },
+}
+
+trait NodeGetSymbol {
+    fn dom_symbol(&self) -> DocumentSymbol;
+}
+
+trait ContainerGetSymbols {
+    fn dom_symbols(&self) -> Vec<DocumentSymbol>;
+}
+
+impl<'a> ContainerGetSymbols for AstNodeContainer<'a, SymbolData<'a>> {
+    fn dom_symbols(&self) -> Vec<DocumentSymbol> {
+        self.nodes.iter().map(NodeGetSymbol::dom_symbol).collect()
+    }
+}
+
+impl<'a> NodeGetSymbol for AstNode<'a, SymbolData<'a>> {
+    fn dom_symbol(&self) -> DocumentSymbol {
+        let range = self.range();
+        match self.data {
+            SymbolData::Command {
+                name,
+                target,
+                target_node,
+            } => DocumentSymbol {
+                name: format!("{name}: {target}"),
+                detail: None,
+                kind: SymbolKind::Variable,
+                tags: None,
+                #[allow(deprecated)]
+                deprecated: None,
+                range: range.lsp_range(),
+                selection_range: target_node.range().lsp_range(),
+                children: None,
+            },
+            SymbolData::Block => {
+                let children: Vec<DocumentSymbol> = self
+                    .children
+                    .iter()
+                    .map(NodeGetSymbol::dom_symbol)
+                    .collect();
+                DocumentSymbol {
+                    name: "Block".to_owned(),
                     detail: None,
                     kind: SymbolKind::Namespace,
                     tags: None,
+                    #[allow(deprecated)]
                     deprecated: None,
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    selection_range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: child.start_position().row as u32,
-                            character: child.start_position().column as u32,
-                        },
-                        end: lsp_types::Position {
-                            line: child.end_position().row as u32,
-                            character: child.end_position().column as u32,
-                        },
-                    },
-                    children: if simple {
+                    range: range.lsp_range(),
+                    selection_range: range.lsp_range(),
+                    children: if children.is_empty() {
                         None
                     } else {
-                        get_sub_symbol(child, source, simple)
+                        Some(children)
                     },
-                });
-            }
-            CMakeNodeKinds::NORMAL_COMMAND => {
-                let start = child.start_position().to_position();
-                let end = child.end_position().to_position();
-                let Some(ids) = child.child(0) else {
-                    continue;
-                };
-                let Ok(command_name) = ids.utf8_text(source) else {
-                    continue;
-                };
-                if COMMAND_KEYWORDS.contains(&command_name.to_lowercase().as_str()) {
-                    let Some(argumentlists) = child.child(2) else {
-                        continue;
-                    };
-                    let Some(ids) = argumentlists.child(0) else {
-                        continue;
-                    };
-                    if ids.start_position().row == ids.end_position().row {
-                        let h = ids.start_position().row;
-                        let h2 = ids.end_position().row;
-                        if h != h2 {
-                            continue;
-                        }
-                        let x = ids.start_position().column;
-                        let y = ids.end_position().column;
-                        let Ok(varname) = ids.utf8_text(source) else {
-                            continue;
-                        };
-                        asts.push(DocumentSymbol {
-                            name: format!("{command_name}: {varname}"),
-                            detail: None,
-                            kind: SymbolKind::Variable,
-                            tags: None,
-                            deprecated: None,
-                            range: lsp_types::Range { start, end },
-                            selection_range: lsp_types::Range {
-                                start: lsp_types::Position {
-                                    line: h as u32,
-                                    character: x as u32,
-                                },
-                                end: lsp_types::Position {
-                                    line: h as u32,
-                                    character: y as u32,
-                                },
-                            },
-                            children: None,
-                        });
-                    }
                 }
             }
-            _ => {}
+            SymbolData::IFBlock => {
+                let children: Vec<DocumentSymbol> = self
+                    .children
+                    .iter()
+                    .map(NodeGetSymbol::dom_symbol)
+                    .collect();
+                DocumentSymbol {
+                    name: "If Condition".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Namespace,
+                    tags: None,
+                    #[allow(deprecated)]
+                    deprecated: None,
+                    range: range.lsp_range(),
+                    selection_range: range.lsp_range(),
+                    children: if children.is_empty() {
+                        None
+                    } else {
+                        Some(children)
+                    },
+                }
+            }
+            SymbolData::Function { name } => DocumentSymbol {
+                name: name.to_owned(),
+                detail: None,
+                kind: SymbolKind::Function,
+                tags: None,
+                #[allow(deprecated)]
+                deprecated: None,
+                range: range.lsp_range(),
+                selection_range: range.lsp_range(),
+                children: None,
+            },
         }
     }
-    if asts.is_empty() { None } else { Some(asts) }
+}
+
+fn get_symbols(node: tree_sitter::Node, source: &str) -> Vec<DocumentSymbol> {
+    let query = Query::new(&TREESITTER_CMAKE_LANGUAGE, QUERY_SOURCE).unwrap();
+
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, node, source.as_bytes());
+
+    let mut container: AstNodeContainer<'_, SymbolData<'_>> = AstNodeContainer::new();
+    let names = query.capture_names();
+    'out: while let Some(m) = matches.next() {
+        let mut data_name = None;
+        let mut identifier = None;
+        let mut first_argument = None;
+        let mut node = None;
+        let mut arg_node = None;
+        for e in m.captures {
+            let name = names[e.index as usize];
+            if name == "block" {
+                let ast_node = AstNode::new(e.node, name).with_data(SymbolData::Block);
+                container.insert_node(ast_node);
+                continue 'out;
+            }
+            if name == "if_block" {
+                let ast_node = AstNode::new(e.node, name).with_data(SymbolData::IFBlock);
+                container.insert_node(ast_node);
+                continue 'out;
+            }
+            if matches!(name, "function" | "command") {
+                data_name = Some(name);
+                node = Some(e.node);
+                continue;
+            }
+            if name == "identifier" {
+                let cmd_name = e.node.utf8_text(source.as_bytes()).unwrap();
+                identifier = Some(cmd_name);
+                continue;
+            }
+            if name == "first_arg" {
+                first_argument = Some(e.node.utf8_text(source.as_bytes()).unwrap());
+                arg_node = Some(e.node);
+            }
+        }
+        let (Some(name), Some(identifier), Some(node)) = (data_name, identifier, node) else {
+            continue;
+        };
+
+        if name != "command" {
+            let ast_node =
+                AstNode::new(node, name).with_data(SymbolData::Function { name: identifier });
+            container.insert_node(ast_node);
+            continue;
+        }
+        let (Some(first_arg), Some(target_node)) = (first_argument, arg_node) else {
+            continue;
+        };
+
+        let identifier_lower = identifier.to_lowercase();
+        if !COMMAND_KEYWORDS.contains(&identifier_lower.as_str()) {
+            continue;
+        }
+        let ast_node = AstNode::new(node, name).with_data(SymbolData::Command {
+            name: identifier,
+            target: first_arg,
+            target_node,
+        });
+        container.insert_node(ast_node);
+    }
+    container.dom_symbols()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lsp_types::{Position, Range};
 
+    #[allow(deprecated)]
     #[test]
     fn test_ast_1() {
         let context = include_str!("../assets_for_test/ast_test/bast_test.cmake");
@@ -236,7 +216,150 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
+        assert_eq!(
+            get_symbols(thetree.root_node(), context),
+            vec![
+                DocumentSymbol {
+                    name: "set: A".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Variable,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 2,
+                            character: 1
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 1,
+                            character: 1
+                        },
+                        end: Position {
+                            line: 1,
+                            character: 2
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "set: B".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Variable,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 9
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 4
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 5
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "abc".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Function,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 6,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 7,
+                            character: 13
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 6,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 7,
+                            character: 13
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "If Condition".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Namespace,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 9,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 11,
+                            character: 7
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 9,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 11,
+                            character: 7
+                        }
+                    },
+                    children: Some(vec![DocumentSymbol {
+                        name: "Block".to_owned(),
+                        detail: None,
+                        kind: SymbolKind::Namespace,
+                        tags: None,
+                        deprecated: None,
+                        range: Range {
+                            start: Position {
+                                line: 9,
+                                character: 8
+                            },
+                            end: Position {
+                                line: 11,
+                                character: 0
+                            }
+                        },
+                        selection_range: Range {
+                            start: Position {
+                                line: 9,
+                                character: 8
+                            },
+                            end: Position {
+                                line: 11,
+                                character: 0
+                            }
+                        },
+                        children: None
+                    }])
+                }
+            ]
+        );
     }
 
     #[test]
@@ -246,7 +369,7 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_some());
+        assert!(!get_symbols(thetree.root_node(), context).is_empty());
     }
 
     #[test]
@@ -258,6 +381,6 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(get_sub_symbol(thetree.root_node(), context.as_bytes(), false).is_none());
+        assert_eq!(get_symbols(thetree.root_node(), context), vec![]);
     }
 }

@@ -1,6 +1,150 @@
-use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, StreamingIterator};
+use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, Range, StreamingIterator};
 
-use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
+use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::ToPosition};
+use tower_lsp::lsp_types::Range as LspRange;
+#[derive(Debug)]
+pub struct AstNode<'a, Data = ()> {
+    pub node: Node<'a>,
+    /// names of captured nodes
+    /// it can be the highlight name
+    pub names: Vec<&'a str>,
+    pub children: Vec<Self>,
+
+    /// This part allow you to storage extra data
+    #[allow(unused)]
+    pub data: Data,
+}
+
+impl<'a, Data> PartialEq for AstNode<'a, Data> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node.eq(&other.node)
+    }
+}
+
+pub trait ToLspRange {
+    fn lsp_range(&self) -> LspRange;
+}
+
+impl ToLspRange for Range {
+    fn lsp_range(&self) -> LspRange {
+        LspRange {
+            start: self.start_point.to_position(),
+            end: self.end_point.to_position(),
+        }
+    }
+}
+
+impl<'a, Data> Eq for AstNode<'a, Data> {}
+
+pub trait RangeContain {
+    fn contain(&self, other: &Self) -> bool;
+}
+
+impl RangeContain for Range {
+    fn contain(&self, other: &Self) -> bool {
+        self.start_byte <= other.start_byte && self.end_byte >= other.end_byte
+    }
+}
+
+impl<'a> RangeContain for AstNode<'a> {
+    fn contain(&self, other: &Self) -> bool {
+        self.node.range().contain(&other.node.range())
+    }
+}
+
+impl<'a, Data> Ord for AstNode<'a, Data> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.range().start_byte >= other.range().end_byte {
+            return std::cmp::Ordering::Greater;
+        }
+        if self.range().end_byte <= other.range().start_byte {
+            return std::cmp::Ordering::Less;
+        }
+        std::cmp::Ordering::Equal
+    }
+}
+
+impl<'a, Data> PartialOrd for AstNode<'a, Data> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a, Data> AstNode<'a, Data>
+where
+    Data: Default,
+{
+    pub fn new(node: Node<'a>, highlight: &'a str) -> Self {
+        Self {
+            node,
+            names: vec![highlight],
+            children: vec![],
+            data: Data::default(),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn with_data(mut self, data: Data) -> Self {
+        Self { data, ..self }
+    }
+}
+impl<'a, Data> AstNode<'a, Data> {
+    pub fn range(&self) -> Range {
+        self.node.range()
+    }
+    pub fn insert_node(&mut self, ast_node: Self) {
+        assert!(self.children.is_sorted());
+        if let Some(hnode) = self
+            .children
+            .iter_mut()
+            .find(|hnode| hnode.range() == ast_node.range())
+        {
+            hnode.names.extend(ast_node.names);
+            return;
+        }
+        if let Some(hnode) = self
+            .children
+            .iter_mut()
+            .find(|hnode| hnode.range().contain(&ast_node.range()))
+        {
+            return hnode.insert_node(ast_node);
+        }
+        self.children.push(ast_node);
+        self.children.sort();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AstNodeContainer<'a, Data = ()> {
+    pub nodes: Vec<AstNode<'a, Data>>,
+}
+
+impl<'a, Data> AstNodeContainer<'a, Data> {
+    pub const fn new() -> Self {
+        Self { nodes: Vec::new() }
+    }
+    pub fn insert_node(&mut self, ast_node: AstNode<'a, Data>) {
+        assert!(self.nodes.is_sorted());
+        if let Some(hnode) = self
+            .nodes
+            .iter_mut()
+            .find(|hnode| hnode.range() == ast_node.range())
+        {
+            hnode.names.extend(ast_node.names);
+            return;
+        }
+        if let Some(hnode) = self
+            .nodes
+            .iter_mut()
+            .find(|hnode| hnode.range().contain(&ast_node.range()))
+        {
+            hnode.insert_node(ast_node);
+            return;
+        }
+        self.nodes.push(ast_node);
+        self.nodes.sort();
+    }
+}
 
 const ARGUMENT_LIST_QUERY: &str = r"(
     (argument_list) @argument_list
