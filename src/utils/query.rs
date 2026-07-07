@@ -2,14 +2,26 @@ use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, Range, Streamin
 
 use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct AstNode<'a> {
+#[derive(Debug)]
+pub struct AstNode<'a, Data = ()> {
     pub node: Node<'a>,
     /// names of captured nodes
     /// it can be the highlight name
     pub names: Vec<&'a str>,
     pub children: Vec<Self>,
+
+    /// This part allow you to storage extra data
+    #[allow(unused)]
+    pub data: Data,
 }
+
+impl<'a, Data> PartialEq for AstNode<'a, Data> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node.eq(&other.node)
+    }
+}
+
+impl<'a, Data> Eq for AstNode<'a, Data> {}
 
 pub trait RangeContain {
     fn contain(&self, other: &Self) -> bool;
@@ -27,7 +39,7 @@ impl<'a> RangeContain for AstNode<'a> {
     }
 }
 
-impl<'a> Ord for AstNode<'a> {
+impl<'a, Data> Ord for AstNode<'a, Data> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.range().start_byte >= other.range().end_byte {
             return std::cmp::Ordering::Greater;
@@ -39,20 +51,31 @@ impl<'a> Ord for AstNode<'a> {
     }
 }
 
-impl<'a> PartialOrd for AstNode<'a> {
+impl<'a, Data> PartialOrd for AstNode<'a, Data> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> AstNode<'a> {
+impl<'a, Data> AstNode<'a, Data>
+where
+    Data: Default,
+{
     pub fn new(node: Node<'a>, highlight: &'a str) -> Self {
         Self {
             node,
             names: vec![highlight],
             children: vec![],
+            data: Data::default(),
         }
     }
+
+    #[allow(unused)]
+    pub fn with_data(mut self, data: Data) -> Self {
+        Self { data, ..self }
+    }
+}
+impl<'a, Data> AstNode<'a, Data> {
     pub fn range(&self) -> Range {
         self.node.range()
     }
@@ -79,15 +102,15 @@ impl<'a> AstNode<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct AstNodeContainer<'a> {
-    pub nodes: Vec<AstNode<'a>>,
+pub struct AstNodeContainer<'a, Data = ()> {
+    pub nodes: Vec<AstNode<'a, Data>>,
 }
 
-impl<'a> AstNodeContainer<'a> {
+impl<'a, Data> AstNodeContainer<'a, Data> {
     pub const fn new() -> Self {
         Self { nodes: Vec::new() }
     }
-    pub fn insert_node(&mut self, ast_node: AstNode<'a>) {
+    pub fn insert_node(&mut self, ast_node: AstNode<'a, Data>) {
         assert!(self.nodes.is_sorted());
         if let Some(hnode) = self
             .nodes
