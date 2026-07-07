@@ -206,7 +206,9 @@ fn get_symbols(node: tree_sitter::Node, source: &str) -> Vec<DocumentSymbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lsp_types::{Position, Range};
 
+    #[allow(deprecated)]
     #[test]
     fn test_ast_1() {
         let context = include_str!("../assets_for_test/ast_test/bast_test.cmake");
@@ -214,7 +216,150 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(!get_symbols(thetree.root_node(), context).is_empty());
+        assert_eq!(
+            get_symbols(thetree.root_node(), context),
+            vec![
+                DocumentSymbol {
+                    name: "set: A".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Variable,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 2,
+                            character: 1
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 1,
+                            character: 1
+                        },
+                        end: Position {
+                            line: 1,
+                            character: 2
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "set: B".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Variable,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 9
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 4
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 5
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "abc".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Function,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 6,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 7,
+                            character: 13
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 6,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 7,
+                            character: 13
+                        }
+                    },
+                    children: None
+                },
+                DocumentSymbol {
+                    name: "If Condition".to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Namespace,
+                    tags: None,
+                    deprecated: None,
+                    range: Range {
+                        start: Position {
+                            line: 9,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 11,
+                            character: 7
+                        }
+                    },
+                    selection_range: Range {
+                        start: Position {
+                            line: 9,
+                            character: 0
+                        },
+                        end: Position {
+                            line: 11,
+                            character: 7
+                        }
+                    },
+                    children: Some(vec![DocumentSymbol {
+                        name: "Block".to_owned(),
+                        detail: None,
+                        kind: SymbolKind::Namespace,
+                        tags: None,
+                        deprecated: None,
+                        range: Range {
+                            start: Position {
+                                line: 9,
+                                character: 8
+                            },
+                            end: Position {
+                                line: 11,
+                                character: 0
+                            }
+                        },
+                        selection_range: Range {
+                            start: Position {
+                                line: 9,
+                                character: 8
+                            },
+                            end: Position {
+                                line: 11,
+                                character: 0
+                            }
+                        },
+                        children: None
+                    }])
+                }
+            ]
+        );
     }
 
     #[test]
@@ -236,6 +381,6 @@ mod tests {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(context, None).unwrap();
 
-        assert!(get_symbols(thetree.root_node(), context).is_empty());
+        assert_eq!(get_symbols(thetree.root_node(), context), vec![]);
     }
 }
