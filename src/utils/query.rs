@@ -11,7 +11,6 @@ pub struct AstNode<'a, Data = ()> {
     pub children: Vec<Self>,
 
     /// This part allow you to storage extra data
-    #[allow(unused)]
     pub data: Data,
 }
 
@@ -83,8 +82,7 @@ where
         }
     }
 
-    #[allow(unused)]
-    pub fn with_data(mut self, data: Data) -> Self {
+    pub fn with_data(self, data: Data) -> Self {
         Self { data, ..self }
     }
 }
