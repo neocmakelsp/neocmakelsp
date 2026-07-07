@@ -1,7 +1,7 @@
 use tree_sitter::{Node, Point, Query, QueryCapture, QueryCursor, Range, StreamingIterator};
 
-use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE};
-
+use crate::{CMakeNodeKinds, consts::TREESITTER_CMAKE_LANGUAGE, utils::treehelper::ToPosition};
+use tower_lsp::lsp_types::Range as LspRange;
 #[derive(Debug)]
 pub struct AstNode<'a, Data = ()> {
     pub node: Node<'a>,
@@ -18,6 +18,19 @@ pub struct AstNode<'a, Data = ()> {
 impl<'a, Data> PartialEq for AstNode<'a, Data> {
     fn eq(&self, other: &Self) -> bool {
         self.node.eq(&other.node)
+    }
+}
+
+pub trait ToLspRange {
+    fn lsp_range(&self) -> LspRange;
+}
+
+impl ToLspRange for Range {
+    fn lsp_range(&self) -> LspRange {
+        LspRange {
+            start: self.start_point.to_position(),
+            end: self.end_point.to_position(),
+        }
     }
 }
 
