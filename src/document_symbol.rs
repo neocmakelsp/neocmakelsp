@@ -1,8 +1,10 @@
 use lsp_types::{DocumentSymbol, DocumentSymbolResponse, MessageType, SymbolKind};
 use tower_lsp::{Client, lsp_types};
+use tree_sitter::{Query, QueryCursor, StreamingIterator};
 
 use crate::CMakeNodeKinds;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::utils::query::{AstNode, AstNodeContainer};
 use crate::utils::treehelper::ToPosition;
 
 const COMMAND_KEYWORDS: [&str; 5] = [
@@ -25,6 +27,78 @@ pub async fn get_symbol(client: &Client, context: &str) -> Option<DocumentSymbol
     let tree = parse.parse(context, None)?;
     get_sub_symbol(tree.root_node(), context.as_bytes(), line > 10000)
         .map(DocumentSymbolResponse::DocumentSymbolList)
+}
+
+const QUERY_SOURCE: &str = include_str!("../misc/document_symbol.scm");
+
+#[derive(Debug, Default)]
+enum SymbolData<'a> {
+    #[default]
+    Block,
+    Function {
+        name: &'a str,
+    },
+    Command {
+        name: &'a str,
+        target: &'a str,
+    },
+}
+
+fn get_symbols(node: tree_sitter::Node, source: &str) -> Vec<DocumentSymbol> {
+    let query_source = tree_sitter_cmake::HIGHLIGHTS_QUERY;
+    let query = Query::new(&TREESITTER_CMAKE_LANGUAGE, query_source).unwrap();
+
+    let mut cursor = QueryCursor::new();
+    let mut matches = cursor.matches(&query, node, source.as_bytes());
+
+    let mut container: AstNodeContainer<'_, SymbolData<'_>> = AstNodeContainer::new();
+    let names = query.capture_names();
+    'out: while let Some(m) = matches.next() {
+        let mut data_name = None;
+        let mut identifier = None;
+        let mut first_argument = None;
+        let mut node = None;
+        for e in m.captures {
+            let name = names[e.index as usize];
+            if name == "block" {
+                let ast_node = AstNode::new(e.node, name).with_data(SymbolData::Block);
+                container.insert_node(ast_node);
+                continue 'out;
+            }
+            if matches!(name, "function" | "command") {
+                data_name = Some(name);
+                node = Some(e.node);
+                continue;
+            }
+            if name == "identifier" {
+                identifier = Some(e.node.utf8_text(source.as_bytes()).unwrap());
+                continue;
+            }
+            if name == "first_arg" {
+                first_argument = Some(e.node.utf8_text(source.as_bytes()).unwrap());
+            }
+        }
+        let (Some(name), Some(identifier), Some(node)) = (data_name, identifier, node) else {
+            continue;
+        };
+
+        if name != "command" {
+            let ast_node =
+                AstNode::new(node, name).with_data(SymbolData::Function { name: identifier });
+            container.insert_node(ast_node);
+            continue;
+        }
+        let Some(first_arg) = first_argument else {
+            continue;
+        };
+
+        let ast_node = AstNode::new(node, name).with_data(SymbolData::Command {
+            name: identifier,
+            target: first_arg,
+        });
+        container.insert_node(ast_node);
+    }
+    todo!()
 }
 
 #[allow(deprecated)]
