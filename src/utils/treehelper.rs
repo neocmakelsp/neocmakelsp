@@ -294,27 +294,32 @@ impl<'a> CurrentNodeInfo<'a> {
                 .find(|(_, arg)| arg.contain(location))?
         };
         let content = node.utf8_text(source).unwrap();
-        let typ = match identifier.as_str() {
-            "find_package" => {
-                let argument_list = command.argument_list?.utf8_text(source).unwrap();
-                let val = command.first_arg?;
+        let typ = if command.identifier_node.contain(location) {
+            // NOTE: not this logic, hover will die
+            PositionType::VarOrFun
+        } else {
+            match identifier.as_str() {
+                "find_package" => {
+                    let argument_list = command.argument_list?.utf8_text(source).unwrap();
+                    let val = command.first_arg?;
 
-                if argument_list.contains("COMPONENTS")
-                    && argument_index.is_some_and(|index| index >= 2)
-                    && content != "COMPONENTS"
-                {
-                    PositionType::FindPackageSpace(val)
-                } else {
-                    PositionType::FindPackage
+                    if argument_list.contains("COMPONENTS")
+                        && argument_index.is_some_and(|index| index >= 2)
+                        && content != "COMPONENTS"
+                    {
+                        PositionType::FindPackageSpace(val)
+                    } else {
+                        PositionType::FindPackage
+                    }
                 }
+                #[cfg(unix)]
+                "pkg_check_modules" => PositionType::FindPkgConfig,
+                "include" => PositionType::Include,
+                "add_subdirectory" => PositionType::SubDir,
+                "target_include_directories" => PositionType::TargetInclude,
+                "target_link_libraries" => PositionType::TargetLink,
+                _ => PositionType::VarOrFun,
             }
-            #[cfg(unix)]
-            "pkg_check_modules" => PositionType::FindPkgConfig,
-            "include" => PositionType::Include,
-            "add_subdirectory" => PositionType::SubDir,
-            "target_include_directories" => PositionType::TargetInclude,
-            "target_link_libraries" => PositionType::TargetLink,
-            _ => PositionType::VarOrFun,
         };
         Some(Self {
             node: Some(node),
@@ -504,7 +509,7 @@ endmacro()
         );
         assert_eq!(
             CurrentNodeInfo::get(source, input, Point { row: 5, column: 1 }).pos_type(),
-            PositionType::FindPackage
+            PositionType::VarOrFun
         );
 
         #[cfg(unix)]
