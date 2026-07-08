@@ -4,19 +4,18 @@ use regex::Regex;
 use tower_lsp::lsp_extensions::MessageEx;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionResponse, Diagnostic, DocumentChange, Edit,
-    OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit, TextEdit,
-    WorkspaceEdit,
+    OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit, TextEdit, WorkspaceEdit,
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::try_get_argument_list;
-use crate::utils::treehelper::{ToPoint, ToPosition};
+use crate::utils::treehelper::ToPosition;
 static LINT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"((?<length>\d+)/(?<max>\d+))").unwrap());
 
 pub fn lint_fix_action(
     context: &str,
-    position: Position,
+    range: Range,
     diagnose: &Diagnostic,
     uri: tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
@@ -26,18 +25,18 @@ pub fn lint_fix_action(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
     let root = tree.root_node();
-    get_fix_action(root, context, position, diagnose, longest, &uri)
+    get_fix_action(root, context, range, diagnose, longest, &uri)
 }
 
 fn get_fix_action(
     input: tree_sitter::Node,
     source: &str,
-    position: Position,
+    range: Range,
     diagnose: &Diagnostic,
     longest: usize,
     uri: &tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
-    let argument_list = try_get_argument_list(source.as_bytes(), input, position.to_point())?;
+    let argument_list = try_get_argument_list(source.as_bytes(), input, range)?;
 
     let start_node = argument_list.main_node.unwrap();
     let start = start_node.start_position().to_position();

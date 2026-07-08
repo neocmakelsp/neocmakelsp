@@ -596,7 +596,7 @@ impl LanguageServer for Backend {
 
         Ok(quick_fix::lint_fix_action(
             &text,
-            params.range.start,
+            params.range,
             toolong,
             uri,
         ))
