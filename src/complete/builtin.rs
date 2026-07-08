@@ -374,7 +374,7 @@ pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> =
 fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("module_cache.json")
+        && let config_file = cache_dir.join("builtin_module_cache.json")
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
@@ -387,7 +387,7 @@ fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
 
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("module_cache.json")
+        && let config_file = cache_dir.join("builtin_module_cache.json")
         && let cached = CachedCompleteItems::new(modules.clone())
         && let Ok(data) = serde_json::to_string_pretty(&cached)
     {

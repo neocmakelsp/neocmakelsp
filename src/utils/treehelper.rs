@@ -167,7 +167,7 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
     );
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("module_cache.json")
+        && let config_file = cache_dir.join("messages_cache.json")
         && let cached = CachedMessages::new(storage.clone())
         && let Ok(data) = serde_json::to_string_pretty(&cached)
     {
