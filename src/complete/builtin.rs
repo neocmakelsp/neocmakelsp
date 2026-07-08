@@ -1,15 +1,15 @@
+use std::collections::HashMap;
 use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
-use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
-use etcetera::BaseStrategy;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
     ParameterInformation, ParameterInformationLabel,
 };
 
+use crate::utils::BUILTIN_MODULE_CACHED_DIR;
 use crate::{languageserver::to_use_snippet, utils::CachedCompleteItems};
 
 // As regex can't resolve nested parameter struct, parse it manually
@@ -145,7 +145,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
     {
-        return cache_completes.completions;
+        return cache_completes.data;
     }
 
     let res = &*BUILTIN_COMMAND_SIGNATURE_RES;
@@ -218,7 +218,7 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
     {
-        return Ok(cache_completes.completions);
+        return Ok(cache_completes.data);
     }
     let output = Command::new("cmake")
         .arg("--help-variables")
@@ -371,12 +371,6 @@ pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> =
 pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> =
     LazyLock::new(get_builtin_modules);
 
-pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
-    let strategy = etcetera::choose_base_strategy().ok()?;
-    let cache_dir = strategy.cache_dir();
-    Some(cache_dir.join("neocmakelsp"))
-});
-
 fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
@@ -385,7 +379,7 @@ fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
     {
-        return Ok(cache_completes.completions);
+        return Ok(cache_completes.data);
     }
     let output = Command::new("cmake").arg("--help-modules").output()?.stdout;
     let temp = String::from_utf8_lossy(&output);

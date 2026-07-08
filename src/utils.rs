@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
 use chrono::{DateTime, Local};
+use etcetera::BaseStrategy;
 use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::CompletionItem;
 use tower_lsp::lsp_types::Uri;
@@ -15,25 +16,39 @@ pub use self::findpackage::*;
 use crate::fileapi;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CachedCompleteItems {
+pub struct CachedData<Data> {
     pub date: DateTime<Local>,
-    pub completions: Vec<CompletionItem>,
+    //pub data: Vec<CompletionItem>,
+    pub data: Data,
 }
 
-impl CachedCompleteItems {
+pub type CachedCompleteItems = CachedData<Vec<CompletionItem>>;
+
+pub type CachedMessages = CachedData<HashMap<String, String>>;
+
+pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
+    let strategy = etcetera::choose_base_strategy().ok()?;
+    let cache_dir = strategy.cache_dir();
+    Some(cache_dir.join("neocmakelsp"))
+});
+
+impl<Data> CachedData<Data>
+where
+    Data: for<'a> Deserialize<'a>,
+{
     pub fn read<P: AsRef<Path>>(path: P) -> Option<Self> {
         let data = std::fs::read_to_string(path).ok()?;
         serde_json::from_str(&data).ok()
     }
 
-    pub fn new(completions: Vec<CompletionItem>) -> Self {
+    pub fn new(data: Data) -> Self {
         let dt = Local::now();
         // Get components
         let naive_utc = dt.naive_utc();
         let offset = *dt.offset();
         Self {
             date: DateTime::from_naive_utc_and_offset(naive_utc, offset),
-            completions,
+            data,
         }
     }
     pub fn need_update(&self) -> bool {
