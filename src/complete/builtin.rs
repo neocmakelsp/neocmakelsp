@@ -126,17 +126,17 @@ fn gen_builtin_command_signature_resource(
     return temp_iter.collect();
 }
 
-fn builtin_command_cached_file<'a>(client_support_snippet: bool) -> &'a str {
+fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
     if client_support_snippet {
-        "builtin_command.json"
+        "builtin_commands.json"
     } else {
-        "builtin_command_snippet.json"
+        "builtin_commands_snippet.json"
     }
 }
 
 fn gen_builtin_commands() -> Vec<CompletionItem> {
     let client_support_snippet = to_use_snippet();
-    let cached_file = builtin_command_cached_file(client_support_snippet);
+    let cached_file = builtin_commands_cached_file(client_support_snippet);
 
     if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
