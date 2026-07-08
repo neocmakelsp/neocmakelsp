@@ -30,7 +30,7 @@ impl CachedCompleteItems {
         let dt = Local::now();
         // Get components
         let naive_utc = dt.naive_utc();
-        let offset = dt.offset().clone();
+        let offset = dt.offset();
         Self {
             date: DateTime::from_naive_utc_and_offset(naive_utc, offset),
             completions,
