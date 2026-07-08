@@ -4,18 +4,19 @@ use regex::Regex;
 use tower_lsp::lsp_extensions::MessageEx;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionResponse, Diagnostic, DocumentChange, Edit,
-    OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit, TextEdit, WorkspaceEdit,
+    OptionalVersionedTextDocumentIdentifier, Position, Range, TextDocumentEdit, TextEdit,
+    WorkspaceEdit,
 };
 
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::query::get_argument_lists;
-use crate::utils::treehelper::ToPosition;
+use crate::utils::query::try_get_argument_list;
+use crate::utils::treehelper::{ToPoint, ToPosition};
 static LINT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"((?<length>\d+)/(?<max>\d+))").unwrap());
 
 pub fn lint_fix_action(
     context: &str,
-    line: u32,
+    position: Position,
     diagnose: &Diagnostic,
     uri: tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
@@ -25,22 +26,19 @@ pub fn lint_fix_action(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
     let root = tree.root_node();
-    sub_lint_fix_action(root, context, line as usize, diagnose, longest, &uri)
+    get_fix_action(root, context, position, diagnose, longest, &uri)
 }
 
-fn sub_lint_fix_action(
+fn get_fix_action(
     input: tree_sitter::Node,
     source: &str,
-    line: usize,
+    position: Position,
     diagnose: &Diagnostic,
     longest: usize,
     uri: &tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
-    let argument_lists = get_argument_lists(source.as_bytes(), input, None);
-    let argument_list = argument_lists.into_iter().find(|argument| {
-        let node = argument.main_node.unwrap();
-        node.end_position().row >= line && node.start_position().row <= line
-    })?;
+    let argument_list = try_get_argument_list(source.as_bytes(), input, position.to_point())?;
+
     let start_node = argument_list.main_node.unwrap();
     let start = start_node.start_position().to_position();
     let end = start_node.end_position().to_position();

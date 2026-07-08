@@ -303,16 +303,43 @@ fn get_variables_inner<'a>(
 
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use None
+#[allow(unused)]
 pub fn get_argument_lists<'a>(
     source: &'a [u8],
     node: Node<'a>,
     max_height: impl Into<Option<u32>>,
 ) -> Vec<ArgumentListNode<'a>> {
+    get_argument_lists_inner(source, node, max_height, None)
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use None
+pub fn try_get_argument_list<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    point: impl Into<Option<Point>>,
+) -> Option<ArgumentListNode<'a>> {
+    get_argument_lists_inner(source, node, None, point)
+        .into_iter()
+        .next()
+}
+
+/// max_height means when over this line, it will not count,
+/// if you want to ignore it, use None
+fn get_argument_lists_inner<'a>(
+    source: &'a [u8],
+    node: Node<'a>,
+    max_height: impl Into<Option<u32>>,
+    point: impl Into<Option<Point>>,
+) -> Vec<ArgumentListNode<'a>> {
     let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut arguments = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, ARGUMENT_LIST_QUERY).unwrap();
-    let mut cursor_comments = QueryCursor::new();
-    let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
+    let mut cursor_argument = QueryCursor::new();
+    if let Some(point) = point.into() {
+        cursor_argument.set_point_range(point..point);
+    }
+    let mut matches_comments = cursor_argument.matches(&query_comment, node, source);
 
     while let Some(m) = matches_comments.next() {
         let mut ag_node = ArgumentListNode {
