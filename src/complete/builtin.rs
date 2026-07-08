@@ -126,7 +126,7 @@ fn gen_builtin_command_signature_resource(
     return temp_iter.collect();
 }
 
-fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
+const fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
     if client_support_snippet {
         "builtin_commands.json"
     } else {
@@ -138,7 +138,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
     let client_support_snippet = to_use_snippet();
     let cached_file = builtin_commands_cached_file(client_support_snippet);
 
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join(cached_file)
         && config_file.exists()
@@ -199,7 +199,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
             ]
         })
         .collect();
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join(cached_file)
         && let cached = CachedCompleteItems::new(commands.clone())
@@ -211,7 +211,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
 }
 
 fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join("builtin_variable_cache.json")
         && config_file.exists()
@@ -226,7 +226,7 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
         .stdout;
     let temp = String::from_utf8_lossy(&output);
     let variables = gen_builtin_variables(&temp);
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join("builtin_variable_cache.json")
         && let cached = CachedCompleteItems::new(variables.clone())
@@ -378,7 +378,7 @@ pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(
 });
 
 fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join("module_cache.json")
         && config_file.exists()
@@ -391,7 +391,7 @@ fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
     let temp = String::from_utf8_lossy(&output);
     let modules = gen_builtin_modules(&temp);
 
-    if let Some(cache_dir) = *&BUILTIN_MODULE_CACHED_DIR.as_ref()
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
         && let config_file = cache_dir.join("module_cache.json")
         && let cached = CachedCompleteItems::new(modules.clone())
