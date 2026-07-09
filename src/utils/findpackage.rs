@@ -278,7 +278,10 @@ pub mod packagepkgconfig {
 
     use super::{FindPackageFunsFake, FindPackageFunsReal, FindPackageFunsTrait};
     use crate::Uri;
+    use serde::{Deserialize, Serialize};
 
+    // TODO: consider a better way to cache these
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct PkgConfig {
         pub libname: String,
         pub path: Uri,
