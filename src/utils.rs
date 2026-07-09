@@ -42,7 +42,6 @@ pub struct CachedData<Data, const TIME_CHECK: bool = true> {
 pub type CachedCompleteItems = CachedData<Vec<CompletionItem>>;
 pub type CachedMessages = CachedData<HashMap<String, String>>;
 
-
 pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
 pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
 pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, Vec<CompletionItem>>, false>;

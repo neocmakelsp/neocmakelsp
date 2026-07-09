@@ -135,7 +135,7 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
         *toload_jump_cache = jump_cache;
         drop(toload_jump_cache);
         return;
-    };
+    }
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");
     let mut to_scan: Vec<PathBuf> = vec![root_cmake];
     while !to_scan.is_empty() {
