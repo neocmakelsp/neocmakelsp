@@ -39,7 +39,7 @@ async fn test_init() {
     let dir = tempdir().unwrap();
     let root_cmake = dir.path().join("CMakeList.txt");
     let mut file = File::create(&root_cmake).unwrap();
-    writeln!(file, "{}", &file_info).unwrap();
+    writeln!(file, "{}", file_info).unwrap();
 
     let (mut service, _) = LspService::new(Backend::new);
 
