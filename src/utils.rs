@@ -208,10 +208,8 @@ fn replace_placeholders_with_hashmap(
 
     for caps in PLACE_HODER_REGEX.captures_iter(template) {
         let key = &caps[1];
-        {
-            let value = values.get(key)?;
-            result = result.replace(&caps[0], value);
-        }
+        let value = values.get(key)?;
+        result = result.replace(&caps[0], value);
     }
     Some(result)
 }
