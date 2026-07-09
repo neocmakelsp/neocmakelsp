@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
@@ -31,7 +32,7 @@ use crate::utils::query::{
 };
 
 /// Storage the information when jump
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JumpCacheUnit {
     pub location: Location,
     pub document_info: String,

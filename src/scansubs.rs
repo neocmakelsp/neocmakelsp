@@ -6,9 +6,14 @@ use std::sync::{Arc, LazyLock};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
+use crate::complete::{COMPLETE_CACHE, CompleteKV};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::NeoStrExt;
+use crate::jump::{JUMP_CACHE, JumpKV};
 use crate::utils::query::get_normal_commands;
+use crate::utils::{
+    CachedData, CachedPCompleteItems, CachedPJumpItems, CachedProjectCMakeMap, CachedProjectTree,
+    NeoStrExt, cache,
+};
 use crate::{complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
@@ -27,7 +32,112 @@ pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
 pub static TREE_CMAKE_MAP: LazyLock<Arc<Mutex<TreeCMakeKey>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+struct CacheLoader {
+    tree_map: TreeKey,
+    tree_cmake_map: TreeCMakeKey,
+    complete_cache: CompleteKV,
+    jump_cache: JumpKV,
+}
+
+fn data_load<Data, const TIME_CHECK: bool, P: AsRef<Path>>(
+    cache_dir: P,
+    file_name: &str,
+) -> Option<CachedData<Data, TIME_CHECK>>
+where
+    Data: for<'a> Deserialize<'a>,
+{
+    let file = cache_dir.as_ref().join(file_name);
+    CachedData::read(file)
+}
+
+fn cache_data_write<Data, P: AsRef<Path>>(cache_dir: P, data: Data, file_name: &str) -> Option<()>
+where
+    Data: for<'a> Deserialize<'a> + Serialize,
+{
+    let file = cache_dir.as_ref().join(file_name);
+    let data = CachedData::<Data, false>::new(data);
+    let json_data = serde_json::to_string_pretty(&data).ok()?;
+
+    std::fs::write(file, json_data).ok()
+}
+
+pub async fn cache_project_data<P: AsRef<Path>>(project_root: P) -> Option<()> {
+    let cache_dir = project_root.as_ref().join(".cache").join("neocmakelsp");
+    std::fs::create_dir_all(&cache_dir).ok()?;
+    let tree = TREE_MAP.lock().await;
+    cache_data_write(&cache_dir, tree.clone(), cache::project::TREE_MAP_CACHE);
+    drop(tree);
+    let tree_cmake = TREE_CMAKE_MAP.lock().await;
+    cache_data_write(
+        &cache_dir,
+        tree_cmake.clone(),
+        cache::project::TREE_CMAKE_MAP_CACHE,
+    );
+    drop(tree_cmake);
+    let complete_cache = COMPLETE_CACHE.lock().await;
+    cache_data_write(
+        &cache_dir,
+        complete_cache.clone(),
+        cache::project::COMPLETIONS_CACHE,
+    );
+    drop(complete_cache);
+    let jump_cache = JUMP_CACHE.lock().await;
+    cache_data_write(
+        &cache_dir,
+        jump_cache.clone(),
+        cache::project::JUMPITEMS_CACHE,
+    );
+    drop(jump_cache);
+    Some(())
+}
+
+/// This function is to load cache data from json files
+fn load_cache_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
+    let cache_dir = project_root.as_ref().join(".cache").join("neocmakelsp");
+    if !cache_dir.exists() {
+        return None;
+    }
+    std::fs::create_dir_all(&cache_dir).ok()?;
+    let project_tree_map: CachedProjectTree =
+        data_load(&cache_dir, cache::project::TREE_MAP_CACHE)?;
+    let project_cmake_map: CachedProjectCMakeMap =
+        data_load(&cache_dir, cache::project::TREE_CMAKE_MAP_CACHE)?;
+
+    let complete_cache: CachedPCompleteItems =
+        data_load(&cache_dir, cache::project::COMPLETIONS_CACHE)?;
+    let jump_cache: CachedPJumpItems = data_load(&cache_dir, cache::project::JUMPITEMS_CACHE)?;
+    Some(CacheLoader {
+        tree_map: project_tree_map.data,
+        tree_cmake_map: project_cmake_map.data,
+        complete_cache: complete_cache.data,
+        jump_cache: jump_cache.data,
+    })
+}
+
+/// Scan all files. If there is a cache file or it is the first time to scan dir
 pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
+    if is_first
+        && let Some(CacheLoader {
+            tree_map,
+            tree_cmake_map,
+            complete_cache,
+            jump_cache,
+        }) = load_cache_all(project_root.as_ref())
+    {
+        let mut tree = TREE_MAP.lock().await;
+        *tree = tree_map;
+        drop(tree);
+        let mut tree_cmake = TREE_CMAKE_MAP.lock().await;
+        *tree_cmake = tree_cmake_map;
+        drop(tree_cmake);
+        let mut toload_complete_cache = COMPLETE_CACHE.lock().await;
+        *toload_complete_cache = complete_cache;
+        drop(toload_complete_cache);
+        let mut toload_jump_cache = JUMP_CACHE.lock().await;
+        *toload_jump_cache = jump_cache;
+        drop(toload_jump_cache);
+        return;
+    }
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");
     let mut to_scan: Vec<PathBuf> = vec![root_cmake];
     while !to_scan.is_empty() {
@@ -58,6 +168,9 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     bufs
 }
 
+/// First is [CMakeLists.txt], the second one is [*.cmake]
+/// First one will record the structure of project
+/// The second one is used to get all used *.cmake files and record them
 async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(source) = tokio::fs::read_to_string(path.as_ref()).await else {
         return (Vec::new(), Vec::new());
@@ -78,6 +191,7 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf
     scan_node(&source, tree, path)
 }
 
+/// first is [CMakeLists.txt], the second one is [*.cmake]
 fn scan_node<P: AsRef<Path>>(
     source: &str,
     tree: tree_sitter::Node,

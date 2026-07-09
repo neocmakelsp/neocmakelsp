@@ -22,6 +22,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
+use crate::scansubs::cache_project_data;
 use crate::semantic_token::LEGEND_TYPE;
 use crate::signature_help::get_signature_help;
 use crate::utils::treehelper::ToPosition;
@@ -488,9 +489,10 @@ impl LanguageServer for Backend {
     }
 
     async fn shutdown(&self) -> Result<()> {
-        // NOTE: do nothing
-        // Seems tower_lsp won't do anything when receive this command.
-        // Now it should be proper for me to directly exit(0) here
+        // NOTE: cache data when receive shutdown signal
+        if let Some(project_root) = self.root_path() {
+            cache_project_data(project_root).await;
+        }
         exit(0)
     }
 

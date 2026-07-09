@@ -14,17 +14,38 @@ use tower_lsp::lsp_types::Uri;
 
 pub use self::findpackage::*;
 use crate::fileapi;
+use crate::jump::JumpCacheUnit;
+
+pub mod cache {
+    pub mod builtin {
+        pub const MODULE_CACHE: &str = "builtin_module_cache.json";
+        pub const VARIABLE_CACHE: &str = "builtin_variable_cache.json";
+        pub const COMMANDS_CACHE: &str = "builtin_commands.json";
+        pub const COMMANDS_SNIPPET_CACHE: &str = "builtin_commands_snippet.json";
+        pub const MESSAGE_CACHE: &str = "messages_cache.json";
+    }
+
+    pub mod project {
+        pub const TREE_MAP_CACHE: &str = "tree_map_cache.json";
+        pub const TREE_CMAKE_MAP_CACHE: &str = "tree_cmake_map_cache.json";
+        pub const COMPLETIONS_CACHE: &str = "project_completions_cache.json";
+        pub const JUMPITEMS_CACHE: &str = "project_jumpitems_cache.json";
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CachedData<Data> {
+pub struct CachedData<Data, const TIME_CHECK: bool = true> {
     pub date: DateTime<Local>,
-    //pub data: Vec<CompletionItem>,
     pub data: Data,
 }
 
 pub type CachedCompleteItems = CachedData<Vec<CompletionItem>>;
-
 pub type CachedMessages = CachedData<HashMap<String, String>>;
+
+pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
+pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
+pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, Vec<CompletionItem>>, false>;
+pub type CachedPJumpItems = CachedData<HashMap<String, JumpCacheUnit>, false>;
 
 pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
     let strategy = etcetera::choose_base_strategy().ok()?;
@@ -32,7 +53,7 @@ pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(
     Some(cache_dir.join("neocmakelsp"))
 });
 
-impl<Data> CachedData<Data>
+impl<Data, const TIME_CHECK: bool> CachedData<Data, TIME_CHECK>
 where
     Data: for<'a> Deserialize<'a>,
 {
@@ -52,6 +73,9 @@ where
         }
     }
     pub fn need_update(&self) -> bool {
+        if !TIME_CHECK {
+            return false;
+        }
         let utc = self.date.naive_utc();
         let dt = Local::now();
         // Get components
