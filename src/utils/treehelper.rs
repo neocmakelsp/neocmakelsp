@@ -11,7 +11,7 @@ use tree_sitter::{Node, Point};
 use crate::{
     CMakeNodeKinds,
     utils::{
-        NeoStrExt,
+        BUILTIN_MODULE_CACHED_DIR, CachedMessages, NeoStrExt,
         query::{
             try_get_bracket_comment, try_get_function, try_get_line_comment, try_get_macro,
             try_get_normal_command, try_get_variable,
@@ -101,6 +101,15 @@ pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
 }
 
 pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join("messages_cache.json")
+        && config_file.exists()
+        && let Some(cache_completes) = CachedMessages::read(config_file)
+        && !cache_completes.need_update()
+    {
+        return cache_completes.data;
+    }
     let mut storage: HashMap<String, String> = HashMap::new();
     let re = regex::Regex::new(r"[z-zA-z]+\n-+").unwrap();
     if let Ok(output) = Command::new("cmake").arg("--help-commands").output() {
@@ -156,6 +165,14 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
         "pkg_check_modules".to_string(),
         "please FindPackage PkgConfig first".to_string(),
     );
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join("messages_cache.json")
+        && let cached = CachedMessages::new(storage.clone())
+        && let Ok(data) = serde_json::to_string_pretty(&cached)
+    {
+        std::fs::write(config_file, data).ok();
+    }
     storage
 });
 
