@@ -159,7 +159,7 @@ impl<'a> NodeGetToken for AstNode<'a> {
         {
             let delta_start = (current_start_point.column - cursor.column) as u32;
             tokens.push(SemanticToken {
-                delta_line: (start_point.row - cursor.row) as u32,
+                delta_line: (current_start_point.row - cursor.row) as u32,
                 delta_start,
                 length: (end_byte - current_byte) as u32,
                 token_type: otoken,
