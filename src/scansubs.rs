@@ -97,7 +97,6 @@ fn load_cache_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
     if !cache_dir.exists() {
         return None;
     }
-    std::fs::create_dir_all(&cache_dir).ok()?;
     let project_tree_map: CachedProjectTree =
         data_load(&cache_dir, cache::project::TREE_MAP_CACHE)?;
     let project_cmake_map: CachedProjectCMakeMap =
