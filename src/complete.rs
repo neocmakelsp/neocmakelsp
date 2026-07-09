@@ -110,10 +110,10 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
     while let Some(parent) = tree_map.get(&path) {
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(parent) {
-            completions.append(&mut data.clone());
+            completions.extend(data.clone());
         } else if let Ok(context) = get_or_update_buffer_contents(parent, documents).await {
             drop(complete_cache);
-            completions.append(&mut update_cache(parent, context.as_str()).await);
+            completions.extend(update_cache(parent, context.as_str()).await);
             path.clone_from(parent);
             continue;
         }
