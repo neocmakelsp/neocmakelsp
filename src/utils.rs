@@ -24,23 +24,28 @@ pub mod cache {
         pub const COMMANDS_SNIPPET_CACHE: &str = "builtin_commands_snippet.json";
         pub const MESSAGE_CACHE: &str = "messages_cache.json";
     }
+
+    pub mod project {
+        pub const TREE_MAP_CACHE: &str = "tree_map_cache.json";
+        pub const TREE_CMAKE_MAP_CACHE: &str = "tree_cmake_map_cache.json";
+        pub const COMPLETIONS_CACHE: &str = "project_completions_cache.json";
+        pub const JUMPITEMS_CACHE: &str = "project_jumpitems_cache.json";
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CachedData<Data, const TIME_CHECK: bool = true> {
     pub date: DateTime<Local>,
-    //pub data: Vec<CompletionItem>,
     pub data: Data,
 }
 
 pub type CachedCompleteItems = CachedData<Vec<CompletionItem>>;
-
 pub type CachedMessages = CachedData<HashMap<String, String>>;
 
+
 pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
-
-pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, CompletionItem>, false>;
-
+pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
+pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, Vec<CompletionItem>>, false>;
 pub type CachedPJumpItems = CachedData<HashMap<String, JumpCacheUnit>, false>;
 
 pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
