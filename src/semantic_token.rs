@@ -48,7 +48,7 @@ trait NodeGetToken {
     fn hl_token_index(&self, source: &str) -> u32 {
         get_token_position(self.hl_token(source))
     }
-    fn get_semantic_tokens(&self, cursor: &mut Point, source: &str) -> Vec<SemanticToken>;
+    fn get_semantic_token(&self, cursor: &mut Point, source: &str) -> SemanticToken;
 }
 
 trait ContainerGetTokens {
@@ -106,70 +106,26 @@ impl<'a> NodeGetToken for AstNode<'a> {
         }
         NONE_SEMANTIC_TOKEN
     }
-    fn get_semantic_tokens(&self, cursor: &mut Point, source: &str) -> Vec<SemanticToken> {
-        assert!(self.children.is_sorted());
 
+    fn get_semantic_token(&self, cursor: &mut Point, source: &str) -> SemanticToken {
         let otoken = self.hl_token_index(source);
-        let mut tokens = vec![];
         let range = self.range();
         let start_byte = range.start_byte;
         let end_byte = range.end_byte;
-        let end_point = range.end_point;
         let start_point = range.start_point;
         if start_point.row > cursor.row {
             cursor.column = 0;
         }
 
-        let mut current_start_point = start_point;
-        let mut current_byte = start_byte;
-        for node in &self.children {
-            let child_range = node.range();
-            let child_start_point = child_range.start_point;
-            let child_end_point = child_range.end_point;
-            assert!(
-                child_start_point.row > cursor.row
-                    || (child_start_point.row == cursor.row
-                        && child_start_point.column >= cursor.column)
-            );
-
-            // Insert the origin highlight
-            if child_start_point.row != cursor.row || child_start_point.column >= cursor.column {
-                if child_start_point.row > cursor.row {
-                    cursor.column = 0;
-                }
-                let delta_start = (current_start_point.column - cursor.column) as u32;
-                tokens.push(SemanticToken {
-                    delta_line: (current_start_point.row - cursor.row) as u32,
-                    delta_start,
-                    length: (child_range.start_byte - current_byte) as u32,
-                    token_type: otoken,
-                    token_modifiers_bitset: 0,
-                });
-                *cursor = current_start_point;
-            }
-
-            tokens.extend(node.get_semantic_tokens(cursor, source));
-
-            current_start_point = child_end_point;
-            current_byte = child_range.end_byte;
-        }
-
-        if end_point.row > cursor.row
-            || (end_point.row == cursor.row && end_point.column >= cursor.column)
-        {
-            let delta_start = (current_start_point.column - cursor.column) as u32;
-            tokens.push(SemanticToken {
-                delta_line: (current_start_point.row - cursor.row) as u32,
-                delta_start,
-                length: (end_byte - current_byte) as u32,
-                token_type: otoken,
-                token_modifiers_bitset: 0,
-            });
-        }
-
-        *cursor = current_start_point;
-
-        tokens
+        let token = SemanticToken {
+            delta_line: (start_point.row - cursor.row) as u32,
+            delta_start: (start_point.column - cursor.column) as u32,
+            length: (end_byte - start_byte) as u32,
+            token_type: otoken,
+            token_modifiers_bitset: 0,
+        };
+        *cursor = start_point;
+        token
     }
 }
 
@@ -179,9 +135,24 @@ impl<'a> ContainerGetTokens for AstNodeContainer<'a> {
         let mut cursor = Point::new(0, 0);
         let mut tokens = vec![];
         for node in &self.nodes {
-            tokens.extend(node.get_semantic_tokens(&mut cursor, source));
+            tokens.push(node.get_semantic_token(&mut cursor, source));
         }
         tokens
+    }
+}
+
+trait HlContainerInsert<'a> {
+    fn hl_insert_node(&mut self, ast_node: AstNode<'a>);
+
+    fn sort_node(&mut self);
+}
+
+impl<'a> HlContainerInsert<'a> for AstNodeContainer<'a> {
+    fn sort_node(&mut self) {
+        self.nodes.sort();
+    }
+    fn hl_insert_node(&mut self, ast_node: AstNode<'a>) {
+        self.nodes.push(ast_node);
     }
 }
 
@@ -205,12 +176,22 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
 
     let mut container = AstNodeContainer::new();
     let names = query.capture_names();
+    let mut ranges = vec![];
     while let Some(m) = matches.next() {
         for e in m.captures {
+            if ranges.contains(&e.node.range()) {
+                continue;
+            }
+            ranges.push(e.node.range());
+            let highlight = names[e.index as usize];
+            if highlight == "none" {
+                continue;
+            }
             let ast_node = AstNode::new(e.node, names[e.index as usize]);
-            container.insert_node(ast_node);
+            container.hl_insert_node(ast_node);
         }
     }
+    container.sort_node();
     container.get_semantic_tokens(source)
 }
 
@@ -277,22 +258,13 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 2,
-                    length: 5,
+                    length: 17,
                     token_type: get_token_position(SemanticTokenTypes::String),
                     token_modifiers_bitset: 0
                 },
-                // NOTE: it is for arguments, which should not have highlight
-                // But our logic needs it
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 5,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
@@ -300,13 +272,6 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
@@ -314,13 +279,6 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 4,
                     token_type: get_token_position(SemanticTokenTypes::Variable),
                     token_modifiers_bitset: 0
@@ -328,34 +286,13 @@ mod tests {
                 SemanticToken {
                     delta_line: 0,
                     delta_start: 4,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0
                 },
                 SemanticToken {
                     delta_line: 0,
-                    delta_start: 1,
-                    length: 0,
-                    token_type: get_token_position(NONE_SEMANTIC_TOKEN),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 0,
-                    length: 5,
-                    token_type: get_token_position(SemanticTokenTypes::String),
-                    token_modifiers_bitset: 0
-                },
-                SemanticToken {
-                    delta_line: 0,
-                    delta_start: 5,
+                    delta_start: 6,
                     length: 1,
                     token_type: get_token_position(SemanticTokenTypes::Operator),
                     token_modifiers_bitset: 0

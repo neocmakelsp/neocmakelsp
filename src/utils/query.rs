@@ -108,13 +108,7 @@ impl<'a> RangeContain for AstNode<'a> {
 
 impl<'a, Data> Ord for AstNode<'a, Data> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.range().start_byte >= other.range().end_byte {
-            return std::cmp::Ordering::Greater;
-        }
-        if self.range().end_byte <= other.range().start_byte {
-            return std::cmp::Ordering::Less;
-        }
-        std::cmp::Ordering::Equal
+        self.range().start_byte.cmp(&other.range().start_byte)
     }
 }
 
@@ -176,6 +170,7 @@ impl<'a, Data> AstNodeContainer<'a, Data> {
     pub const fn new() -> Self {
         Self { nodes: Vec::new() }
     }
+    // FIXME: we should never sort it so many times
     pub fn insert_node(&mut self, ast_node: AstNode<'a, Data>) {
         assert!(self.nodes.is_sorted());
         if let Some(hnode) = self
