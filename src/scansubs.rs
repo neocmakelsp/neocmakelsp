@@ -91,7 +91,8 @@ pub async fn cache_project_data<P: AsRef<Path>>(project_root: P) -> Option<()> {
     Some(())
 }
 
-fn load_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
+/// This function is to load cache data from json files
+fn load_cache_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
     let cache_dir = project_root.as_ref().join(".cache").join("neocmakelsp");
     if !cache_dir.exists() {
         return None;
@@ -113,6 +114,7 @@ fn load_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
     })
 }
 
+/// Scan all files. If there is a cache file or it is the first time to scan dir
 pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
     if is_first
         && let Some(CacheLoader {
@@ -120,7 +122,7 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
             tree_cmake_map,
             complete_cache,
             jump_cache,
-        }) = load_all(project_root.as_ref())
+        }) = load_cache_all(project_root.as_ref())
     {
         let mut tree = TREE_MAP.lock().await;
         *tree = tree_map;
@@ -166,6 +168,9 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
     bufs
 }
 
+/// First is [CMakeLists.txt], the second one is [*.cmake]
+/// First one will record the structure of project
+/// The second one is used to get all used *.cmake files and record them
 async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(source) = tokio::fs::read_to_string(path.as_ref()).await else {
         return (Vec::new(), Vec::new());
@@ -186,6 +191,7 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf
     scan_node(&source, tree, path)
 }
 
+/// first is [CMakeLists.txt], the second one is [*.cmake]
 fn scan_node<P: AsRef<Path>>(
     source: &str,
     tree: tree_sitter::Node,
