@@ -10,6 +10,7 @@ use tower_lsp::lsp_types::{
 };
 
 use crate::utils::BUILTIN_MODULE_CACHED_DIR;
+use crate::utils::cache;
 use crate::{languageserver::to_use_snippet, utils::CachedCompleteItems};
 
 // As regex can't resolve nested parameter struct, parse it manually
@@ -128,9 +129,9 @@ fn gen_builtin_command_signature_resource(
 
 const fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
     if client_support_snippet {
-        "builtin_commands.json"
+        cache::builtin::COMMANDS_CACHE
     } else {
-        "builtin_commands_snippet.json"
+        cache::builtin::COMMANDS_SNIPPET_CACHE
     }
 }
 
@@ -213,7 +214,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
 fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("builtin_variable_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::VARIABLE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
@@ -228,7 +229,7 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
     let variables = gen_builtin_variables(&temp);
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("builtin_variable_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::VARIABLE_CACHE)
         && let cached = CachedCompleteItems::new(variables.clone())
         && let Ok(data) = serde_json::to_string_pretty(&cached)
     {
@@ -374,7 +375,7 @@ pub static BUILTIN_MODULE: LazyLock<Result<Vec<CompletionItem>>> =
 fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("builtin_module_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::MODULE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
         && !cache_completes.need_update()
@@ -387,7 +388,7 @@ fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
 
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("builtin_module_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::MODULE_CACHE)
         && let cached = CachedCompleteItems::new(modules.clone())
         && let Ok(data) = serde_json::to_string_pretty(&cached)
     {

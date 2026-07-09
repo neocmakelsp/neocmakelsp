@@ -6,7 +6,9 @@ use std::sync::{Arc, LazyLock};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
+use crate::complete::CompleteKV;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::jump::JumpKV;
 use crate::utils::NeoStrExt;
 use crate::utils::query::get_normal_commands;
 use crate::{complete, jump};
@@ -26,6 +28,21 @@ pub static TREE_MAP: LazyLock<Arc<Mutex<TreeKey>>> =
 // Key is the cmake file, value is the place using it
 pub static TREE_CMAKE_MAP: LazyLock<Arc<Mutex<TreeCMakeKey>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+
+struct CacheLoader {
+    tree_map: TreeKey,
+    tree_cmake_map: TreeCMakeKey,
+    complete_cache: CompleteKV,
+    jump_cache: JumpKV,
+}
+
+pub async fn load_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
+    let cache_dir = project_root.as_ref().join(".cache").join("neocmakelsp");
+    if !cache_dir.exists() {
+        return None;
+    }
+    todo!()
+}
 
 pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");

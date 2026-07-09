@@ -11,7 +11,7 @@ use tree_sitter::{Node, Point};
 use crate::{
     CMakeNodeKinds,
     utils::{
-        BUILTIN_MODULE_CACHED_DIR, CachedMessages, NeoStrExt,
+        BUILTIN_MODULE_CACHED_DIR, CachedMessages, NeoStrExt, cache,
         query::{
             try_get_bracket_comment, try_get_function, try_get_line_comment, try_get_macro,
             try_get_normal_command, try_get_variable,
@@ -103,7 +103,7 @@ pub fn get_position_range(location: Position, root: Node) -> Option<Range> {
 pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("messages_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::MODULE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedMessages::read(config_file)
         && !cache_completes.need_update()
@@ -167,7 +167,7 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
     );
     if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
         && std::fs::create_dir_all(cache_dir).is_ok()
-        && let config_file = cache_dir.join("messages_cache.json")
+        && let config_file = cache_dir.join(cache::builtin::MESSAGE_CACHE)
         && let cached = CachedMessages::new(storage.clone())
         && let Ok(data) = serde_json::to_string_pretty(&cached)
     {
