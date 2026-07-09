@@ -144,11 +144,11 @@ impl<'a> ContainerGetTokens for AstNodeContainer<'a> {
 trait HlContainerInsert<'a> {
     fn hl_insert_node(&mut self, ast_node: AstNode<'a>);
 
-    fn sort_node(&mut self);
+    fn sort_hlnode(&mut self);
 }
 
 impl<'a> HlContainerInsert<'a> for AstNodeContainer<'a> {
-    fn sort_node(&mut self) {
+    fn sort_hlnode(&mut self) {
         self.nodes.sort();
     }
     fn hl_insert_node(&mut self, ast_node: AstNode<'a>) {
@@ -191,7 +191,7 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
             container.hl_insert_node(ast_node);
         }
     }
-    container.sort_node();
+    container.sort_hlnode();
     container.get_semantic_tokens(source)
 }
 

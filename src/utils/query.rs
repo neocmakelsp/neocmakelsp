@@ -140,7 +140,6 @@ impl<'a, Data> AstNode<'a, Data> {
         self.node.range()
     }
     pub fn insert_node(&mut self, ast_node: Self) {
-        assert!(self.children.is_sorted());
         if let Some(hnode) = self
             .children
             .iter_mut()
@@ -157,7 +156,13 @@ impl<'a, Data> AstNode<'a, Data> {
             return hnode.insert_node(ast_node);
         }
         self.children.push(ast_node);
+    }
+
+    pub fn sort_node(&mut self) {
         self.children.sort();
+        for child in self.children.iter_mut() {
+            child.sort_node();
+        }
     }
 }
 
@@ -172,7 +177,6 @@ impl<'a, Data> AstNodeContainer<'a, Data> {
     }
     // FIXME: we should never sort it so many times
     pub fn insert_node(&mut self, ast_node: AstNode<'a, Data>) {
-        assert!(self.nodes.is_sorted());
         if let Some(hnode) = self
             .nodes
             .iter_mut()
@@ -190,7 +194,14 @@ impl<'a, Data> AstNodeContainer<'a, Data> {
             return;
         }
         self.nodes.push(ast_node);
+    }
+
+    /// You need to call it to finish the job
+    pub fn sort_to_finish(&mut self) {
         self.nodes.sort();
+        for node in self.nodes.iter_mut() {
+            node.sort_node();
+        }
     }
 }
 

@@ -200,6 +200,7 @@ fn get_symbols(node: tree_sitter::Node, source: &str) -> Vec<DocumentSymbol> {
         });
         container.insert_node(ast_node);
     }
+    container.sort_to_finish();
     container.dom_symbols()
 }
 
