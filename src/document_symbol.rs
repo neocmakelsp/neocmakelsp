@@ -119,17 +119,28 @@ impl<'a> NodeGetSymbol for AstNode<'a, SymbolData<'a>> {
                     },
                 }
             }
-            SymbolData::Function { name } => DocumentSymbol {
-                name: name.to_owned(),
-                detail: None,
-                kind: SymbolKind::Function,
-                tags: None,
-                #[allow(deprecated)]
-                deprecated: None,
-                range: range.lsp_range(),
-                selection_range: range.lsp_range(),
-                children: None,
-            },
+            SymbolData::Function { name } => {
+                let children: Vec<DocumentSymbol> = self
+                    .children
+                    .iter()
+                    .map(NodeGetSymbol::dom_symbol)
+                    .collect();
+                DocumentSymbol {
+                    name: name.to_owned(),
+                    detail: None,
+                    kind: SymbolKind::Function,
+                    tags: None,
+                    #[allow(deprecated)]
+                    deprecated: None,
+                    range: range.lsp_range(),
+                    selection_range: range.lsp_range(),
+                    children: if children.is_empty() {
+                        None
+                    } else {
+                        Some(children)
+                    },
+                }
+            }
         }
     }
 }
