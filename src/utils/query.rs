@@ -340,7 +340,7 @@ pub fn get_variables<'a>(
 ) -> Vec<VariableNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_variables_inner::<QueryRange>(source, node, end)
 }
@@ -383,7 +383,7 @@ pub fn get_argument_lists<'a>(
 ) -> Vec<ArgumentListNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_argument_lists_inner::<QueryRange>(source, node, end)
 }
@@ -448,7 +448,7 @@ pub fn get_line_comments<'a>(
 ) -> Vec<LineCommentNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_line_comments_inner::<QueryRange>(source, node, end)
 }
@@ -511,7 +511,7 @@ pub fn get_bracket_comments<'a>(
 ) -> Vec<BracketCommentNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_bracket_comments_inner::<QueryRange>(source, node, end)
 }
@@ -571,7 +571,7 @@ pub fn get_macros<'a>(
 ) -> Vec<MacroNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_macros_inner::<QueryRange>(source, node, end)
 }
@@ -640,7 +640,7 @@ pub fn get_normal_commands<'a>(
 ) -> Vec<NormalCommandNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_normal_commands_inner::<QueryRange>(source, node, end)
 }
@@ -723,7 +723,7 @@ pub fn get_functions<'a>(
 ) -> Vec<FuncNode<'a>> {
     let end = end.into().map(|end| QueryRange {
         start: Point { row: 0, column: 0 },
-        end: end.into(),
+        end,
     });
     get_functions_inner::<QueryRange>(source, node, end)
 }
