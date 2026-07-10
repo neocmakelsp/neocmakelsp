@@ -311,22 +311,18 @@ fn getsubcomplete<P: AsRef<Path>>(
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
     ));
     let local_path = local_path.as_ref();
-    if let Some(location) = location
-        && input.start_position().row as u32 > location.line
-    {
-        return None;
-    }
-    let max_height = location.map(|l| l.line);
     let source_bytes = source.as_bytes();
     let mut complete: Vec<CompletionItem> = vec![];
 
-    // NOTE: prepare
-    let bracket_comments = get_bracket_comments(source_bytes, input, max_height);
-    let comments = get_line_comments(source_bytes, input, max_height);
+    let end_location = location.map(|p| p.to_point());
 
-    let macros = get_macros(source_bytes, input, max_height);
-    let functions = get_functions(source_bytes, input, max_height);
-    let normal_commands = get_normal_commands(source_bytes, input, max_height);
+    // NOTE: prepare
+    let bracket_comments = get_bracket_comments(source_bytes, input, end_location);
+    let comments = get_line_comments(source_bytes, input, end_location);
+
+    let macros = get_macros(source_bytes, input, end_location);
+    let functions = get_functions(source_bytes, input, end_location);
+    let normal_commands = get_normal_commands(source_bytes, input, end_location);
     // NOTE: check bracket_comments
     for bracket_comment in bracket_comments {
         complete.extend(rst_doc_read(

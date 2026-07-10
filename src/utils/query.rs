@@ -54,6 +54,12 @@ impl From<Point> for QueryRange {
     }
 }
 
+impl ToQueryRange for QueryRange {
+    fn to_query_range(self) -> QueryRange {
+        self
+    }
+}
+
 impl ToQueryRange for Point {
     fn to_query_range(self) -> QueryRange {
         QueryRange::from(self)
@@ -322,9 +328,7 @@ pub fn try_get_variable<'a, T>(
 where
     T: ToQueryRange,
 {
-    get_variables_inner(source, node, None, range)
-        .into_iter()
-        .next()
+    get_variables_inner(source, node, range).into_iter().next()
 }
 
 /// max_height means when over this line, it will not count,
@@ -332,22 +336,24 @@ where
 pub fn get_variables<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<VariableNode<'a>> {
-    get_variables_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_variables_inner::<QueryRange>(source, node, end)
 }
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use None
 fn get_variables_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<VariableNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut variables = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, VARIABLE_QUERY).unwrap();
     let mut cursor_vars = QueryCursor::new();
@@ -356,12 +362,10 @@ where
         cursor_vars.set_point_range(range.start..range.end);
     }
     let mut matches_comments = cursor_vars.matches(&query_comment, node, source);
-    'out: while let Some(m) = matches_comments.next() {
+    while let Some(m) = matches_comments.next() {
         for c in m.captures {
             let node = c.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
+
             let content = node.utf8_text(source).unwrap();
             variables.push(VariableNode { content, node });
         }
@@ -375,9 +379,13 @@ where
 pub fn get_argument_lists<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<ArgumentListNode<'a>> {
-    get_argument_lists_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_argument_lists_inner::<QueryRange>(source, node, end)
 }
 
 /// max_height means when over this line, it will not count,
@@ -390,7 +398,7 @@ pub fn try_get_argument_list<'a, T>(
 where
     T: ToQueryRange,
 {
-    get_argument_lists_inner(source, node, None, point)
+    get_argument_lists_inner(source, node, point)
         .into_iter()
         .next()
 }
@@ -400,13 +408,11 @@ where
 fn get_argument_lists_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<ArgumentListNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut arguments = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, ARGUMENT_LIST_QUERY).unwrap();
     let mut cursor_argument = QueryCursor::new();
@@ -422,9 +428,7 @@ where
             arguments: vec![],
         };
         let node = m.nodes_for_capture_index(0).next().unwrap();
-        if node.start_position().row as u32 > max_height {
-            continue;
-        }
+
         ag_node.main_node = Some(node);
 
         let mut walk = node.walk();
@@ -440,9 +444,13 @@ where
 pub fn get_line_comments<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<LineCommentNode<'a>> {
-    get_line_comments_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_line_comments_inner::<QueryRange>(source, node, end)
 }
 
 /// try get the brack comment
@@ -455,7 +463,7 @@ pub fn try_get_line_comment<'a, T>(
 where
     T: ToQueryRange,
 {
-    get_line_comments_inner(source, node, None, point)
+    get_line_comments_inner(source, node, point)
         .into_iter()
         .next()
 }
@@ -464,13 +472,11 @@ where
 pub fn get_line_comments_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<LineCommentNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut comments = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, LINE_COMMENT_QUERY).unwrap();
     let mut cursor_comments = QueryCursor::new();
@@ -480,12 +486,10 @@ where
     }
     let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
 
-    'out: while let Some(m) = matches_comments.next() {
+    while let Some(m) = matches_comments.next() {
         for e in m.captures {
             let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
+
             let content = node
                 .utf8_text(source)
                 .unwrap()
@@ -503,9 +507,13 @@ where
 pub fn get_bracket_comments<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<BracketCommentNode<'a>> {
-    get_bracket_comments_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_bracket_comments_inner::<QueryRange>(source, node, end)
 }
 /// try get the brack comment
 #[must_use]
@@ -517,7 +525,7 @@ pub fn try_get_bracket_comment<'a, T>(
 where
     T: ToQueryRange,
 {
-    get_bracket_comments_inner(source, node, None, point)
+    get_bracket_comments_inner(source, node, point)
         .into_iter()
         .next()
 }
@@ -526,13 +534,11 @@ where
 fn get_bracket_comments_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<BracketCommentNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     // NOTE: prepare comments
     let mut comments = vec![];
     let query_comment = Query::new(&TREESITTER_CMAKE_LANGUAGE, BRACKET_COMMENT_QUERY).unwrap();
@@ -543,12 +549,10 @@ where
     }
     let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
 
-    'out: while let Some(m) = matches_comments.next() {
+    while let Some(m) = matches_comments.next() {
         for e in m.captures {
             let node = e.node;
-            if node.start_position().row as u32 > max_height {
-                continue 'out;
-            }
+
             comments.push(BracketCommentNode {
                 content: node.utf8_text(source).unwrap(),
                 node,
@@ -563,9 +567,13 @@ where
 pub fn get_macros<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<MacroNode<'a>> {
-    get_macros_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_macros_inner::<QueryRange>(source, node, end)
 }
 
 /// try get the macro
@@ -574,9 +582,7 @@ pub fn try_get_macro<'a, T>(source: &'a [u8], node: Node<'a>, range: T) -> Optio
 where
     T: ToQueryRange,
 {
-    get_macros_inner(source, node, None, range)
-        .into_iter()
-        .next()
+    get_macros_inner(source, node, range).into_iter().next()
 }
 
 /// max_height means when over this line, it will not count,
@@ -584,13 +590,11 @@ where
 fn get_macros_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<MacroNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut macros = vec![];
     let query_macro = Query::new(&TREESITTER_CMAKE_LANGUAGE, MACRO_QUERY).unwrap();
     let mut cursor_macro = QueryCursor::new();
@@ -620,9 +624,6 @@ where
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
         let first_arg = args[0].node;
-        if first_arg.start_position().row as u32 > max_height {
-            continue;
-        }
         macro_node.name = first_arg.utf8_text(source).unwrap();
         macro_node.arguments = args.iter().map(|q| q.node).collect();
         macros.push(macro_node);
@@ -635,9 +636,13 @@ where
 pub fn get_normal_commands<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<NormalCommandNode<'a>> {
-    get_normal_commands_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_normal_commands_inner::<QueryRange>(source, node, end)
 }
 
 /// try get the command
@@ -650,7 +655,7 @@ pub fn try_get_normal_command<'a, T>(
 where
     T: ToQueryRange,
 {
-    get_normal_commands_inner(source, node, None, range)
+    get_normal_commands_inner(source, node, range)
         .into_iter()
         .next()
 }
@@ -658,13 +663,11 @@ where
 fn get_normal_commands_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<NormalCommandNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut commands = vec![];
     let query_cmd = Query::new(&TREESITTER_CMAKE_LANGUAGE, NORMAL_COMMAND_QUERY).unwrap();
     let mut cursor_cmd = QueryCursor::new();
@@ -676,9 +679,7 @@ where
 
     while let Some(m) = matches_cmd.next() {
         let node = m.nodes_for_capture_index(0).next().unwrap();
-        if node.start_position().row as u32 > max_height {
-            continue;
-        }
+
         let Some(identifier) = node.child(0) else {
             continue;
         };
@@ -718,9 +719,13 @@ where
 pub fn get_functions<'a>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
+    end: impl Into<Option<Point>>,
 ) -> Vec<FuncNode<'a>> {
-    get_functions_inner::<Point>(source, node, max_height, None)
+    let end = end.into().map(|end| QueryRange {
+        start: Point { row: 0, column: 0 },
+        end: end.into(),
+    });
+    get_functions_inner::<QueryRange>(source, node, end)
 }
 /// try get the command
 #[must_use]
@@ -728,21 +733,17 @@ pub fn try_get_function<'a, T>(source: &'a [u8], node: Node<'a>, range: T) -> Op
 where
     T: ToQueryRange,
 {
-    get_functions_inner(source, node, None, range)
-        .into_iter()
-        .next()
+    get_functions_inner(source, node, range).into_iter().next()
 }
 
 fn get_functions_inner<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    max_height: impl Into<Option<u32>>,
     range: impl Into<Option<T>>,
 ) -> Vec<FuncNode<'a>>
 where
     T: ToQueryRange,
 {
-    let max_height = max_height.into().unwrap_or(u32::MAX);
     let mut funs = vec![];
     let query_fun = Query::new(&TREESITTER_CMAKE_LANGUAGE, FUNCTION_QUERY).unwrap();
     let mut cursor_fun = QueryCursor::new();
@@ -772,9 +773,6 @@ where
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
         let first_arg = args[0].node;
-        if first_arg.start_position().row as u32 > max_height {
-            continue;
-        }
         fun_node.name = first_arg.utf8_text(source).unwrap();
         fun_node.arguments = args.iter().map(|q| q.node).collect();
         funs.push(fun_node);
