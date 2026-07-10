@@ -2,7 +2,6 @@ pub mod builtin;
 mod findpackage;
 mod includescanner;
 use std::collections::HashMap;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
@@ -252,15 +251,11 @@ fn get_include_completions<P: AsRef<Path>>(
         .ok()?
         .flatten()
         .filter_map(|pa| {
-            let mut file = std::fs::File::open(&pa).ok()?;
-            let mut document = String::new();
-            file.read_to_string(&mut document).ok()?;
             let pa = pathdiff::diff_paths(pa, current_dir)?;
             let label = pa.to_string_lossy().to_string();
             Some(CompletionItem {
                 label,
                 kind: Some(CompletionItemKind::File),
-                documentation: Some(Documentation::String(document.to_string())),
                 ..Default::default()
             })
         })
