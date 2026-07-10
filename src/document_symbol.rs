@@ -313,7 +313,34 @@ mod tests {
                             character: 13
                         }
                     },
-                    children: None
+                    children: Some(vec![DocumentSymbol {
+                        name: "Block".to_owned(),
+                        detail: None,
+                        kind: SymbolKind::Namespace,
+                        tags: None,
+                        deprecated: None,
+                        range: Range {
+                            start: Position {
+                                line: 6,
+                                character: 17
+                            },
+                            end: Position {
+                                line: 7,
+                                character: 0
+                            }
+                        },
+                        selection_range: Range {
+                            start: Position {
+                                line: 6,
+                                character: 17
+                            },
+                            end: Position {
+                                line: 7,
+                                character: 0
+                            }
+                        },
+                        children: None
+                    }])
                 },
                 DocumentSymbol {
                     name: "If Condition".to_owned(),
