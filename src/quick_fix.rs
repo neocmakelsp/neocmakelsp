@@ -38,7 +38,7 @@ fn get_fix_action(
 ) -> Option<Vec<CodeActionResponse>> {
     let argument_list = try_get_argument_list(source.as_bytes(), input, range)?;
 
-    let start_node = argument_list.main_node.unwrap();
+    let start_node = argument_list.main_node;
     let start = start_node.start_position().to_position();
     let end = start_node.end_position().to_position();
     let range = Range { start, end };

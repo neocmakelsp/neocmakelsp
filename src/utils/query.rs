@@ -253,7 +253,7 @@ pub struct VariableNode<'a> {
 }
 
 pub struct ArgumentListNode<'a> {
-    pub main_node: Option<Node<'a>>,
+    pub main_node: Node<'a>,
     pub arguments: Vec<Node<'a>>,
 }
 
@@ -423,13 +423,11 @@ where
     let mut matches_comments = cursor_argument.matches(&query_comment, node, source);
 
     while let Some(m) = matches_comments.next() {
+        let node = m.nodes_for_capture_index(0).next().unwrap();
         let mut ag_node = ArgumentListNode {
-            main_node: None,
+            main_node: node,
             arguments: vec![],
         };
-        let node = m.nodes_for_capture_index(0).next().unwrap();
-
-        ag_node.main_node = Some(node);
 
         let mut walk = node.walk();
         for child in node.children(&mut walk) {
