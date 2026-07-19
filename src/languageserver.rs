@@ -176,15 +176,6 @@ impl Backend {
         let content_change = params.content_changes.into_iter().next()?;
         let text = content_change.whole_content()?;
         self.update_cache(uri.clone(), text);
-        self.publish_diagnostics(
-            uri.clone(),
-            text,
-            LintConfigInfo {
-                use_lint: self.init_info().enable_lint,
-                use_extra_cmake_lint: false,
-            },
-        )
-        .await;
         self.client
             .log_message(MessageType::Info, &format!("update file: {}", uri.as_str()))
             .await;
@@ -356,7 +347,16 @@ impl LanguageServer for Backend {
                     None
                 },
                 references_provider: Some(true.into()),
-
+                diagnostic_provider: Some(DiagnosticProvider::DiagnosticOptions(
+                    DiagnosticOptions {
+                        identifier: Some("neocmakelsp".to_owned()),
+                        inter_file_dependencies: true,
+                        workspace_diagnostics: false,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                    },
+                )),
                 document_link_provider: Some(DocumentLinkOptions {
                     resolve_provider: Some(true),
                     work_done_progress_options: WorkDoneProgressOptions {
@@ -563,15 +563,6 @@ impl LanguageServer for Backend {
 
         complete::update_cache(&path, &text).await;
         jump::update_cache(&path, &text).await;
-        self.publish_diagnostics(
-            uri,
-            &text,
-            LintConfigInfo {
-                use_lint: self.init_info().enable_lint,
-                use_extra_cmake_lint: true,
-            },
-        )
-        .await;
 
         self.client
             .log_message(MessageType::Info, format!("Opened file {}", path.display()))
@@ -625,16 +616,6 @@ impl LanguageServer for Backend {
             complete::update_cache(&path, &text).await;
             jump::update_cache(&path, &text).await;
         }
-        self.publish_diagnostics(
-            uri,
-            &text,
-            LintConfigInfo {
-                use_lint: self.init_info().enable_lint,
-                use_extra_cmake_lint: CONFIG.enable_external_cmake_lint,
-            },
-        )
-        .await;
-
         self.client
             .log_message(MessageType::Info, "file saved!")
             .await;
@@ -843,6 +824,77 @@ impl LanguageServer for Backend {
         };
 
         Ok(document_symbol::get_symbol(&self.client, &text).await)
+    }
+
+    async fn diagnostic(
+        &self,
+        params: DocumentDiagnosticParams,
+    ) -> Result<DocumentDiagnosticReport> {
+        let empty = DocumentDiagnosticReport::RelatedFullDocumentDiagnosticReport(
+            RelatedFullDocumentDiagnosticReport {
+                related_documents: None,
+                full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                    result_id: None,
+                    items: vec![],
+                },
+            },
+        );
+
+        let uri = params.text_document.uri;
+        let (Some(text), Some(path)) = (self.get_cached_buffer(&uri), uri.to_file_path().ok())
+        else {
+            return Ok(empty);
+        };
+
+        let Some(gammarerror) = checkerror(
+            &path,
+            &text,
+            LintConfigInfo {
+                use_lint: self.init_info().enable_lint,
+                use_extra_cmake_lint: CONFIG.enable_external_cmake_lint,
+            },
+        ) else {
+            return Ok(empty);
+        };
+
+        let mut pusheddiagnoses = vec![];
+        for ErrorInformation {
+            start_point,
+            end_point,
+            message,
+            severity,
+        } in gammarerror.inner
+        {
+            let pointx = start_point.to_position();
+            let pointy = end_point.to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            let diagnose = Diagnostic {
+                range,
+                severity,
+                code: None,
+                code_description: None,
+                source: None,
+                message: message.into(),
+                related_information: None,
+                tags: None,
+                data: None,
+            };
+            pusheddiagnoses.push(diagnose);
+        }
+        Ok(
+            DocumentDiagnosticReport::RelatedFullDocumentDiagnosticReport(
+                RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items: pusheddiagnoses,
+                    },
+                },
+            ),
+        )
     }
 
     async fn semantic_tokens_full(
