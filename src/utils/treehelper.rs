@@ -522,6 +522,12 @@ endmacro()
             PositionType::VarOrFun
         );
         assert_eq!(
+            CurrentNodeInfo::get(source, input, Point { row: 2, column: 0 },)
+                .content()
+                .unwrap(),
+            "set"
+        );
+        assert_eq!(
             CurrentNodeInfo::get(source, input, Point { row: 3, column: 5 }).pos_type(),
             PositionType::VarOrFun
         );
