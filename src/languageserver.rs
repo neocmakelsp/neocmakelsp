@@ -304,6 +304,10 @@ impl LanguageServer for Backend {
                 document_symbol_provider: Some(DocumentSymbolProvider::Bool(true)),
                 definition_provider: Some(DefinitionProvider::Bool(true)),
                 document_formatting_provider: if do_format { Some(true.into()) } else { None },
+                document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
+                    first_trigger_character: "\n".to_owned(),
+                    more_trigger_character: None,
+                }),
                 hover_provider: Some(true.into()),
                 workspace: Some(WorkspaceOptions::new(
                     Some(WorkspaceFoldersServerCapabilities {
@@ -824,6 +828,14 @@ impl LanguageServer for Backend {
         };
 
         Ok(document_symbol::get_symbol(&self.client, &text).await)
+    }
+
+    async fn on_type_formatting(
+        &self,
+        params: DocumentOnTypeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        println!("{params:?}");
+        Ok(None)
     }
 
     async fn diagnostic(
