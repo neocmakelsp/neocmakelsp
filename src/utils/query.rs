@@ -47,10 +47,11 @@ pub trait ToQueryRange {
 }
 impl From<Point> for QueryRange {
     fn from(value: Point) -> Self {
-        Self {
-            start: value,
-            end: value,
+        let mut start = value;
+        if start.column != 0 {
+            start.column -= 1;
         }
+        Self { start, end: value }
     }
 }
 

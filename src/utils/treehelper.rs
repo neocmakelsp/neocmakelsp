@@ -512,6 +512,11 @@ endmacro()
             CurrentNodeInfo::get(source, input, Point { row: 1, column: 3 },).pos_type(),
             PositionType::Comment
         );
+        // NOTE: when inserted with a new text, it has not been inside the phrase
+        assert_eq!(
+            CurrentNodeInfo::get(source, input, Point { row: 1, column: 17 },).pos_type(),
+            PositionType::Comment
+        );
         assert_eq!(
             CurrentNodeInfo::get(source, input, Point { row: 2, column: 4 },).pos_type(),
             PositionType::VarOrFun
