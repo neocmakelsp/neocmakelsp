@@ -41,7 +41,7 @@ tempfile = "3.27.0"
 tower = { version = "0.5.3", features = ["util"] }
 
 [target.'cfg(windows)'.dependencies]
-path-absolutize = "3.1.1"
+path-absolutize = "4.0.1"
 
 [lints.clippy]
 equatable_if_let = "warn"
