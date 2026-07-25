@@ -25,7 +25,8 @@ If you have any questions or want to help in other ways, feel free to join [out 
    - [Helix Configuration](#helix)
    - [Emacs Configuration](#emacs)
 6. [Visual Examples](#visual-examples)
-7. [User Feedback](#user-feedback)
+7. [Cli part](#cli)
+8. [User Feedback](#user-feedback)
 
 
 ## Installation
@@ -182,14 +183,16 @@ To use `neocmakelsp` with eglot:
 -   Format
 -   CodeAction
 -   document_link
+-   document_symbol
 -   GO TO Definition
     -   find_package
     -   include
--   Search cli
--   Get the project struct
--   It is also a cli tool to format
 -   Lint
 -   Rename
+-   Search cli
+-   Get the project struct
+-   Format tool
+-   Build target
 
 ## Lint form 6.0.27
 
@@ -301,6 +304,21 @@ init_options = {
 ### Tree
 
 ![TreeShow](images/tree.png)
+
+## Cli
+
+### Run and Build
+
+![RunShow](images/run.png)
+
+Run and Build subcommand allow you to choose an target to run or build, if you have configure the project with
+
+```bash
+cmake -B build
+```
+
+Then neocmakelsp will find the target and help you run or build the target
+
 
 ### Format cli
 
