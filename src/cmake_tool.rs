@@ -25,7 +25,7 @@ fn get_target_info(target: Option<String>, kind: HelperKind) -> Option<Target> {
                 })
                 .collect();
             let index = FuzzySelect::with_theme(&ColorfulTheme::default())
-                .with_prompt("Choose Screen")
+                .with_prompt("Choose target")
                 .default(0)
                 .items(&data_vec)
                 .interact()
