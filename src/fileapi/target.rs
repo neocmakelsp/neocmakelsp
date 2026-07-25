@@ -33,7 +33,7 @@ impl Target {
         let mut build_type = BuildType::None;
         if let Some(after_name) = name.strip_suffix("-Debug") {
             name = after_name;
-            build_type = BuildType::Debug
+            build_type = BuildType::Debug;
         } else if let Some(after_name) = name.strip_suffix("-Release") {
             name = after_name;
             build_type = BuildType::Release;
@@ -129,7 +129,7 @@ pub struct TargetInfo {
 impl TargetInfo {
     pub fn hover(&self) -> String {
         let mut hover_info = "".to_owned();
-        hover_info.push_str(&format!("type: {}", &self.type_));
+        hover_info.push_str(&format!("type: {}", self.type_));
         hover_info.push('\n');
         hover_info.push_str("artifacts:\n");
         for Artifact { path, .. } in &self.artifacts {
@@ -146,7 +146,7 @@ impl TargetInfo {
         if self.type_ == "EXECUTABLE" {
             return TargetType::Executable;
         }
-        return TargetType::Library;
+        TargetType::Library
     }
     pub fn artifacts(&self) -> &[Artifact] {
         &self.artifacts
