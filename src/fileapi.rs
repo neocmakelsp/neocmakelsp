@@ -36,6 +36,15 @@ pub fn get_target_hover(name: &str) -> Option<String> {
     Some(data.get(name)?.hover())
 }
 
+pub fn get_target_data(name: &str) -> Option<Target> {
+    let data = TARGET_DATA.lock().ok()?;
+    data.get(name).cloned()
+}
+pub fn get_all_targets() -> Option<HashMap<String, Target>> {
+    let data = TARGET_DATA.lock().ok()?;
+    Some(data.clone())
+}
+
 pub fn get_cache_data() -> Option<Cache> {
     let data = CACHE_DATA.lock().ok()?;
     data.clone()

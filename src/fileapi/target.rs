@@ -13,6 +13,11 @@ pub struct Target {
     pub name: String,
 }
 
+impl std::fmt::Display for Target {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.name, self.build_type)
+    }
+}
 impl Target {
     pub fn hover(&self) -> String {
         let mut hover_info = self.name.to_owned();
@@ -54,9 +59,20 @@ pub enum BuildType {
     Other(String),
 }
 
+impl std::fmt::Display for BuildType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Debug => write!(f, "Debug"),
+            Self::Release => write!(f, "Release"),
+            Self::None => write!(f, "None"),
+            Self::Other(typ) => write!(f, "{typ}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Artifact {
-    path: String,
+    pub path: String,
 
     #[serde(flatten)]
     _others: HashMap<String, serde_json::Value>,

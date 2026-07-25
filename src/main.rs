@@ -12,6 +12,7 @@ mod treesitter_nodetypes;
 use tokio::net::TcpListener;
 use treesitter_nodetypes as CMakeNodeKinds;
 mod cli;
+mod cmake_tool;
 mod complete;
 mod config;
 mod consts;
@@ -226,6 +227,12 @@ async fn main() -> Result<()> {
                 }
                 None => println!("Nothing found"),
             }
+        }
+        Command::Run { target, path, args } => {
+            cmake_tool::help_run(target, path, args)?;
+        }
+        Command::Build { target, path } => {
+            cmake_tool::help_build(target, path)?;
         }
     }
 
