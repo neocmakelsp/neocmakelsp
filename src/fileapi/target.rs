@@ -23,6 +23,7 @@ mod compile_group {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompileGroup {
     compile_command_fragments: Vec<compile_group::CommandFragment>,
     language: String,
@@ -38,9 +39,10 @@ pub struct Source {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Target {
     artifacts: Vec<Artifact>,
-    codemode_version: ApiVersion,
+    codemodel_version: ApiVersion,
     compile_groups: Option<Vec<CompileGroup>>,
     #[serde(rename = "type")]
     type_: String,
@@ -56,10 +58,26 @@ impl Target {
         }
         return TargetType::Library;
     }
+    pub fn artifacts(&self) -> &[Artifact] {
+        &self.artifacts
+    }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-enum TargetType {
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TargetType {
     Library,
     Executable,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::fileapi::target::{Target, TargetType};
+
+    #[test]
+    fn target_serde() {
+        let file = include_str!("../../assets_for_test/waycrate.json");
+        let target: Target = serde_json::from_str(file).unwrap();
+        assert_eq!(target.target_type(), TargetType::Executable);
+        assert_eq!(target.artifacts[0].path, "waycratelock");
+    }
 }
