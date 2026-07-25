@@ -266,6 +266,7 @@ async fn godef_inner<P: AsRef<Path>>(
         PositionType::Comment | PositionType::FunOrMacroArgs => None,
         #[cfg(unix)]
         PositionType::FindPkgConfig => None,
+        PositionType::Target => None,
         PositionType::Include => {
             let fixed_url = replace_placeholders(tofind)?;
             include::cmpinclude(originuri, &fixed_url)

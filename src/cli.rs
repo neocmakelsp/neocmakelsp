@@ -74,6 +74,22 @@ pub enum Command {
         #[arg(short, long)]
         json: bool,
     },
+
+    Run {
+        target: Option<String>,
+        /// File to start with.
+        #[arg(default_value = ".", value_hint = ValueHint::AnyPath)]
+        path: PathBuf,
+
+        #[arg(long)]
+        args: Vec<String>,
+    },
+    Build {
+        target: Option<String>,
+        /// File to start with.
+        #[arg(default_value = ".", value_hint = ValueHint::AnyPath)]
+        path: PathBuf,
+    },
 }
 
 #[cfg(test)]
