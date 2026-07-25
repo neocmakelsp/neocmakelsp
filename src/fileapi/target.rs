@@ -2,9 +2,8 @@ use crate::fileapi::ApiVersion;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path, sync::LazyLock};
 
-pub static TARGET_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(target-(?P<name>[0-9a-zA-Z]+)(-(?P<target>[a-zA-z]+))?-.+.json)").unwrap()
-});
+pub static TARGET_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(target-(?P<name>[0-9a-zA-Z\-]+)-.+.json)").unwrap());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Target {
@@ -30,22 +29,28 @@ impl Target {
         let file_name = path.file_name()?.to_str()?;
 
         let caps = TARGET_REGEX.captures(file_name)?;
-        let name = caps["name"].to_owned();
-        let build_type = caps
-            .name("target")
-            .map(|target| match target.as_str() {
-                "Debug" => BuildType::Debug,
-                "Release" => BuildType::Release,
-                _ => BuildType::Other(target.as_str().to_owned()),
-            })
-            .unwrap_or_default();
+        let mut name = &caps["name"];
+        let mut build_type = BuildType::None;
+        if let Some(after_name) = name.strip_suffix("-Debug") {
+            name = after_name;
+            build_type = BuildType::Debug
+        } else if let Some(after_name) = name.strip_suffix("-Release") {
+            name = after_name;
+            build_type = BuildType::Release;
+        } else if let Some(after_name) = name.strip_suffix("-RelWithDebInfo") {
+            name = after_name;
+            build_type = BuildType::RelWithDebInfo;
+        } else if let Some(after_name) = name.strip_suffix("-MinSizeRel") {
+            name = after_name;
+            build_type = BuildType::RelWithDebInfo;
+        }
 
         let data = std::fs::read_to_string(path).ok()?;
         let info = serde_json::from_str(&data).ok()?;
         Some(Self {
             build_type,
             info,
-            name,
+            name: name.to_owned(),
         })
     }
 }
@@ -56,7 +61,8 @@ pub enum BuildType {
     Release,
     #[default]
     None,
-    Other(String),
+    RelWithDebInfo,
+    MinSizeRel,
 }
 
 impl std::fmt::Display for BuildType {
@@ -65,7 +71,8 @@ impl std::fmt::Display for BuildType {
             Self::Debug => write!(f, "Debug"),
             Self::Release => write!(f, "Release"),
             Self::None => write!(f, "None"),
-            Self::Other(typ) => write!(f, "{typ}"),
+            Self::RelWithDebInfo => write!(f, "RelWithDebInfo"),
+            Self::MinSizeRel => write!(f, "MinSizeRel"),
         }
     }
 }
@@ -135,14 +142,12 @@ impl TargetInfo {
         }
         hover_info
     }
-    #[allow(unused)]
     pub fn target_type(&self) -> TargetType {
         if self.type_ == "EXECUTABLE" {
             return TargetType::Executable;
         }
         return TargetType::Library;
     }
-    #[allow(unused)]
     pub fn artifacts(&self) -> &[Artifact] {
         &self.artifacts
     }
@@ -171,11 +176,9 @@ mod test {
         let file_name = "target-waycratelock-Debug-7d1c13a099b19b474ca1.json";
         let caps = TARGET_REGEX.captures(file_name).unwrap();
 
-        assert_eq!(&caps["name"], "waycratelock");
-        assert_eq!(&caps["target"], "Debug");
+        assert_eq!(&caps["name"], "waycratelock-Debug");
         let file_name = "target-waycratelock-7d1c13a099b19b474ca1.json";
         let caps = TARGET_REGEX.captures(file_name).unwrap();
         assert_eq!(&caps["name"], "waycratelock");
-        assert_eq!(caps.name("target"), None);
     }
 }
