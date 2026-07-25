@@ -1,8 +1,8 @@
 use crate::fileapi::ApiVersion;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::LazyLock};
+use std::{collections::HashMap, path::Path, sync::LazyLock};
 
-static TARGET_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+pub static TARGET_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"(target-(?P<name>[0-9a-zA-Z]+)(-(?P<target>[a-zA-z]+))?-.+.json)").unwrap()
 });
 
@@ -10,12 +10,46 @@ static TARGET_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
 pub struct Target {
     pub build_type: BuildType,
     pub info: TargetInfo,
+    pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Target {
+    pub fn hover(&self) -> String {
+        let mut hover_info = self.name.to_owned();
+        hover_info.push('\n');
+        hover_info.push_str(&self.info.hover());
+        hover_info
+    }
+    pub fn read<P: AsRef<Path>>(path: P) -> Option<Self> {
+        let path = path.as_ref();
+        let file_name = path.file_name()?.to_str()?;
+
+        let caps = TARGET_REGEX.captures(file_name)?;
+        let name = caps["name"].to_owned();
+        let build_type = caps
+            .name("target")
+            .map(|target| match target.as_str() {
+                "Debug" => BuildType::Debug,
+                "Release" => BuildType::Release,
+                _ => BuildType::Other(target.as_str().to_owned()),
+            })
+            .unwrap_or_default();
+
+        let data = std::fs::read_to_string(path).ok()?;
+        let info = serde_json::from_str(&data).ok()?;
+        Some(Self {
+            build_type,
+            info,
+            name,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum BuildType {
     Debug,
     Release,
+    #[default]
     None,
     Other(String),
 }
@@ -26,6 +60,12 @@ pub struct Artifact {
 
     #[serde(flatten)]
     _others: HashMap<String, serde_json::Value>,
+}
+
+impl Artifact {
+    fn hover(&self) -> String {
+        format!("path: {}", self.path)
+    }
 }
 
 mod compile_group {
@@ -70,6 +110,21 @@ pub struct TargetInfo {
 }
 
 impl TargetInfo {
+    pub fn hover(&self) -> String {
+        let mut hover_info = "".to_owned();
+        hover_info.push_str(&format!("type: {}", &self.type_));
+        hover_info.push('\n');
+        hover_info.push_str("artifacts:\n");
+        for Artifact { path, .. } in &self.artifacts {
+            hover_info.push_str(&format!("  path: {path}\n"));
+        }
+        hover_info.push('\n');
+        hover_info.push_str("source:\n");
+        for Source { path, .. } in &self.sources {
+            hover_info.push_str(&format!("  path: {path}"));
+        }
+        hover_info
+    }
     pub fn target_type(&self) -> TargetType {
         if self.type_ == "EXECUTABLE" {
             return TargetType::Executable;

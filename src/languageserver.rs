@@ -20,6 +20,7 @@ use super::Backend;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
+use crate::fileapi::target::TARGET_REGEX;
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::scansubs::cache_project_data;
@@ -245,8 +246,10 @@ impl LanguageServer for Backend {
                                 let file_name = file_name.to_string_lossy().to_string();
                                 if file_name.starts_with("cache-v2") && file_name.ends_with(".json")
                                 {
-                                    fileapi::update_cache_data(file_path);
-                                    break;
+                                    fileapi::update_cache_data(&file_path);
+                                }
+                                if TARGET_REGEX.is_match(&file_name) {
+                                    fileapi::update_target_data(file_path);
                                 }
                             }
                         }

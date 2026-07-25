@@ -190,6 +190,7 @@ pub enum PositionType<'a> {
     FunOrMacroArgs,
     TargetInclude,
     TargetLink,
+    Target,
     Comment,
 }
 
@@ -333,8 +334,20 @@ impl<'a> CurrentNodeInfo<'a> {
                 "pkg_check_modules" => PositionType::FindPkgConfig,
                 "include" => PositionType::Include,
                 "add_subdirectory" => PositionType::SubDir,
-                "target_include_directories" => PositionType::TargetInclude,
-                "target_link_libraries" => PositionType::TargetLink,
+                id @ ("add_executable"
+                | "add_library"
+                | "target_include_directories"
+                | "target_link_libraries") => {
+                    if argument_index.is_some_and(|index| index == 0) {
+                        PositionType::Target
+                    } else {
+                        match id {
+                            "target_include_directories" => PositionType::TargetInclude,
+                            "target_link_libraries" => PositionType::TargetLink,
+                            _ => PositionType::VarOrFun,
+                        }
+                    }
+                }
                 _ => PositionType::VarOrFun,
             }
         };
@@ -504,6 +517,7 @@ find_package(Qt5 COMPONENTS Core)
 find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
+add_executable(abcedfg)
     "#;
         let tree = parse_tree(source);
         let input = tree.root_node();
@@ -612,6 +626,18 @@ endmacro()
         assert_eq!(
             CurrentNodeInfo::get(source, input, Point { row: 17, column: 8 },).pos_type(),
             PositionType::FunOrMacroIdentifier
+        );
+        assert_eq!(
+            CurrentNodeInfo::get(
+                source,
+                input,
+                Point {
+                    row: 19,
+                    column: 16
+                },
+            )
+            .pos_type(),
+            PositionType::Target
         );
     }
 }

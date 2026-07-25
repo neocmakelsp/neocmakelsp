@@ -9,7 +9,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_lsp::lsp_types::CompletionItem;
 
+use crate::fileapi::target::Target;
+
 static CACHE_DATA: LazyLock<Mutex<Option<Cache>>> = LazyLock::new(|| Mutex::new(None));
+static TARGET_DATA: LazyLock<Mutex<HashMap<String, Target>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub fn update_target_data<P: AsRef<Path>>(target: P) -> Option<Target> {
+    let target = Target::read(target)?;
+    let mut data = TARGET_DATA.lock().ok()?;
+    data.insert(target.name.clone(), target.clone());
+    Some(target)
+}
 
 pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<Cache> {
     use std::fs::File;
