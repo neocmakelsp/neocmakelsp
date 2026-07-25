@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-07-25
+
+### Changed
+
+- Feat: Cache the local commands once a week under $XDG_CONFIG_CACHE dir and cache the project info under .cache/neocmakelsp before exiting the editor
+- Perf: Replace all the iter logic with tree-sitter query
+- Perf: Better highlight logic, and faster speed
+- Feat: Support the target file in fileapi, it will make hover to show more information.
+- Feat: add Run and Build subcommand to neocmakelsp, if the build file is the `build` file under the project, you can try use it to build your project
+
+[0.11.0]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.11.0...v0.10.4
+
 ## [0.10.4] - 2026-06-03
 
 ### Changed
