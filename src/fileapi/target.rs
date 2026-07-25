@@ -115,7 +115,7 @@ impl TargetInfo {
         hover_info.push('\n');
         hover_info.push_str("source:\n");
         for Source { path, .. } in &self.sources {
-            hover_info.push_str(&format!("  path: {path}"));
+            hover_info.push_str(&format!("  path: {path}\n"));
         }
         hover_info
     }

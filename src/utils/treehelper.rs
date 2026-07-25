@@ -336,6 +336,7 @@ impl<'a> CurrentNodeInfo<'a> {
                 "add_subdirectory" => PositionType::SubDir,
                 id @ ("add_executable"
                 | "add_library"
+                | "target_sources"
                 | "target_include_directories"
                 | "target_link_libraries") => {
                     if argument_index.is_some_and(|index| index == 0) {
