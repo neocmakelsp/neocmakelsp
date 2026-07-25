@@ -528,6 +528,9 @@ impl LanguageServer for Backend {
             if file_name.ends_with("json") && file_name.starts_with("cache-v2") {
                 fileapi::update_cache_data(&file_path);
             }
+            if TARGET_REGEX.is_match(&file_name) {
+                fileapi::update_target_data(&file_path);
+            }
             if file_name.ends_with("txt") {
                 has_cached_changed = true;
                 if file_name == "CMakeLists.txt" {

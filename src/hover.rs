@@ -3,6 +3,7 @@ use tower_lsp::lsp_types;
 use tree_sitter::Node;
 
 use crate::fileapi;
+use crate::fileapi::get_target_hover;
 use crate::jump::JUMP_CACHE;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
@@ -71,6 +72,7 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
             }
             value.map(cmakepackage_document_fmt)
         }
+        PositionType::Target => get_target_hover(message),
         _ => {
             let mut value = MESSAGE_STORAGE.get(message);
             if value.is_none() {

@@ -31,6 +31,11 @@ pub fn update_cache_data<P: AsRef<Path>>(cache_file: P) -> Option<Cache> {
     set_cache_data(cache)
 }
 
+pub fn get_target_hover(name: &str) -> Option<String> {
+    let data = TARGET_DATA.lock().ok()?;
+    Some(data.get(name)?.hover())
+}
+
 pub fn get_cache_data() -> Option<Cache> {
     let data = CACHE_DATA.lock().ok()?;
     data.clone()

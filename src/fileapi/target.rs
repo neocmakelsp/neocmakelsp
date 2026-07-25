@@ -62,12 +62,6 @@ pub struct Artifact {
     _others: HashMap<String, serde_json::Value>,
 }
 
-impl Artifact {
-    fn hover(&self) -> String {
-        format!("path: {}", self.path)
-    }
-}
-
 mod compile_group {
 
     use super::*;
@@ -125,12 +119,14 @@ impl TargetInfo {
         }
         hover_info
     }
+    #[allow(unused)]
     pub fn target_type(&self) -> TargetType {
         if self.type_ == "EXECUTABLE" {
             return TargetType::Executable;
         }
         return TargetType::Library;
     }
+    #[allow(unused)]
     pub fn artifacts(&self) -> &[Artifact] {
         &self.artifacts
     }
