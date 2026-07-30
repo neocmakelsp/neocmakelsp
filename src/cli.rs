@@ -75,6 +75,7 @@ pub enum Command {
         json: bool,
     },
 
+    /// Run a cmake target
     Run {
         target: Option<String>,
         /// File to start with.
@@ -84,6 +85,7 @@ pub enum Command {
         #[arg(long)]
         args: Vec<String>,
     },
+    /// Build a cmake target
     Build {
         target: Option<String>,
         /// File to start with.
