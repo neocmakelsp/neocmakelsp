@@ -147,12 +147,7 @@ fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Optio
     ))
 }
 
-// FIXME: unit test failed on windows
-// thread 'document_link::test_document_link_search' panicked at src\document_link.rs:156:67:
-// called `Result::unwrap()` on an `Err` value: Error("invalid escape", line: 16, column: 27)
-// note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-// Now disable it on windows.
-#[cfg(all(test, not(windows)))]
+#[cfg(test)]
 mod tests {
     use std::fs;
     use std::fs::File;
@@ -164,36 +159,28 @@ mod tests {
     use crate::fileapi::cache::Cache;
     use crate::fileapi::set_cache_data;
 
-    // NOTE: Test is also flaky on Linux and reliably fails with tarpaulin.
-    #[cfg_attr(tarpaulin, ignore)]
     #[test]
     fn test_document_link_search() {
         let dir = tempdir().unwrap();
 
-        let json_value = format!(
-            "{{
-    \"kind\" : \"cache\",
-    \"version\" :
-    {{
-        \"major\" : 2,
-        \"minor\" : 0
-    }},
-    \"entries\" :
-    [
-        {{
-            \"name\" : \"ROOT_DIR\",
-            \"properties\" :
-            [
-            ],
-            \"type\" : \"FILEPATH\",
-            \"value\" : \"{}\"
-        }}
-    ]
-    }}",
-            dir.path().display()
-        );
-        let template_cache: Cache = serde_json::from_str(&json_value).unwrap();
+        let json_value = serde_json::json!({
+            "kind": "cache",
+            "version": {
+                "major": 2,
+                "minor": 0
+            },
+            "entries": [
+                {
+                    "name": "ROOT_DIR",
+                    "properties": [],
+                    "type": "FILEPATH",
+                    "value": &dir.path().display().to_string()
+                }
+            ]
+        });
+        let template_cache: Cache = serde_json::from_value(json_value).unwrap();
         set_cache_data(template_cache);
+        #[cfg(not(windows))]
         let jump_file_src = r#"
 set(ABCD 1234)
 message(INFO "${ABCD}")
@@ -201,7 +188,14 @@ set(ROOT_DIR "ABCD" STRING CACHE "ROOTDIR")
 include("${ROOT_DIR}/hello.cmake")
 add_subdirectory(abcd_test)
 "#;
-
+        #[cfg(windows)]
+        let jump_file_src = r#"
+set(ABCD 1234)
+message(INFO "${ABCD}")
+set(ROOT_DIR "ABCD" STRING CACHE "ROOTDIR")
+include("${ROOT_DIR}\\hello.cmake")
+add_subdirectory(abcd_test)
+"#;
         let top_cmake = dir.path().join("CMakeLists.txt");
         let hello_cmake = dir.path().join("hello.cmake");
         File::create_new(&hello_cmake).unwrap();
