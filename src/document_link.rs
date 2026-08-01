@@ -15,12 +15,11 @@ pub fn document_link_search<P: AsRef<Path>>(
     source: &str,
     current_file: P,
 ) -> Option<Vec<DocumentLink>> {
-    let mut links = vec![];
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None)?;
     let file_parent = current_file.as_ref().parent()?;
-    document_link_search_inner(source, thetree.root_node(), &mut links, &file_parent);
+    let links = document_link_search_inner(source, thetree.root_node(), &file_parent);
     if links.is_empty() {
         return None;
     }
@@ -30,9 +29,9 @@ pub fn document_link_search<P: AsRef<Path>>(
 pub fn document_link_search_inner<P: AsRef<Path>>(
     source: &str,
     node: tree_sitter::Node,
-    links: &mut Vec<DocumentLink>,
     current_parent: &P,
-) {
+) -> Vec<DocumentLink> {
+    let mut links = vec![];
     let source = source.as_bytes();
     let normal_commands = get_normal_commands(source, node, None);
     for command in normal_commands {
@@ -130,6 +129,7 @@ pub fn document_link_search_inner<P: AsRef<Path>>(
             data: None,
         });
     }
+    links
 }
 
 fn convert_include_cmake<P: AsRef<Path>>(name: &str, current_parent: P) -> Option<(PathBuf, bool)> {
@@ -205,11 +205,10 @@ add_subdirectory(abcd_test)
         fs::create_dir_all(&subdir).unwrap();
         let subdir_file = subdir.join("CMakeLists.txt");
         File::create_new(&subdir_file).unwrap();
-        let mut links = vec![];
         let mut parse = tree_sitter::Parser::new();
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(jump_file_src, None).unwrap();
-        document_link_search_inner(jump_file_src, thetree.root_node(), &mut links, &dir.path());
+        let links = document_link_search_inner(jump_file_src, thetree.root_node(), &dir.path());
 
         assert_eq!(
             links,
