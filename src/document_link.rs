@@ -221,7 +221,7 @@ add_subdirectory(abcd_test)
                         },
                         end: Position {
                             line: 4,
-                            character: 33
+                            character: if cfg!(windows) { 34 } else { 33 }
                         }
                     },
                     target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
