@@ -211,6 +211,10 @@ fn replace_placeholders_with_hashmap(
         let value = values.get(key)?;
         result = result.replace(&caps[0], value);
     }
+    #[cfg(windows)]
+    {
+        result = result.replace(r"\\", r"\");
+    }
     Some(result)
 }
 
