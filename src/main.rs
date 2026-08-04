@@ -144,14 +144,18 @@ async fn main() -> Result<()> {
     match args.command {
         Command::Stdio => {
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-            let (service, socket) = LspService::new(Backend::new);
+            let (service, socket) = LspService::build(Backend::new)
+                .custom_method("neocmake/cmake_targets", Backend::cmake_targets)
+                .finish();
             Server::new(stdin, stdout, socket).serve(service).await;
         }
         Command::Tcp { port } => {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await?;
             let (stream, _) = listener.accept().await?;
             let (read, write) = tokio::io::split(stream);
-            let (service, socket) = LspService::new(Backend::new);
+            let (service, socket) = LspService::build(Backend::new)
+                .custom_method("neocmake/cmake_targets", Backend::cmake_targets)
+                .finish();
             Server::new(read, write, socket).serve(service).await;
         }
         Command::Format {

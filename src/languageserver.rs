@@ -3,6 +3,7 @@ mod config;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::sync::RwLock;
@@ -20,7 +21,7 @@ use super::Backend;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
-use crate::fileapi::target::TARGET_REGEX;
+use crate::fileapi::target::{TARGET_REGEX, Target};
 use crate::formatting::getformat;
 use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
 use crate::scansubs::cache_project_data;
@@ -927,5 +928,11 @@ impl LanguageServer for Backend {
         };
 
         Ok(document_link::document_link_search(&text, file_path))
+    }
+}
+
+impl Backend {
+    pub async fn cmake_targets(&self) -> Result<Option<HashMap<String, Target>>> {
+        Ok(fileapi::get_all_targets())
     }
 }
