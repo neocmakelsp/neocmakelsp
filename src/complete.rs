@@ -312,7 +312,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     ));
     let local_path = local_path.as_ref();
     let source_bytes = source.as_bytes();
-    let mut complete: Vec<CompletionItem> = vec![];
+    let mut complete: HashMap<String, CompletionItem> = HashMap::new();
 
     let end_location = location.map(|p| p.to_point());
 
@@ -325,10 +325,13 @@ fn getsubcomplete<P: AsRef<Path>>(
     let normal_commands = get_normal_commands(source_bytes, input, end_location);
     // NOTE: check bracket_comments
     for bracket_comment in bracket_comments {
-        complete.extend(rst_doc_read(
+        let comments = rst_doc_read(
             bracket_comment.content,
             local_path.file_name().unwrap().to_str().unwrap(),
-        ));
+        );
+        for comment in comments {
+            complete.insert(comment.label.clone(), comment);
+        }
     }
 
     // NOTE: check functions
@@ -346,24 +349,30 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
-        complete.push(CompletionItem {
-            label: name.to_string(),
-            kind: Some(CompletionItemKind::Function),
-            detail: Some("Function".to_string()),
-            documentation: Some(Documentation::String(document_info)),
-            ..Default::default()
-        });
+        complete.insert(
+            name.to_owned(),
+            CompletionItem {
+                label: name.to_string(),
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(document_info)),
+                ..Default::default()
+            },
+        );
         if let Some(location) = location
             && location_range_contain(location.to_point(), fun.node)
         {
             for FunMarcoArg { content, .. } in fun.args(source_bytes) {
-                complete.push(CompletionItem {
-                    label: content.to_string(),
-                    kind: Some(CompletionItemKind::Variable),
-                    detail: Some("VARIABLE".to_string()),
-                    documentation: Some(Documentation::String(variable_info.clone())),
-                    ..Default::default()
-                });
+                complete.insert(
+                    content.to_owned(),
+                    CompletionItem {
+                        label: content.to_string(),
+                        kind: Some(CompletionItemKind::Variable),
+                        detail: Some("VARIABLE".to_string()),
+                        documentation: Some(Documentation::String(variable_info.clone())),
+                        ..Default::default()
+                    },
+                );
             }
         }
     }
@@ -383,24 +392,30 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
-        complete.push(CompletionItem {
-            label: name.to_string(),
-            kind: Some(CompletionItemKind::Function),
-            detail: Some("Function".to_string()),
-            documentation: Some(Documentation::String(document_info)),
-            ..Default::default()
-        });
+        complete.insert(
+            name.to_owned(),
+            CompletionItem {
+                label: name.to_string(),
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(document_info)),
+                ..Default::default()
+            },
+        );
         if let Some(location) = location
             && location_range_contain(location.to_point(), macro_node.node)
         {
             for FunMarcoArg { content, .. } in macro_node.args(source_bytes) {
-                complete.push(CompletionItem {
-                    label: content.to_string(),
-                    kind: Some(CompletionItemKind::Variable),
-                    detail: Some("VARIABLE".to_string()),
-                    documentation: Some(Documentation::String(variable_info.clone())),
-                    ..Default::default()
-                });
+                complete.insert(
+                    content.to_owned(),
+                    CompletionItem {
+                        label: content.to_string(),
+                        kind: Some(CompletionItemKind::Variable),
+                        detail: Some("VARIABLE".to_string()),
+                        documentation: Some(Documentation::String(variable_info.clone())),
+                        ..Default::default()
+                    },
+                );
             }
         }
     }
@@ -445,23 +460,28 @@ fn getsubcomplete<P: AsRef<Path>>(
                     find_cmake_in_package,
                     is_builtin,
                 ) {
-                    complete.extend(comps);
+                    for comp in comps {
+                        complete.insert(comp.label.clone(), comp);
+                    }
                 }
                 include_files.push(subpath);
             }
         } else if name == "mark_as_advanced" {
             for arg in command.args {
                 let variable = arg.utf8_text(source_bytes).unwrap();
-                complete.push(CompletionItem {
-                    label: variable.to_string(),
-                    kind: Some(CompletionItemKind::Variable),
-                    detail: Some("Variable".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined var\nfrom: {}",
-                        local_path.display()
-                    ))),
-                    ..Default::default()
-                });
+                complete.insert(
+                    variable.to_owned(),
+                    CompletionItem {
+                        label: variable.to_string(),
+                        kind: Some(CompletionItemKind::Variable),
+                        detail: Some("Variable".to_string()),
+                        documentation: Some(Documentation::String(format!(
+                            "defined var\nfrom: {}",
+                            local_path.display()
+                        ))),
+                        ..Default::default()
+                    },
+                );
             }
         } else {
             if name == "set" || name == "option" {
@@ -478,13 +498,16 @@ fn getsubcomplete<P: AsRef<Path>>(
                 {
                     document_info = format!("{}\n\n{}", document_info, line_comment);
                 }
-                complete.push(CompletionItem {
-                    label: name.to_string(),
-                    kind: Some(CompletionItemKind::Value),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(document_info)),
-                    ..Default::default()
-                });
+                complete.insert(
+                    name.to_owned(),
+                    CompletionItem {
+                        label: name.to_string(),
+                        kind: Some(CompletionItemKind::Value),
+                        detail: Some("Value".to_string()),
+                        documentation: Some(Documentation::String(document_info)),
+                        ..Default::default()
+                    },
+                );
             }
             if name == "find_package" && should_in {
                 let Some(package_name) = command.first_arg else {
@@ -527,50 +550,61 @@ fn getsubcomplete<P: AsRef<Path>>(
                 // modern cmake like Qt5::Core
                 if let Some(components) = components_packages {
                     for component in components {
-                        complete.push(CompletionItem {
-                            label: component,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Variable".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package from: {package_name}",
-                            ))),
-                            ..Default::default()
-                        });
+                        complete.insert(
+                            component.to_owned(),
+                            CompletionItem {
+                                label: component,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package from: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                        );
                     }
                 }
 
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
-                    complete.push(CompletionItem {
-                        label: format!("{package_name}_LIBRARIES"),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Variable".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "package: {package_name}",
-                        ))),
-                        ..Default::default()
-                    });
+                    let label = format!("{package_name}_LIBRARIES");
+                    complete.insert(
+                        label.clone(),
+                        CompletionItem {
+                            label,
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Variable".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package: {package_name}",
+                            ))),
+                            ..Default::default()
+                        },
+                    );
                 }
 
                 if matches!(
                     postype,
                     PositionType::TargetInclude | PositionType::VarOrFun
                 ) {
-                    complete.push(CompletionItem {
-                        label: format!("{package_name}_INCLUDE_DIRS"),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Variable".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "package: {package_name}",
-                        ))),
-                        ..Default::default()
-                    });
+                    let label = format!("{package_name}_INCLUDE_DIRS");
+                    complete.insert(
+                        label.clone(),
+                        CompletionItem {
+                            label,
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Variable".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package: {package_name}",
+                            ))),
+                            ..Default::default()
+                        },
+                    );
                 }
                 for package in cmakepackages {
                     if complete_packages.contains(&package) {
                         continue;
                     }
                     complete_packages.push(package.clone());
-                    let Some(completeitem) = get_cmake_package_complete(
+                    let Some(complete_items) = get_cmake_package_complete(
                         package.as_str(),
                         postype,
                         include_files,
@@ -578,7 +612,9 @@ fn getsubcomplete<P: AsRef<Path>>(
                     ) else {
                         continue;
                     };
-                    complete.extend(completeitem);
+                    for complete_item in complete_items {
+                        complete.insert(complete_item.label.clone(), complete_item);
+                    }
                 }
             }
 
@@ -598,40 +634,52 @@ fn getsubcomplete<P: AsRef<Path>>(
                 if modernpkgconfig
                     && matches!(postype, PositionType::VarOrFun | PositionType::TargetLink)
                 {
-                    complete.push(CompletionItem {
-                        label: format!("PkgConfig::{package_name}"),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Package".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "package: {package_name}",
-                        ))),
-                        ..Default::default()
-                    });
+                    let label = format!("PkgConfig::{package_name}");
+                    complete.insert(
+                        label.clone(),
+                        CompletionItem {
+                            label,
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Package".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package: {package_name}",
+                            ))),
+                            ..Default::default()
+                        },
+                    );
                 }
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
-                    complete.push(CompletionItem {
-                        label: format!("{package_name}_LIBRARIES"),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Package".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "package: {package_name}",
-                        ))),
-                        ..Default::default()
-                    });
+                    let label = format!("{package_name}_LIBRARIES");
+                    complete.insert(
+                        label.clone(),
+                        CompletionItem {
+                            label,
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Package".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package: {package_name}",
+                            ))),
+                            ..Default::default()
+                        },
+                    );
                 }
                 if matches!(
                     postype,
                     PositionType::TargetInclude | PositionType::VarOrFun
                 ) {
-                    complete.push(CompletionItem {
-                        label: format!("{package_name}_INCLUDE_DIRS"),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Package".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "package: {package_name}",
-                        ))),
-                        ..Default::default()
-                    });
+                    let label = format!("{package_name}_INCLUDE_DIRS");
+                    complete.insert(
+                        label.clone(),
+                        CompletionItem {
+                            label,
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Package".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "package: {package_name}",
+                            ))),
+                            ..Default::default()
+                        },
+                    );
                 }
             }
         }
@@ -639,7 +687,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     if complete.is_empty() {
         None
     } else {
-        Some(complete)
+        Some(complete.values().cloned().collect())
     }
 }
 
@@ -941,59 +989,60 @@ endfunction()
             false,
         )
         .unwrap();
-        assert_eq!(
-            data,
-            vec![
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Function),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        root_cmake.display()
-                    ))),
-                    text_edit_text: None,
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-                CompletionItem {
-                    label: "AB".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Value),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined variable\nfrom: {}",
-                        root_cmake.display()
-                    ))),
-                    text_edit_text: None,
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-            ]
-        );
+        let test_data = vec![
+            CompletionItem {
+                label: "bb".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}",
+                    root_cmake.display()
+                ))),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Value),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}",
+                    root_cmake.display()
+                ))),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(data.len(), test_data.len());
+        for test_item in test_data {
+            assert!(data.contains(&test_item));
+        }
     }
 
     #[test]
@@ -1024,59 +1073,60 @@ endfunction()
             false,
         )
         .unwrap();
-        assert_eq!(
-            data,
-            vec![
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Function),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}\n\ntest hello",
-                        root_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    text_edit_text: None,
-                    tags: None,
-                    ..Default::default()
-                },
-                CompletionItem {
-                    label: "AB".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Value),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined variable\nfrom: {}",
-                        root_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    text_edit_text: None,
+        let test_data = vec![
+            CompletionItem {
+                label: "bb".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}\n\ntest hello",
+                    root_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                text_edit_text: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Value),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}",
+                    root_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                text_edit_text: None,
 
-                    ..Default::default()
-                },
-            ]
-        );
+                ..Default::default()
+            },
+        ];
+        assert_eq!(data.len(), test_data.len());
+        for test_item in test_data {
+            assert!(data.contains(&test_item));
+        }
     }
 }

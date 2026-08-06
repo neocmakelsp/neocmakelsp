@@ -131,57 +131,58 @@ endfunction()
             false,
         )
         .unwrap();
-        assert_eq!(
-            data,
-            vec![
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Function),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-                CompletionItem {
-                    label: "AB".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Value),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined variable\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-            ]
-        );
+        let test_data = vec![
+            CompletionItem {
+                label: "bb".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}",
+                    another_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Value),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}",
+                    another_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(data.len(), test_data.len());
+        for test_item in test_data {
+            assert!(data.contains(&test_item));
+        }
     }
 
     #[test]
@@ -217,56 +218,57 @@ endfunction()
             false,
         )
         .unwrap();
-        assert_eq!(
-            data,
-            vec![
-                CompletionItem {
-                    label: "bb".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Function),
-                    detail: Some("Function".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined function\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-                CompletionItem {
-                    label: "AB".to_string(),
-                    label_details: None,
-                    kind: Some(CompletionItemKind::Value),
-                    detail: Some("Value".to_string()),
-                    documentation: Some(Documentation::String(format!(
-                        "defined variable\nfrom: {}",
-                        another_cmake.display()
-                    ))),
-                    preselect: None,
-                    sort_text: None,
-                    filter_text: None,
-                    insert_text: None,
-                    insert_text_format: None,
-                    insert_text_mode: None,
-                    text_edit: None,
-                    additional_text_edits: None,
-                    command: None,
-                    commit_characters: None,
-                    data: None,
-                    tags: None,
-                    ..Default::default()
-                },
-            ]
-        );
+        let test_data = vec![
+            CompletionItem {
+                label: "bb".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}",
+                    another_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Value),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}",
+                    another_cmake.display()
+                ))),
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(data.len(), test_data.len());
+        for test_item in test_data {
+            assert!(data.contains(&test_item));
+        }
     }
 }
