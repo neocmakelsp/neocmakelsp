@@ -315,6 +315,7 @@ impl<'a> FuncNode<'a> {
 }
 
 pub struct NormalCommandNode<'a> {
+    pub node: Node<'a>,
     pub identifier: &'a str,
     pub identifier_node: Node<'a>,
     pub argument_list: Option<Node<'a>>,
@@ -690,6 +691,7 @@ where
         let identifier_node = identifier;
         let identifier = identifier.utf8_text(source).unwrap();
         let mut normal_command = NormalCommandNode {
+            node,
             identifier,
             identifier_node,
             first_arg: None,
