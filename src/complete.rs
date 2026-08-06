@@ -34,6 +34,9 @@ pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
 pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+static LABEL_FILITER: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\$\{.*\}").unwrap());
+
 #[cfg(unix)]
 const PKG_IMPORT_TARGET: &str = "IMPORTED_TARGET";
 
@@ -337,13 +340,16 @@ fn getsubcomplete<P: AsRef<Path>>(
     // NOTE: check functions
     for fun in functions {
         let name = fun.name;
-        let row = fun.arguments[0].start_position().row;
+        let row = fun.node.start_position().row;
+        let column = fun.node.start_position().column;
 
         let mut document_info = format!("defined function\nfrom: {}", local_path.display());
         let mut variable_info = format!("defined variable\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
-            .find(|c| c.node.start_position().row + 1 == row)
+            .find(|c| {
+                c.node.start_position().row + 1 == row && c.node.start_position().column == column
+            })
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -380,13 +386,16 @@ fn getsubcomplete<P: AsRef<Path>>(
     // NOTE: check macros
     for macro_node in macros {
         let name = macro_node.name;
-        let row = macro_node.arguments[0].start_position().row;
+        let row = macro_node.node.start_position().row;
+        let column = macro_node.node.start_position().column;
 
         let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
         let mut variable_info = format!("defined variable\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
-            .find(|c| c.node.start_position().row + 1 == row)
+            .find(|c| {
+                c.node.start_position().row + 1 == row && c.node.start_position().column == column
+            })
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -488,12 +497,22 @@ fn getsubcomplete<P: AsRef<Path>>(
                 let Some(name) = command.first_arg else {
                     continue;
                 };
-                let row = command.identifier_node.start_position().row;
+                // NOTE: some label is defined in macro with this way
+                // I do not want to address macro, because the lsp does not need to be that clever
+                // So I just do not complete them
+                if LABEL_FILITER.is_match(name) {
+                    continue;
+                }
+                let row = command.node.start_position().row;
+                let column = command.node.start_position().column;
                 let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 
                 if let Some(line_comment) = comments
                     .iter()
-                    .find(|c| c.node.start_position().row + 1 == row)
+                    .find(|c| {
+                        c.node.start_position().row + 1 == row
+                            && c.node.start_position().column == column
+                    })
                     .map(|c| c.content)
                 {
                     document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -966,6 +985,10 @@ Example using both :command:`configure_package_config_file` and
 
         let file_info = r#"
 set(AB "100")
+set(AB${CD} "100") # illegal
+# it is a comment for AB
+set(AB "100") # it will only show for once a time
+# Fun bb
 function(bb)
 endfunction()
     "#;
@@ -996,7 +1019,7 @@ endfunction()
                 kind: Some(CompletionItemKind::Function),
                 detail: Some("Function".to_string()),
                 documentation: Some(Documentation::String(format!(
-                    "defined function\nfrom: {}",
+                    "defined function\nfrom: {}\n\nFun bb",
                     root_cmake.display()
                 ))),
                 text_edit_text: None,
@@ -1020,7 +1043,7 @@ endfunction()
                 kind: Some(CompletionItemKind::Value),
                 detail: Some("Value".to_string()),
                 documentation: Some(Documentation::String(format!(
-                    "defined variable\nfrom: {}",
+                    "defined variable\nfrom: {}\n\nit is a comment for AB",
                     root_cmake.display()
                 ))),
                 text_edit_text: None,
@@ -1043,6 +1066,17 @@ endfunction()
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
+    }
+
+    #[test]
+    fn label_filter() {
+        assert!(LABEL_FILITER.is_match("abc${asbsd}abcd"));
+        assert!(LABEL_FILITER.is_match("${asbsd}abcd"));
+        assert!(LABEL_FILITER.is_match("abc${asbsd}"));
+        assert!(LABEL_FILITER.is_match("${asbsd}"));
+        assert!(!LABEL_FILITER.is_match("{asbsd}"));
+        assert!(!LABEL_FILITER.is_match("asbsd"));
+        assert!(!LABEL_FILITER.is_match("asbsd_abcd"));
     }
 
     #[test]
