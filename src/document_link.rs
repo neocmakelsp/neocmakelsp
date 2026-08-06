@@ -210,40 +210,43 @@ add_subdirectory(abcd_test)
         let thetree = parse.parse(jump_file_src, None).unwrap();
         let links = document_link_search_inner(jump_file_src, thetree.root_node(), &dir.path());
 
-        assert_eq!(
-            links,
-            vec![
-                DocumentLink {
-                    range: Range {
-                        start: Position {
-                            line: 4,
-                            character: 8
-                        },
-                        end: Position {
-                            line: 4,
-                            character: if cfg!(windows) { 34 } else { 33 }
-                        }
+        // NOTE: from some report, the order may be different,
+        // But we do not need to control this order, so make a change
+        let test_links = vec![
+            DocumentLink {
+                range: Range {
+                    start: Position {
+                        line: 4,
+                        character: 8,
                     },
-                    target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
-                    tooltip: Some(format!("link: {}", hello_cmake.display())),
-                    data: None
-                },
-                DocumentLink {
-                    range: Range {
-                        start: Position {
-                            line: 5,
-                            character: 17
-                        },
-                        end: Position {
-                            line: 5,
-                            character: 26
-                        }
+                    end: Position {
+                        line: 4,
+                        character: if cfg!(windows) { 34 } else { 33 },
                     },
-                    target: Some(Uri::from_file_path(&subdir_file).unwrap()),
-                    tooltip: Some(format!("link: {}", subdir_file.display())),
-                    data: None
                 },
-            ]
-        );
+                target: Some(Uri::from_file_path(&hello_cmake).unwrap()),
+                tooltip: Some(format!("link: {}", hello_cmake.display())),
+                data: None,
+            },
+            DocumentLink {
+                range: Range {
+                    start: Position {
+                        line: 5,
+                        character: 17,
+                    },
+                    end: Position {
+                        line: 5,
+                        character: 26,
+                    },
+                },
+                target: Some(Uri::from_file_path(&subdir_file).unwrap()),
+                tooltip: Some(format!("link: {}", subdir_file.display())),
+                data: None,
+            },
+        ];
+        assert_eq!(links.len(), test_links.len());
+        for link in test_links {
+            assert!(links.contains(&link));
+        }
     }
 }
