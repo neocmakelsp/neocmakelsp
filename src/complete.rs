@@ -2,6 +2,7 @@ pub mod builtin;
 mod findpackage;
 mod includescanner;
 use std::collections::HashMap;
+use std::fs::read_dir;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
@@ -125,9 +126,26 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
     completions
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum TriggerType {
+    Normal,
+    Path,
+}
+
+impl From<Option<String>> for TriggerType {
+    fn from(value: Option<String>) -> Self {
+        let value_ref = value.as_ref();
+        match value_ref.map(|v| v.as_str()) {
+            Some("/") => Self::Path,
+            _ => Self::Normal,
+        }
+    }
+}
+
 /// get the complete messages
 pub async fn getcomplete<P: AsRef<Path>>(
     source: &str,
+    triggered: impl Into<TriggerType>,
     location: Position,
     client: &tower_lsp::Client,
     local_path: P,
@@ -144,6 +162,18 @@ pub async fn getcomplete<P: AsRef<Path>>(
     let current_point = location.to_point();
     let node_info = CurrentNodeInfo::get(source, tree.root_node(), current_point);
     let postype = node_info.pos_type();
+    if matches!(triggered.into(), TriggerType::Path)
+        // NOTE: skip SubDir
+        && !matches!(postype, PositionType::SubDir)
+        && let Some(promopt) = node_info.content()
+        && let Some(prompt) = promopt.try_replace_placeholders()
+        && let Some(list) = get_path_completions(&prompt, local_path)
+        && !list.is_empty()
+    {
+        complete.extend(list);
+        return Some(CompletionResponse::CompletionItemList(complete));
+    }
+
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             let cached_completion = get_cached_completion(local_path, documents).await;
@@ -292,6 +322,46 @@ fn get_subdir_completions<P: AsRef<Path>>(
             })
             .collect(),
     )
+}
+
+fn get_path_completions<SubP: AsRef<Path>, P: AsRef<Path>>(
+    prompt: SubP,
+    local_path: P,
+) -> Option<Vec<CompletionItem>> {
+    let mut next_dir = prompt.as_ref().to_owned();
+    if next_dir.is_relative() {
+        let current_dir = local_path.as_ref().parent()?;
+        next_dir = current_dir.join(next_dir);
+    }
+
+    if !next_dir.is_dir() {
+        return None;
+    }
+    let mut completions = vec![];
+
+    for entry in read_dir(next_dir).ok()?.flatten() {
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        let is_file = metadata.is_file();
+        let is_dir = metadata.is_dir();
+        if !is_file && !is_dir {
+            continue;
+        }
+        let name = entry.file_name();
+        let label = name.to_string_lossy().to_string();
+        completions.push(CompletionItem {
+            label,
+            kind: if is_dir {
+                Some(CompletionItemKind::Folder)
+            } else {
+                Some(CompletionItemKind::File)
+            },
+            ..Default::default()
+        });
+    }
+
+    Some(completions)
 }
 
 /// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude | ArgumentOrList

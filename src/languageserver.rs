@@ -295,7 +295,7 @@ impl LanguageServer for Backend {
                 })),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
-                    trigger_characters: None,
+                    trigger_characters: Some(vec!["/".to_owned()]),
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                     completion_item: None,
@@ -707,8 +707,12 @@ impl LanguageServer for Backend {
             return Err(LspError::internal_error());
         };
 
+        let triggered = input.context.and_then(|context| context.trigger_character);
+
+        println!("{triggered:?}");
         Ok(complete::getcomplete(
             &text,
+            triggered,
             location,
             &self.client,
             &path,

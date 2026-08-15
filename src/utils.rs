@@ -178,6 +178,8 @@ pub fn replace_placeholders(template: &str) -> Option<String> {
 static CACHE_ENV_DATA: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+const CMAKE_CURRENT_LIST_DIR: &str = "CMAKE_CURRENT_LIST_DIR";
+
 fn replace_placeholders_with_env_map(template: &str) -> Option<String> {
     let mut result = template.to_string();
 
@@ -208,6 +210,10 @@ fn replace_placeholders_with_hashmap(
 
     for caps in PLACE_HODER_REGEX.captures_iter(template) {
         let key = &caps[1];
+        if key == CMAKE_CURRENT_LIST_DIR {
+            result = result.replace(&caps[0], ".");
+            continue;
+        }
         let value = values.get(key)?;
         result = result.replace(&caps[0], value);
     }
@@ -274,6 +280,14 @@ mod tests {
         assert_eq!(
             "/tmp/wezterm",
             "$ENV{TempDir}/wezterm".try_replace_placeholders().unwrap()
+        );
+    }
+
+    #[test]
+    fn builtin_arg_test() {
+        assert_eq!(
+            "./cli.rs",
+            r"${CMAKE_CURRENT_LIST_DIR}/cli.rs".try_replace_placeholders().unwrap()
         );
     }
 
