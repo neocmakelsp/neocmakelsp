@@ -287,7 +287,9 @@ mod tests {
     fn builtin_arg_test() {
         assert_eq!(
             "./cli.rs",
-            r"${CMAKE_CURRENT_LIST_DIR}/cli.rs".try_replace_placeholders().unwrap()
+            r"${CMAKE_CURRENT_LIST_DIR}/cli.rs"
+                .try_replace_placeholders()
+                .unwrap()
         );
     }
 
