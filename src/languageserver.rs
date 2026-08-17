@@ -23,11 +23,10 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::fileapi::target::{TARGET_REGEX, Target};
 use crate::formatting::getformat;
-use crate::grammar::{ErrorInformation, LintConfigInfo, checkerror};
+use crate::grammar::{LintConfigInfo, checkerror};
 use crate::scansubs::cache_project_data;
 use crate::semantic_token::LEGEND_TYPE;
 use crate::signature_help::get_signature_help;
-use crate::utils::treehelper::ToPosition;
 use crate::utils::{VCPKG_LIBS, VCPKG_PREFIX, did_vcpkg_project, treehelper};
 use crate::{
     BackendInitInfo, complete, document_link, document_symbol, fileapi, filewatcher, hover, jump,
@@ -118,35 +117,7 @@ impl Backend {
             return;
         }
 
-        let gammererror = checkerror(&file_path, context, lint_info);
-        if let Some(diagnoses) = gammererror {
-            let mut pusheddiagnoses = vec![];
-            for ErrorInformation {
-                start_point,
-                end_point,
-                message,
-                severity,
-            } in diagnoses.inner
-            {
-                let pointx = start_point.to_position();
-                let pointy = end_point.to_position();
-                let range = Range {
-                    start: pointx,
-                    end: pointy,
-                };
-                let diagnose = Diagnostic {
-                    range,
-                    severity,
-                    code: None,
-                    code_description: None,
-                    source: None,
-                    message: message.into(),
-                    related_information: None,
-                    tags: None,
-                    data: None,
-                };
-                pusheddiagnoses.push(diagnose);
-            }
+        if let Some(pusheddiagnoses) = checkerror(&file_path, context, lint_info) {
             self.client
                 .publish_diagnostics(uri, pusheddiagnoses, None)
                 .await;
@@ -856,7 +827,7 @@ impl LanguageServer for Backend {
             return Ok(empty);
         };
 
-        let Some(gammarerror) = checkerror(
+        let Some(pusheddiagnoses) = checkerror(
             &path,
             &text,
             LintConfigInfo {
@@ -867,33 +838,6 @@ impl LanguageServer for Backend {
             return Ok(empty);
         };
 
-        let mut pusheddiagnoses = vec![];
-        for ErrorInformation {
-            start_point,
-            end_point,
-            message,
-            severity,
-        } in gammarerror.inner
-        {
-            let pointx = start_point.to_position();
-            let pointy = end_point.to_position();
-            let range = Range {
-                start: pointx,
-                end: pointy,
-            };
-            let diagnose = Diagnostic {
-                range,
-                severity,
-                code: None,
-                code_description: None,
-                source: None,
-                message: message.into(),
-                related_information: None,
-                tags: None,
-                data: None,
-            };
-            pusheddiagnoses.push(diagnose);
-        }
         Ok(
             DocumentDiagnosticReport::RelatedFullDocumentDiagnosticReport(
                 RelatedFullDocumentDiagnosticReport {

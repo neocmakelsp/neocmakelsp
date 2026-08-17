@@ -1,14 +1,15 @@
-use std::ops::Deref;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
 
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use serde::{Deserialize, Serialize};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
 use crate::config::{self, CONFIG};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
+use crate::utils::treehelper::ToPosition;
 use crate::utils::{NeoStrExt, include_is_module};
 
 const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
@@ -18,26 +19,13 @@ pub struct LintConfigInfo {
     pub use_extra_cmake_lint: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ErrorInformation {
-    pub start_point: tree_sitter::Point,
-    pub end_point: tree_sitter::Point,
-    pub message: String,
-    pub severity: Option<DiagnosticSeverity>,
-}
-
-/// checkerror the gammer error
-/// if there is error , it will return the position of the error
-#[derive(Debug, PartialEq, Eq)]
-pub struct ErrorInfo {
-    pub inner: Vec<ErrorInformation>,
-}
-
-impl Deref for ErrorInfo {
-    type Target = Vec<ErrorInformation>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub enum ErrorType {
+    UpLowerCase,
+    Length,
+    Gammar,
+    #[default]
+    Other,
 }
 
 pub fn checkerror<P: AsRef<Path>>(
@@ -47,7 +35,7 @@ pub fn checkerror<P: AsRef<Path>>(
         use_lint,
         use_extra_cmake_lint,
     }: LintConfigInfo,
-) -> Option<ErrorInfo> {
+) -> Option<Vec<Diagnostic>> {
     let newsource = source.lines().collect();
     let cmake_lint_info = if use_lint {
         run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
@@ -59,9 +47,9 @@ pub fn checkerror<P: AsRef<Path>>(
     let thetree = parse.parse(source, None)?;
     let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
     if let Some(v) = cmake_lint_info {
-        let error_info = result.get_or_insert(ErrorInfo { inner: vec![] });
-        for item in v.inner {
-            error_info.inner.push(item);
+        let error_info = result.get_or_insert(vec![]);
+        for item in v {
+            error_info.push(item);
         }
     }
 
@@ -78,7 +66,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
     path: P,
     use_extra_cmake_lint: bool,
     contexts: &Vec<&str>,
-) -> Option<ErrorInfo> {
+) -> Option<Vec<Diagnostic>> {
     if use_extra_cmake_lint {
         return run_extra_lint(path);
     }
@@ -96,22 +84,32 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 column: 0,
             };
             let message = format!("[C0301] Line too long ({len}/{max_len})");
-            info.push(ErrorInformation {
-                start_point,
-                end_point,
-                message,
+            let pointx = start_point.to_position();
+            let pointy = end_point.to_position();
+            use tower_lsp::lsp_types::Range;
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            info.push(Diagnostic {
+                range,
+                message: message.into(),
                 severity: Some(DiagnosticSeverity::Warning),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Length).unwrap()),
             });
         }
     }
-    if info.is_empty() {
-        None
-    } else {
-        Some(ErrorInfo { inner: info })
-    }
+    if info.is_empty() { None } else { Some(info) }
 }
+pub static LENGTH_LINT_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"((?<length>\d+)/(?<max>\d+))").unwrap());
 
-fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
+fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<Vec<Diagnostic>> {
     let path = path.as_ref();
     if !path.exists() {
         return None;
@@ -136,22 +134,30 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<ErrorInfo> {
                 .unwrap_or(0);
             let message = m.name("message").unwrap().as_str().to_owned();
 
-            let start_point = Point { row, column };
-            let end_point = start_point;
-            info.push(ErrorInformation {
-                start_point,
-                end_point,
-                message,
+            let error_type = LENGTH_LINT_REGEX
+                .is_match(&message)
+                .then(|| ErrorType::UpLowerCase)
+                .unwrap_or_default();
+            let start = Position {
+                line: row,
+                character: column,
+            };
+            let range = tower_lsp::lsp_types::Range { start, end: start };
+            info.push(Diagnostic {
+                range,
+                message: message.into(),
                 severity: Some(severity),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(error_type).unwrap()),
             });
         }
     }
 
-    if info.is_empty() {
-        None
-    } else {
-        Some(ErrorInfo { inner: info })
-    }
+    if info.is_empty() { None } else { Some(info) }
 }
 
 const ERROR_QUERY: &str = r"
@@ -165,16 +171,26 @@ fn checkerror_inner<P: AsRef<Path>>(
     source: &str,
     input: tree_sitter::Node,
     use_lint: bool,
-) -> Option<ErrorInfo> {
+) -> Option<Vec<Diagnostic>> {
+    use tower_lsp::lsp_types::Range;
     if input.is_error() {
-        return Some(ErrorInfo {
-            inner: vec![ErrorInformation {
-                start_point: input.start_position(),
-                end_point: input.end_position(),
-                message: "Grammar error".to_string(),
-                severity: None,
-            }],
-        });
+        let pointx = input.start_position().to_position();
+        let pointy = input.end_position().to_position();
+        let range = Range {
+            start: pointx,
+            end: pointy,
+        };
+        return Some(vec![Diagnostic {
+            range,
+            message: "Grammar error".into(),
+            severity: Some(DiagnosticSeverity::Error),
+            code: None,
+            code_description: None,
+            source: None,
+            related_information: None,
+            tags: None,
+            data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
+        }]);
     }
     let source_bytes = source.as_bytes();
     let local_path = local_path.as_ref();
@@ -186,11 +202,22 @@ fn checkerror_inner<P: AsRef<Path>>(
     while let Some(m) = matches_e.next() {
         for err in m.captures {
             let input = err.node;
-            output.push(ErrorInformation {
-                start_point: input.start_position(),
-                end_point: input.end_position(),
-                message: "Grammar error".to_string(),
+            let pointx = input.start_position().to_position();
+            let pointy = input.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            output.push(Diagnostic {
+                range,
+                message: "Grammar error".into(),
                 severity: Some(DiagnosticSeverity::Error),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
             });
         }
     }
@@ -203,11 +230,22 @@ fn checkerror_inner<P: AsRef<Path>>(
                 .command_case
                 .and_then(|lint| lint.check(name))
         {
-            output.push(ErrorInformation {
-                start_point: name_node.start_position(),
-                end_point: name_node.end_position(),
-                message: hint.to_owned(),
+            let pointx = name_node.start_position().to_position();
+            let pointy = name_node.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            output.push(Diagnostic {
+                range,
+                message: hint.into(),
                 severity: Some(DiagnosticSeverity::Hint),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
             });
         }
         let lowercase_name = name.to_lowercase();
@@ -219,12 +257,23 @@ fn checkerror_inner<P: AsRef<Path>>(
 
             for child in query_now.args {
                 let name = &child.utf8_text(source_bytes).unwrap();
+                let pointx = child.start_position().to_position();
+                let pointy = child.end_position().to_position();
+                let range = Range {
+                    start: pointx,
+                    end: pointy,
+                };
                 if errorpackages.contains(&name.to_string()) {
-                    output.push(ErrorInformation {
-                        start_point: child.start_position(),
-                        end_point: child.end_position(),
-                        message: "Cannot find such package".to_string(),
+                    output.push(Diagnostic {
+                        range,
+                        message: "Cannot find such package".into(),
                         severity: Some(DiagnosticSeverity::Error),
+                        code: None,
+                        code_description: None,
+                        source: None,
+                        related_information: None,
+                        tags: None,
+                        data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                     });
                 }
             }
@@ -244,11 +293,22 @@ fn checkerror_inner<P: AsRef<Path>>(
             let first_arg_node = query_now.args[0];
             let first_arg = first_arg.replace("\\\\", "\\"); // TODO: proper string escape
             if first_arg.is_empty() {
-                output.push(ErrorInformation {
-                    start_point: first_arg_node.start_position(),
-                    end_point: first_arg_node.end_position(),
-                    message: "Argument is empty".to_string(),
+                let pointx = first_arg_node.start_position().to_position();
+                let pointy = first_arg_node.end_position().to_position();
+                let range = Range {
+                    start: pointx,
+                    end: pointy,
+                };
+                output.push(Diagnostic {
+                    range,
+                    message: "Argument is empty".into(),
                     severity: Some(DiagnosticSeverity::Error),
+                    code: None,
+                    code_description: None,
+                    source: None,
+                    related_information: None,
+                    tags: None,
+                    data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                 });
                 continue;
             }
@@ -265,25 +325,48 @@ fn checkerror_inner<P: AsRef<Path>>(
                 Ok(true) => {
                     if include_path.is_file() {
                         if scanner_include_error(include_path) {
-                            output.push(ErrorInformation {
-                                start_point: first_arg_node.start_position(),
-                                end_point: first_arg_node.end_position(),
-                                message: "Error in include file".to_string(),
+                            let pointx = first_arg_node.start_position().to_position();
+                            let pointy = first_arg_node.end_position().to_position();
+                            let range = Range {
+                                start: pointx,
+                                end: pointy,
+                            };
+                            output.push(Diagnostic {
+                                range,
+                                message: "Error in include file".into(),
                                 severity: Some(DiagnosticSeverity::Error),
+                                code: None,
+                                code_description: None,
+                                source: None,
+                                related_information: None,
+                                tags: None,
+                                data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                             });
                         }
                     } else {
                         if lowercase_name == "add_subdirectory" {
                             continue;
                         }
-                        output.push(ErrorInformation {
-                            start_point: first_arg_node.start_position(),
-                            end_point: first_arg_node.end_position(),
+                        let pointx = first_arg_node.start_position().to_position();
+                        let pointy = first_arg_node.end_position().to_position();
+                        let range = Range {
+                            start: pointx,
+                            end: pointy,
+                        };
+                        output.push(Diagnostic {
+                            range,
                             message: format!(
                                 "\"{}\" is a directory",
                                 include_path.to_str().unwrap()
-                            ),
+                            )
+                            .into(),
                             severity: Some(DiagnosticSeverity::Error),
+                            code: None,
+                            code_description: None,
+                            source: None,
+                            related_information: None,
+                            tags: None,
+                            data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                         });
                     }
                 }
@@ -299,11 +382,22 @@ fn checkerror_inner<P: AsRef<Path>>(
                             include_path.to_str().unwrap()
                         )
                     };
-                    output.push(ErrorInformation {
-                        start_point: first_arg_node.start_position(),
-                        end_point: first_arg_node.end_position(),
-                        message,
+                    let pointx = first_arg_node.start_position().to_position();
+                    let pointy = first_arg_node.end_position().to_position();
+                    let range = Range {
+                        start: pointx,
+                        end: pointy,
+                    };
+                    output.push(Diagnostic {
+                        range,
+                        message: message.into(),
                         severity: Some(DiagnosticSeverity::Warning),
+                        code: None,
+                        code_description: None,
+                        source: None,
+                        related_information: None,
+                        tags: None,
+                        data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                     });
                 }
             }
@@ -313,7 +407,7 @@ fn checkerror_inner<P: AsRef<Path>>(
     if output.is_empty() {
         None
     } else {
-        Some(ErrorInfo { inner: output })
+        Some(output)
     }
 }
 
@@ -340,6 +434,7 @@ mod tests {
     use super::*;
     #[cfg(not(windows))]
     use crate::fileapi::{cache, set_cache_data};
+    use tower_lsp::lsp_types::{Position, Range};
 
     #[cfg(not(windows))]
     #[test]
@@ -396,23 +491,53 @@ add_subdirectory("unexist_subdir")
         assert_eq!(
             *check_result,
             vec![
-                ErrorInformation {
-                    start_point: Point { row: 2, column: 8 },
-                    end_point: Point { row: 2, column: 41 },
+                Diagnostic {
+                    range: Range {
+                        start: Position {
+                            line: 2,
+                            character: 8
+                        },
+                        end: Position {
+                            line: 2,
+                            character: 41
+                        }
+                    },
                     message: format!(
                         "File \"{}\" does not exist or is inaccessible",
                         hello_cmake_error.display()
-                    ),
-                    severity: Some(DiagnosticSeverity::Warning)
+                    )
+                    .into(),
+                    severity: Some(DiagnosticSeverity::Warning),
+                    code: None,
+                    code_description: None,
+                    source: None,
+                    related_information: None,
+                    tags: None,
+                    data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                 },
-                ErrorInformation {
-                    start_point: Point { row: 4, column: 17 },
-                    end_point: Point { row: 4, column: 33 },
+                Diagnostic {
+                    range: Range {
+                        start: Position {
+                            line: 4,
+                            character: 17
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 33
+                        },
+                    },
                     message: format!(
                         "Directory \"{}\" does not exist or is inaccessible",
                         unexist_subdir.display()
-                    ),
-                    severity: Some(DiagnosticSeverity::Warning)
+                    )
+                    .into(),
+                    severity: Some(DiagnosticSeverity::Warning),
+                    code: None,
+                    code_description: None,
+                    source: None,
+                    related_information: None,
+                    tags: None,
+                    data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
                 },
             ]
         );
@@ -455,14 +580,20 @@ include(abcd.text)
         let input = thetree.root_node();
         assert_eq!(
             checkerror_inner(std::path::Path::new("."), source, input, true,),
-            Some(ErrorInfo {
-                inner: vec![ErrorInformation {
-                    start_point: input.start_position(),
-                    end_point: input.end_position(),
-                    message: "Grammar error".to_string(),
-                    severity: Some(DiagnosticSeverity::Error),
-                }]
-            })
+            Some(vec![Diagnostic {
+                range: Range {
+                    start: input.start_position().to_position(),
+                    end: input.end_position().to_position()
+                },
+                message: "Grammar error".into(),
+                severity: Some(DiagnosticSeverity::Error),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
+            }])
         );
     }
 
