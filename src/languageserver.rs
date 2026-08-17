@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::{Error as LspError, Result};
-use tower_lsp::lsp_extensions::{MessageEx, TextDocumentContentChangeEventEx};
+use tower_lsp::lsp_extensions::TextDocumentContentChangeEventEx;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{LanguageServer, lsp_types};
 use tree_sitter::Parser;
@@ -23,7 +23,7 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi::DEFAULT_QUERY;
 use crate::fileapi::target::{TARGET_REGEX, Target};
 use crate::formatting::getformat;
-use crate::grammar::{LintConfigInfo, checkerror};
+use crate::grammar::{ErrorType, LintConfigInfo, checkerror};
 use crate::scansubs::cache_project_data;
 use crate::semantic_token::LEGEND_TYPE;
 use crate::signature_help::get_signature_help;
@@ -556,19 +556,20 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let Some(toolong) = params
-            .context
-            .diagnostics
-            .iter()
-            .find(|dia| dia.message.content_str().starts_with("[C0301]"))
-        else {
+        let Some(toolong) = params.context.diagnostics.iter().find(|dia| {
+            dia.data
+                .as_ref()
+                .is_some_and(|data| serde_json::from_value::<ErrorType>(data.clone()).is_ok())
+        }) else {
             return Ok(None);
         };
+        let fix_type = serde_json::from_value(toolong.data.as_ref().unwrap().clone()).unwrap();
 
         Ok(quick_fix::lint_fix_action(
             &text,
             params.range,
             toolong,
+            fix_type,
             uri,
         ))
     }

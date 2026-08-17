@@ -1,31 +1,28 @@
-use std::sync::LazyLock;
-
-use regex::Regex;
-use tower_lsp::lsp_extensions::MessageEx;
+use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::grammar::ErrorType;
+use crate::utils::query::try_get_argument_list;
+use crate::utils::treehelper::ToPosition;
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionResponse, Diagnostic, DocumentChange, Edit,
     OptionalVersionedTextDocumentIdentifier, Range, TextDocumentEdit, TextEdit, WorkspaceEdit,
 };
 
-use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::query::try_get_argument_list;
-use crate::utils::treehelper::ToPosition;
-static LINT_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"((?<length>\d+)/(?<max>\d+))").unwrap());
-
 pub fn lint_fix_action(
     context: &str,
     range: Range,
     diagnose: &Diagnostic,
+    error_type: ErrorType,
     uri: tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
-    let caps = LINT_REGEX.captures(diagnose.message.content_str())?;
-    let longest = caps["max"].parse().unwrap();
+    let ErrorType::Length { max: longest, .. } = error_type else {
+        return None;
+    };
+
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
     let root = tree.root_node();
-    get_fix_action(root, context, range, diagnose, longest, &uri)
+    get_fix_action(root, context, range, diagnose, longest as usize, &uri)
 }
 
 fn get_fix_action(
@@ -89,17 +86,4 @@ fn get_fix_action(
         data: None,
         tags: None,
     })])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn lint_regex_text() {
-        let information = "[C0301] Line too long (92/80)";
-        let caps = LINT_REGEX.captures(information).unwrap();
-        assert_eq!(&caps["length"], "92");
-        assert_eq!(&caps["max"], "80");
-    }
 }

@@ -22,7 +22,10 @@ pub struct LintConfigInfo {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub enum ErrorType {
     UpLowerCase,
-    Length,
+    Length {
+        length: u32,
+        max: u32,
+    },
     Gammar,
     #[default]
     Other,
@@ -100,7 +103,13 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 source: None,
                 related_information: None,
                 tags: None,
-                data: Some(serde_json::to_value(ErrorType::Length).unwrap()),
+                data: Some(
+                    serde_json::to_value(ErrorType::Length {
+                        length: len as u32,
+                        max: max_len as u32,
+                    })
+                    .unwrap(),
+                ),
             });
         }
     }
@@ -134,10 +143,15 @@ fn run_extra_lint<P: AsRef<Path>>(path: P) -> Option<Vec<Diagnostic>> {
                 .unwrap_or(0);
             let message = m.name("message").unwrap().as_str().to_owned();
 
-            let error_type = LENGTH_LINT_REGEX
-                .is_match(&message)
-                .then(|| ErrorType::UpLowerCase)
-                .unwrap_or_default();
+            let error_type = if message.starts_with("[C0301]")
+                && let Some(caps) = LENGTH_LINT_REGEX.captures(&message)
+                && let Ok(length) = caps["length"].parse()
+                && let Ok(max) = caps["max"].parse()
+            {
+                ErrorType::Length { length, max }
+            } else {
+                ErrorType::Other
+            };
             let start = Position {
                 line: row,
                 character: column,
@@ -631,5 +645,12 @@ aa.cmake:57: [C0301] Line too long (145/80)";
             let message = m.name("message").unwrap().as_str().to_owned();
             println!("{row}:{column} -- {message}");
         }
+    }
+    #[test]
+    fn lint_regex_text() {
+        let information = "[C0301] Line too long (92/80)";
+        let caps = LENGTH_LINT_REGEX.captures(information).unwrap();
+        assert_eq!(&caps["length"], "92");
+        assert_eq!(&caps["max"], "80");
     }
 }
