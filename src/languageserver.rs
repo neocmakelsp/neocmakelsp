@@ -709,7 +709,6 @@ impl LanguageServer for Backend {
 
         let triggered = input.context.and_then(|context| context.trigger_character);
 
-        println!("{triggered:?}");
         Ok(complete::getcomplete(
             &text,
             triggered,
