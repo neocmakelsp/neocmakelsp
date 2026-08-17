@@ -397,12 +397,12 @@ pub fn get_argument_lists<'a>(
 pub fn try_get_argument_list<'a, T>(
     source: &'a [u8],
     node: Node<'a>,
-    point: T,
+    range: T,
 ) -> Option<ArgumentListNode<'a>>
 where
     T: ToQueryRange,
 {
-    get_argument_lists_inner(source, node, point)
+    get_argument_lists_inner(source, node, range)
         .into_iter()
         .next()
 }

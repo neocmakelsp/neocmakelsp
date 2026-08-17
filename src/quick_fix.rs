@@ -9,7 +9,6 @@ use tower_lsp::lsp_types::{
 
 pub fn lint_fix_action(
     context: &str,
-    range: Range,
     diagnose: &Diagnostic,
     error_type: ErrorType,
     uri: tower_lsp::lsp_types::Uri,
@@ -22,18 +21,17 @@ pub fn lint_fix_action(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(context, None)?;
     let root = tree.root_node();
-    get_fix_action(root, context, range, diagnose, longest as usize, &uri)
+    get_fix_action(root, context, diagnose, longest as usize, &uri)
 }
 
 fn get_fix_action(
     input: tree_sitter::Node,
     source: &str,
-    range: Range,
     diagnose: &Diagnostic,
     longest: usize,
     uri: &tower_lsp::lsp_types::Uri,
 ) -> Option<Vec<CodeActionResponse>> {
-    let argument_list = try_get_argument_list(source.as_bytes(), input, range)?;
+    let argument_list = try_get_argument_list(source.as_bytes(), input, diagnose.range)?;
 
     let start_node = argument_list.main_node;
     let start = start_node.start_position().to_position();

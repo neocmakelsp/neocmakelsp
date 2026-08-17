@@ -19,7 +19,7 @@ pub struct LintConfigInfo {
     pub use_extra_cmake_lint: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub enum ErrorType {
     UpLowerCase,
     Length {
@@ -84,7 +84,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
             };
             let end_point = Point {
                 row: index,
-                column: 0,
+                column: len,
             };
             let message = format!("[C0301] Line too long ({len}/{max_len})");
             let pointx = start_point.to_position();
@@ -652,5 +652,25 @@ aa.cmake:57: [C0301] Line too long (145/80)";
         let caps = LENGTH_LINT_REGEX.captures(information).unwrap();
         assert_eq!(&caps["length"], "92");
         assert_eq!(&caps["max"], "80");
+    }
+
+    #[test]
+    fn error_type_serde() {
+        let data = serde_json::json!({
+            "Length": {
+                "length": 96,
+                "max": 80
+            }
+        });
+
+        let result: ErrorType = serde_json::from_value(data).unwrap();
+
+        assert_eq!(
+            result,
+            ErrorType::Length {
+                length: 96,
+                max: 80
+            }
+        )
     }
 }

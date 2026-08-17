@@ -565,13 +565,7 @@ impl LanguageServer for Backend {
         };
         let fix_type = serde_json::from_value(toolong.data.as_ref().unwrap().clone()).unwrap();
 
-        Ok(quick_fix::lint_fix_action(
-            &text,
-            params.range,
-            toolong,
-            fix_type,
-            uri,
-        ))
+        Ok(quick_fix::lint_fix_action(&text, toolong, fix_type, uri))
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
