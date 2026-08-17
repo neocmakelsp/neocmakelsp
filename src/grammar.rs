@@ -669,6 +669,6 @@ aa.cmake:57: [C0301] Line too long (145/80)";
                 length: 96,
                 max: 80
             }
-        )
+        );
     }
 }
