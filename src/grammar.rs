@@ -51,9 +51,7 @@ pub fn checkerror<P: AsRef<Path>>(
     let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
     if let Some(v) = cmake_lint_info {
         let error_info = result.get_or_insert(vec![]);
-        for item in v {
-            error_info.push(item);
-        }
+        error_info.extend(v);
     }
 
     result
