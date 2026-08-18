@@ -58,6 +58,12 @@ impl CommandCase {
             _ => None,
         }
     }
+    pub fn operator(&self, target: &str) -> String {
+        match self {
+            Self::Upper => target.to_uppercase(),
+            Self::Lower => target.to_lowercase(),
+        }
+    }
 }
 
 #[derive(Default, Deserialize, PartialEq, Eq, Debug)]

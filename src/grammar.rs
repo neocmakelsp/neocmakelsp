@@ -23,6 +23,7 @@ pub struct LintConfigInfo {
 pub enum ErrorType {
     UpLowerCase {
         command_case: CommandCase,
+        name: String,
     },
     Length {
         length: u32,
@@ -258,7 +259,13 @@ fn checkerror_inner<P: AsRef<Path>>(
                 source: None,
                 related_information: None,
                 tags: None,
-                data: Some(serde_json::to_value(ErrorType::UpLowerCase { command_case }).unwrap()),
+                data: Some(
+                    serde_json::to_value(ErrorType::UpLowerCase {
+                        command_case,
+                        name: name.to_owned(),
+                    })
+                    .unwrap(),
+                ),
             });
         }
         let lowercase_name = name.to_lowercase();
@@ -674,7 +681,8 @@ aa.cmake:57: [C0301] Line too long (145/80)";
         );
         let data = serde_json::json!({
             "UpLowerCase": {
-                "command_case": "upcase"
+                "command_case": "upcase",
+                "name": "Hello"
             }
         });
 
@@ -683,7 +691,8 @@ aa.cmake:57: [C0301] Line too long (145/80)";
         assert_eq!(
             result,
             ErrorType::UpLowerCase {
-                command_case: CommandCase::Upper
+                command_case: CommandCase::Upper,
+                name: "hello".to_owned()
             }
         );
     }

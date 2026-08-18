@@ -557,16 +557,18 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let Some(toolong) = params.context.diagnostics.iter().find(|dia| {
-            dia.data
-                .as_ref()
-                .is_some_and(|data| serde_json::from_value::<ErrorType>(data.clone()).is_ok())
-        }) else {
-            return Ok(None);
-        };
-        let fix_type = serde_json::from_value(toolong.data.as_ref().unwrap().clone()).unwrap();
+        let actions: Vec<&Diagnostic> = params
+            .context
+            .diagnostics
+            .iter()
+            .filter(|dia| {
+                dia.data
+                    .as_ref()
+                    .is_some_and(|data| serde_json::from_value::<ErrorType>(data.clone()).is_ok())
+            })
+            .collect();
 
-        Ok(quick_fix::lint_fix_action(&text, toolong, fix_type, uri))
+        Ok(quick_fix::lint_fix_action(&text, &actions, uri))
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
