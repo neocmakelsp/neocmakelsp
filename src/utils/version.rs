@@ -184,6 +184,8 @@ mod test {
         assert!(version1 == version2);
         assert!(version1 == version3);
         assert!(version1 > version4);
+        assert!(version1 != version4);
         assert!(version1 < version5);
+        assert!(version1 != version5);
     }
 }
