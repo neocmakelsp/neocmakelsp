@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use etcetera::{BaseStrategy, choose_base_strategy};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
@@ -34,7 +34,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandCase {
     #[serde(alias = "upcase", alias = "upper_case")]

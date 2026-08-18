@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
-use crate::config::{self, CONFIG};
+use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::query::get_normal_commands;
 use crate::utils::treehelper::ToPosition;
@@ -21,7 +21,9 @@ pub struct LintConfigInfo {
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub enum ErrorType {
-    UpLowerCase,
+    UpLowerCase {
+        command_case: CommandCase,
+    },
     Length {
         length: u32,
         max: u32,
@@ -238,9 +240,8 @@ fn checkerror_inner<P: AsRef<Path>>(
         let name = query_now.identifier;
         let name_node = query_now.identifier_node;
         if use_lint
-            && let Some(hint) = config::CONFIG
-                .command_case
-                .and_then(|lint| lint.check(name))
+            && let Some(command_case) = config::CONFIG.command_case
+            && let Some(hint) = command_case.check(name)
         {
             let pointx = name_node.start_position().to_position();
             let pointy = name_node.end_position().to_position();
@@ -257,7 +258,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 source: None,
                 related_information: None,
                 tags: None,
-                data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
+                data: Some(serde_json::to_value(ErrorType::UpLowerCase { command_case }).unwrap()),
             });
         }
         let lowercase_name = name.to_lowercase();
@@ -669,6 +670,20 @@ aa.cmake:57: [C0301] Line too long (145/80)";
             ErrorType::Length {
                 length: 96,
                 max: 80
+            }
+        );
+        let data = serde_json::json!({
+            "UpLowerCase": {
+                "command_case": "upcase"
+            }
+        });
+
+        let result: ErrorType = serde_json::from_value(data).unwrap();
+
+        assert_eq!(
+            result,
+            ErrorType::UpLowerCase {
+                command_case: CommandCase::Upper
             }
         );
     }
