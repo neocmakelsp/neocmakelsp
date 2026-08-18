@@ -252,7 +252,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
             }
 
             if !node_info.in_argument_list() {
-                let messages = (&*BUILTIN_COMMAND).clone().filter_builtin(command_case);
+                let messages = (*BUILTIN_COMMAND).clone().filter_builtin(command_case);
                 complete.extend(messages);
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {
@@ -1254,9 +1254,9 @@ endfunction()
             label_details: None,
             kind: Some(CompletionItemKind::Function),
             detail: Some("Function".to_string()),
-            documentation: Some(Documentation::String(format!(
-                "defined function\nfrom: abc.cmake\n\nFun bb",
-            ))),
+            documentation: Some(Documentation::String(
+                "defined function\nfrom: abc.cmake\n\nFun bb".to_string(),
+            )),
             text_edit_text: None,
             preselect: None,
             sort_text: None,
@@ -1277,9 +1277,9 @@ endfunction()
             label_details: None,
             kind: Some(CompletionItemKind::Function),
             detail: Some("Function".to_string()),
-            documentation: Some(Documentation::String(format!(
-                "defined function\nfrom: abc.cmake\n\nFun bb",
-            ))),
+            documentation: Some(Documentation::String(
+                "defined function\nfrom: abc.cmake\n\nFun bb".to_string(),
+            )),
             text_edit_text: None,
             preselect: None,
             sort_text: None,
