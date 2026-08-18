@@ -249,6 +249,7 @@ impl LanguageServer for Backend {
         set_client_text_document(initial.capabilities.text_document);
 
         let version: String = env!("CARGO_PKG_VERSION").to_string();
+        utils::check_or_update_version(&version);
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
                 name: "neocmakelsp".to_string(),

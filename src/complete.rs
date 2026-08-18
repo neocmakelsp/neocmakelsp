@@ -15,6 +15,7 @@ use tower_lsp::lsp_types::{
     Uri,
 };
 
+use crate::config::CommandCase;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
 use crate::languageserver::get_or_update_buffer_contents;
@@ -59,6 +60,59 @@ pub fn init_system_modules() {
     {
         let _ = &*crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES;
         let _ = &*crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
+    }
+}
+
+trait CompletionFilter {
+    fn filter_cache(self, command_case: Option<CommandCase>) -> Self
+    where
+        Self: Sized,
+    {
+        if let Some(command_case) = command_case {
+            return self.filter_cache_command_case(command_case);
+        }
+        self
+    }
+    fn filter_cache_command_case(self, command_case: CommandCase) -> Self;
+    fn filter_builtin(self, command_case: Option<CommandCase>) -> Self
+    where
+        Self: Sized,
+    {
+        if let Some(command_case) = command_case {
+            return self.filter_builtin_command_case(command_case);
+        }
+        self
+    }
+    fn filter_builtin_command_case(self, command_case: CommandCase) -> Self;
+}
+
+impl CompletionFilter for Vec<CompletionItem> {
+    fn filter_cache_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .map(|item| {
+                let mut label = item.label;
+                if item
+                    .kind
+                    .is_some_and(|kind| kind == CompletionItemKind::Function)
+                {
+                    label = match command_case {
+                        CommandCase::Upper => label.to_uppercase(),
+                        CommandCase::Lower => label.to_lowercase(),
+                    };
+                }
+                CompletionItem { label, ..item }
+            })
+            .collect()
+    }
+    fn filter_builtin_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .filter(|item| {
+                item.data.as_ref().is_some_and(|data| {
+                    serde_json::from_value::<CommandCase>(data.clone())
+                        .is_ok_and(|case| case == command_case)
+                })
+            })
+            .collect()
     }
 }
 
@@ -173,12 +227,12 @@ pub async fn getcomplete<P: AsRef<Path>>(
         complete.extend(list);
         return Some(CompletionResponse::CompletionItemList(complete));
     }
-
+    let command_case = crate::config::CONFIG.command_case;
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
             let cached_completion = get_cached_completion(local_path, documents).await;
             if !cached_completion.is_empty() {
-                complete.extend(cached_completion);
+                complete.extend(cached_completion.filter_cache(command_case));
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
                 complete.extend(cmake_cache);
@@ -198,8 +252,8 @@ pub async fn getcomplete<P: AsRef<Path>>(
             }
 
             if !node_info.in_argument_list() {
-                let messages = &*BUILTIN_COMMAND;
-                complete.extend(messages.clone());
+                let messages = (*BUILTIN_COMMAND).clone().filter_builtin(command_case);
+                complete.extend(messages);
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {
                 complete.extend(messages.clone());
@@ -1136,8 +1190,122 @@ endfunction()
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
+        let data = data.filter_cache(Some(CommandCase::Upper));
+        let test_data = vec![
+            CompletionItem {
+                label: "BB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Function".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined function\nfrom: {}\n\nFun bb",
+                    root_cmake.display()
+                ))),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "AB".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Value),
+                detail: Some("Value".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined variable\nfrom: {}\n\nit is a comment for AB",
+                    root_cmake.display()
+                ))),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(data.len(), test_data.len());
+        for test_item in test_data {
+            assert!(data.contains(&test_item));
+        }
     }
 
+    #[test]
+    fn builtin_filter() {
+        let item1 = CompletionItem {
+            label: "lowerfun".to_string(),
+            label_details: None,
+            kind: Some(CompletionItemKind::Function),
+            detail: Some("Function".to_string()),
+            documentation: Some(Documentation::String(
+                "defined function\nfrom: abc.cmake\n\nFun bb".to_string(),
+            )),
+            text_edit_text: None,
+            preselect: None,
+            sort_text: None,
+            filter_text: None,
+            insert_text: None,
+            insert_text_format: None,
+            insert_text_mode: None,
+            text_edit: None,
+            additional_text_edits: None,
+            command: None,
+            commit_characters: None,
+            data: Some(serde_json::to_value(CommandCase::Lower).unwrap()),
+            tags: None,
+            ..Default::default()
+        };
+        let item2 = CompletionItem {
+            label: "UPPER_FN".to_string(),
+            label_details: None,
+            kind: Some(CompletionItemKind::Function),
+            detail: Some("Function".to_string()),
+            documentation: Some(Documentation::String(
+                "defined function\nfrom: abc.cmake\n\nFun bb".to_string(),
+            )),
+            text_edit_text: None,
+            preselect: None,
+            sort_text: None,
+            filter_text: None,
+            insert_text: None,
+            insert_text_format: None,
+            insert_text_mode: None,
+            text_edit: None,
+            additional_text_edits: None,
+            command: None,
+            commit_characters: None,
+            data: Some(serde_json::to_value(CommandCase::Upper).unwrap()),
+            tags: None,
+            ..Default::default()
+        };
+        let test_data = vec![item1.clone(), item2.clone()];
+        let test_data1 = test_data.clone().filter_builtin(Some(CommandCase::Lower));
+        assert_eq!(test_data1.len(), 1);
+        assert_eq!(test_data1[0], item1);
+        let test_data2 = test_data.clone().filter_builtin(Some(CommandCase::Upper));
+        assert_eq!(test_data2.len(), 1);
+        assert_eq!(test_data2[0], item2);
+        let test_data3 = test_data.clone().filter_builtin(None);
+        assert_eq!(test_data3.len(), 2);
+        assert_eq!(test_data3, test_data);
+    }
     #[test]
     fn label_filter() {
         assert!(LABEL_FILITER.is_match("abc${asbsd}abcd"));

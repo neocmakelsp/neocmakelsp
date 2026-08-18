@@ -1,7 +1,7 @@
 mod findpackage;
 pub mod query;
 pub mod treehelper;
-
+mod version;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
@@ -17,6 +17,7 @@ use crate::fileapi;
 use crate::jump::JumpCacheUnit;
 
 pub mod cache {
+    pub const VERSION_FILE: &str = "version.json";
     pub mod builtin {
         pub const MODULE_CACHE: &str = "builtin_module_cache.json";
         pub const VARIABLE_CACHE: &str = "builtin_variable_cache.json";
@@ -52,6 +53,52 @@ pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(
     let cache_dir = strategy.cache_dir();
     Some(cache_dir.join("neocmakelsp"))
 });
+
+pub static SERVER_VERSION: LazyLock<version::Version> = LazyLock::new(load_version_cache);
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ServerVersion {
+    version: String,
+}
+
+fn read_version_file<P: AsRef<Path>>(path: P) -> Option<ServerVersion> {
+    let data = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+pub fn load_version_cache() -> version::Version {
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::VERSION_FILE)
+        && config_file.exists()
+        && let Some(version) = read_version_file(config_file)
+    {
+        return version.version.into();
+    }
+    version::Version::invalid()
+}
+
+pub fn check_or_update_version(str_version: &str) {
+    use version::Version;
+    let version: Version = str_version.into();
+    if version <= *SERVER_VERSION {
+        return;
+    }
+    let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref() else {
+        return;
+    };
+    let _ = std::fs::remove_dir_all(cache_dir);
+
+    let server_version = ServerVersion {
+        version: str_version.to_string(),
+    };
+    if std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::VERSION_FILE)
+        && let Ok(data) = serde_json::to_string_pretty(&server_version)
+    {
+        std::fs::write(config_file, data).ok();
+    }
+}
 
 impl<Data, const TIME_CHECK: bool> CachedData<Data, TIME_CHECK>
 where
