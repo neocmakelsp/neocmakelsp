@@ -446,7 +446,6 @@ mod tests {
     use super::*;
     #[cfg(not(windows))]
     use crate::fileapi::{cache, set_cache_data};
-    use tower_lsp::lsp_types::{Position, Range};
 
     #[cfg(not(windows))]
     #[test]
@@ -500,6 +499,7 @@ add_subdirectory("unexist_subdir")
         let check_result =
             checkerror_inner(top_cmake, gammar_file_src, thetree.root_node(), false).unwrap();
 
+        use tower_lsp::lsp_types::Range;
         assert_eq!(
             *check_result,
             vec![
@@ -589,6 +589,7 @@ include(abcd.text)
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let thetree = parse.parse(source, None).unwrap();
 
+        use tower_lsp::lsp_types::Range;
         let input = thetree.root_node();
         assert_eq!(
             checkerror_inner(std::path::Path::new("."), source, input, true,),
