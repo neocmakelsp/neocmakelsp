@@ -3,15 +3,15 @@ use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
 
+use crate::config::CommandCase;
+use crate::utils::BUILTIN_MODULE_CACHED_DIR;
+use crate::utils::cache;
+use crate::{languageserver::to_use_snippet, utils::CachedCompleteItems};
 use anyhow::Result;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
     ParameterInformation, ParameterInformationLabel,
 };
-
-use crate::utils::BUILTIN_MODULE_CACHED_DIR;
-use crate::utils::cache;
-use crate::{languageserver::to_use_snippet, utils::CachedCompleteItems};
 
 // As regex can't resolve nested parameter struct, parse it manually
 fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
@@ -128,7 +128,7 @@ fn gen_builtin_command_signature_resource(
 }
 
 const fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
-    if client_support_snippet {
+    if !client_support_snippet {
         cache::builtin::COMMANDS_CACHE
     } else {
         cache::builtin::COMMANDS_SNIPPET_CACHE
@@ -186,6 +186,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(insert_text),
                     insert_text_format: Some(insert_text_format),
+                    data: Some(serde_json::to_value(CommandCase::Lower).unwrap()),
                     ..Default::default()
                 },
                 CompletionItem {
@@ -195,6 +196,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(uppercase_insert_text),
                     insert_text_format: Some(insert_text_format),
+                    data: Some(serde_json::to_value(CommandCase::Upper).unwrap()),
                     ..Default::default()
                 },
             ]
