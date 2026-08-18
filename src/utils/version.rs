@@ -9,7 +9,7 @@ pub struct Version {
 }
 
 const EXTRRA_REGEX_RULES: &str = r"((?<version>[0-9]+)(?<extra>[a-z]+)(?<extraVersion>[0-9]+))";
-const EXTRRA_REGEX: LazyLock<regex::Regex> =
+static EXTRRA_REGEX: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(EXTRRA_REGEX_RULES).unwrap());
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -32,12 +32,12 @@ impl Version {
 
 impl From<&str> for Version {
     fn from(value: &str) -> Self {
-        let mut version = Version::default();
+        let mut version = Self::default();
         let versions: Vec<&str> = value.split(".").collect();
         for (index, ver) in versions.iter().enumerate() {
             let ver: u32 = if index != 2 {
                 let Ok(ver) = ver.parse() else {
-                    return Version::default();
+                    return Self::default();
                 };
                 ver
             } else {
@@ -53,13 +53,13 @@ impl From<&str> for Version {
                             "alpha" => Extra::Alpha(extra_version),
                             "beta" => Extra::Beta(extra_version),
                             "rc" => Extra::Rc(extra_version),
-                            _ => return Version::default(),
+                            _ => return Self::default(),
                         };
                         version.extra = Some(extra);
 
                         ver.parse().unwrap()
                     }
-                    _ => return Version::default(),
+                    _ => return Self::default(),
                 }
             };
 
@@ -78,11 +78,11 @@ impl From<&str> for Version {
 
 impl From<String> for Version {
     fn from(value: String) -> Self {
-        let mut version = Version::default();
+        let mut version = Self::default();
         let versions: Vec<&str> = value.split(".").collect();
         for (index, ver) in versions.iter().enumerate() {
             let Ok(ver) = ver.parse() else {
-                return Version::default();
+                return Self::default();
             };
             match index {
                 0 => version.major = ver,
@@ -100,7 +100,7 @@ impl From<String> for Version {
 impl PartialEq for Version {
     fn eq(&self, other: &Self) -> bool {
         // NOTE: we should keep patch won't break anything
-        self.major == other.major && self.major == other.major
+        self.major == other.major && self.minor == other.minor
     }
 }
 impl Eq for Version {}
@@ -118,7 +118,7 @@ impl Ord for Version {
         } else if self.minor < other.minor {
             return Ordering::Less;
         }
-        return Ordering::Equal;
+        Ordering::Equal
     }
 }
 
