@@ -86,7 +86,12 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
     }
 
     let jump_cache = JUMP_CACHE.lock().await;
-    let cached_info = jump_cache.get(message)?.document_info.clone();
+    // NOTE: if cannot find the key, then it can be lowercase
+    let cached_info = jump_cache
+        .get(message)
+        .or(jump_cache.get(&message.to_lowercase()))?
+        .document_info
+        .clone();
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data()
         && let Some(value) = cache_data.get(message)

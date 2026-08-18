@@ -74,6 +74,11 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
         is_function,
     } in result_data
     {
+        let mut key = key;
+        // NOTE: always save the key to lowercase, if it is function
+        if is_function {
+            key = key.to_lowercase();
+        }
         cache.insert(
             key,
             JumpCacheUnit {
@@ -102,11 +107,13 @@ pub async fn get_cached_def<P: AsRef<Path>>(
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
+    // NOTE: because function is saved with lowercase
+    // So we need to search it twice
     if let Some(JumpCacheUnit {
         location,
         is_function,
         ..
-    }) = jump_cache.get(key)
+    }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
     {
         return Some(ReferenceInfo {
             loc: location.clone(),
@@ -121,7 +128,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(
             location,
             is_function,
             ..
-        }) = jump_cache.get(key)
+        }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
         {
             return Some(ReferenceInfo {
                 loc: location.clone(),
@@ -136,7 +143,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(
             location,
             is_function,
             ..
-        }) = jump_cache.get(key)
+        }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
         {
             return Some(ReferenceInfo {
                 loc: location.clone(),
@@ -151,7 +158,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(
                 location,
                 is_function,
                 ..
-            }) = jump_cache.get(key)
+            }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
             {
                 return Some(ReferenceInfo {
                     loc: location.clone(),
