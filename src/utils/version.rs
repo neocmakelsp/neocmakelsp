@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,
@@ -97,6 +97,14 @@ impl From<String> for Version {
     }
 }
 
+impl PartialEq for Version {
+    fn eq(&self, other: &Self) -> bool {
+        // NOTE: we should keep patch won't break anything
+        self.major == other.major && self.major == other.major
+    }
+}
+impl Eq for Version {}
+
 impl Ord for Version {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering;
@@ -108,11 +116,6 @@ impl Ord for Version {
         if self.minor > other.minor {
             return Ordering::Greater;
         } else if self.minor < other.minor {
-            return Ordering::Less;
-        }
-        if self.patch > other.patch {
-            return Ordering::Greater;
-        } else if self.patch < other.patch {
             return Ordering::Less;
         }
         return Ordering::Equal;
@@ -164,5 +167,23 @@ mod test {
                 extra: Some(Extra::Rc(1))
             }
         );
+    }
+
+    #[test]
+    fn compare() {
+        let version = "1.2.3";
+        let version1: Version = version.into();
+        let version = "1.2.4";
+        let version2: Version = version.into();
+        let version = "1.2.4rc1";
+        let version3: Version = version.into();
+        let version = "1.1.4";
+        let version4: Version = version.into();
+        let version = "2.1.4";
+        let version5: Version = version.into();
+        assert!(version1 == version2);
+        assert!(version1 == version3);
+        assert!(version1 > version4);
+        assert!(version1 < version5);
     }
 }
