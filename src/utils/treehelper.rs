@@ -8,16 +8,12 @@ use lsp_types::{Position, Range};
 use tower_lsp::lsp_types;
 use tree_sitter::{Node, Point};
 
-use crate::{
-    CMakeNodeKinds,
-    utils::{
-        BUILTIN_MODULE_CACHED_DIR, CachedMessages, NeoStrExt, cache,
-        query::{
-            try_get_bracket_comment, try_get_function, try_get_line_comment, try_get_macro,
-            try_get_normal_command, try_get_variable,
-        },
-    },
+use crate::CMakeNodeKinds;
+use crate::utils::query::{
+    try_get_bracket_comment, try_get_function, try_get_line_comment, try_get_macro,
+    try_get_normal_command, try_get_variable,
 };
+use crate::utils::{BUILTIN_MODULE_CACHED_DIR, CachedMessages, NeoStrExt, cache};
 
 const BLACK_POS_STRING: [&str; 5] = ["(", ")", "{", "}", "$"];
 
@@ -106,7 +102,7 @@ pub static MESSAGE_STORAGE: LazyLock<HashMap<String, String>> = LazyLock::new(||
         && let config_file = cache_dir.join(cache::builtin::MODULE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedMessages::read(config_file)
-        && !cache_completes.need_update()
+        && !cache_completes.needs_update()
     {
         return cache_completes.data;
     }
@@ -423,9 +419,8 @@ impl<'a> CurrentNodeInfo<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-
     use super::*;
+    use crate::consts::TREESITTER_CMAKE_LANGUAGE;
     fn parse_tree(source: &str) -> tree_sitter::Tree {
         let mut parser = tree_sitter::Parser::new();
         parser.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();

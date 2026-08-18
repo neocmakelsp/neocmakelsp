@@ -3,15 +3,15 @@ use std::iter::zip;
 use std::process::Command;
 use std::sync::LazyLock;
 
-use crate::config::CommandCase;
-use crate::utils::BUILTIN_MODULE_CACHED_DIR;
-use crate::utils::cache;
-use crate::{languageserver::to_use_snippet, utils::CachedCompleteItems};
 use anyhow::Result;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
     ParameterInformation, ParameterInformationLabel,
 };
+
+use crate::config::CommandCase;
+use crate::languageserver::to_use_snippet;
+use crate::utils::{BUILTIN_MODULE_CACHED_DIR, CachedCompleteItems, cache};
 
 // As regex can't resolve nested parameter struct, parse it manually
 fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
@@ -144,7 +144,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
         && let config_file = cache_dir.join(cached_file)
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
-        && !cache_completes.need_update()
+        && !cache_completes.needs_update()
     {
         return cache_completes.data;
     }
@@ -219,7 +219,7 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
         && let config_file = cache_dir.join(cache::builtin::VARIABLE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
-        && !cache_completes.need_update()
+        && !cache_completes.needs_update()
     {
         return Ok(cache_completes.data);
     }
@@ -380,7 +380,7 @@ fn get_builtin_modules() -> Result<Vec<CompletionItem>> {
         && let config_file = cache_dir.join(cache::builtin::MODULE_CACHE)
         && config_file.exists()
         && let Some(cache_completes) = CachedCompleteItems::read(config_file)
-        && !cache_completes.need_update()
+        && !cache_completes.needs_update()
     {
         return Ok(cache_completes.data);
     }

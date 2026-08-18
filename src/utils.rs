@@ -6,11 +6,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
-use chrono::{DateTime, Local};
 use etcetera::BaseStrategy;
+use jiff::{SpanTotal, Timestamp, Unit};
 use serde::{Deserialize, Serialize};
-use tower_lsp::lsp_types::CompletionItem;
-use tower_lsp::lsp_types::Uri;
+use tower_lsp::lsp_types::{CompletionItem, Uri};
 
 pub use self::findpackage::*;
 use crate::fileapi;
@@ -36,7 +35,7 @@ pub mod cache {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CachedData<Data, const TIME_CHECK: bool = true> {
-    pub date: DateTime<Local>,
+    pub date: Timestamp,
     pub data: Data,
 }
 
@@ -110,25 +109,20 @@ where
     }
 
     pub fn new(data: Data) -> Self {
-        let dt = Local::now();
-        // Get components
-        let naive_utc = dt.naive_utc();
-        let offset = *dt.offset();
         Self {
-            date: DateTime::from_naive_utc_and_offset(naive_utc, offset),
+            date: Timestamp::now(),
             data,
         }
     }
-    pub fn need_update(&self) -> bool {
+    pub fn needs_update(&self) -> bool {
         if !TIME_CHECK {
             return false;
         }
-        let utc = self.date.naive_utc();
-        let dt = Local::now();
-        // Get components
-        let naive_utc = dt.naive_utc();
-        let duration = naive_utc - utc;
-        duration.num_weeks() > 4
+
+        let span = Timestamp::now() - self.date;
+        span.total(SpanTotal::from(Unit::Day).days_are_24_hours())
+            .unwrap()
+            > 28.0
     }
 }
 
