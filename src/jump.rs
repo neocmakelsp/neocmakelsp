@@ -486,6 +486,7 @@ fn getsubdef<P: AsRef<Path>>(
     for fun in functions {
         let name = fun.name;
         let row = fun.arguments[0].start_position().row;
+        let column = fun.node.start_position().column;
 
         let fun_node = fun.arguments[0];
         let start = fun_node.start_position().to_position();
@@ -494,7 +495,9 @@ fn getsubdef<P: AsRef<Path>>(
         let mut document_info = format!("defined function\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
-            .find(|c| c.node.start_position().row + 1 == row)
+            .find(|c| {
+                c.node.start_position().row + 1 == row && c.node.start_position().column == column
+            })
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -514,6 +517,7 @@ fn getsubdef<P: AsRef<Path>>(
     for macro_node in macros {
         let name = macro_node.name;
         let row = macro_node.arguments[0].start_position().row;
+        let column = macro_node.node.start_position().column;
 
         let fun_node = macro_node.arguments[0];
         let start = fun_node.start_position().to_position();
@@ -522,7 +526,9 @@ fn getsubdef<P: AsRef<Path>>(
         let mut document_info = format!("defined macro\nfrom: {}", local_path.display());
         if let Some(line_comment) = comments
             .iter()
-            .find(|c| c.node.start_position().row + 1 == row)
+            .find(|c| {
+                c.node.start_position().row + 1 == row && c.node.start_position().column == column
+            })
             .map(|c| c.content)
         {
             document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -643,13 +649,17 @@ fn getsubdef<P: AsRef<Path>>(
             let row = command.identifier_node.start_position().row;
             let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
 
+            let column = command.node.start_position().column;
             let val_name = command.args[0];
             let h = val_name.start_position().row;
             let x = val_name.start_position().column;
             let y = val_name.end_position().column;
             if let Some(line_comment) = comments
                 .iter()
-                .find(|c| c.node.start_position().row + 1 == row)
+                .find(|c| {
+                    c.node.start_position().row + 1 == row
+                        && c.node.start_position().column == column
+                })
                 .map(|c| c.content)
             {
                 document_info = format!("{}\n\n{}", document_info, line_comment);
@@ -839,8 +849,10 @@ include(abcd_test.cmake)
         let include_cmake_path = dir.path().join("abcd_test.cmake");
         let mut include_cmake = File::create_new(&include_cmake_path).unwrap();
         let include_cmake_context = r#"
+# Hello
 set(ABCD "abcd")
-include(efg_test.cmake)
+include(efg_test.cmake) # Hello
+set(EFGH "abcd")
 "#;
         writeln!(include_cmake, "{}", include_cmake_context).unwrap();
 
@@ -867,24 +879,50 @@ include(efg_test.cmake)
 
         assert_eq!(
             data,
-            vec![CacheDataUnit {
-                key: "ABCD".to_string(),
-                location: Location {
-                    uri: Uri::from_file_path(&include_cmake_path).unwrap(),
-                    range: lsp_types::Range {
-                        start: lsp_types::Position {
-                            line: 1,
-                            character: 4
+            vec![
+                CacheDataUnit {
+                    key: "ABCD".to_string(),
+                    location: Location {
+                        uri: Uri::from_file_path(&include_cmake_path).unwrap(),
+                        range: lsp_types::Range {
+                            start: lsp_types::Position {
+                                line: 2,
+                                character: 4
+                            },
+                            end: lsp_types::Position {
+                                line: 2,
+                                character: 8
+                            }
                         },
-                        end: lsp_types::Position {
-                            line: 1,
-                            character: 8
-                        }
                     },
+                    document_info: format!(
+                        "defined variable\nfrom: {}\n\nHello",
+                        include_cmake_path.display()
+                    ),
+                    is_function: false
                 },
-                document_info: format!("defined variable\nfrom: {}", include_cmake_path.display()),
-                is_function: false
-            }]
+                CacheDataUnit {
+                    key: "EFGH".to_string(),
+                    location: Location {
+                        uri: Uri::from_file_path(&include_cmake_path).unwrap(),
+                        range: lsp_types::Range {
+                            start: lsp_types::Position {
+                                line: 4,
+                                character: 4
+                            },
+                            end: lsp_types::Position {
+                                line: 4,
+                                character: 8
+                            }
+                        },
+                    },
+                    document_info: format!(
+                        "defined variable\nfrom: {}",
+                        include_cmake_path.display()
+                    ),
+                    is_function: false
+                }
+            ]
         );
         assert_eq!(
             include_files,
