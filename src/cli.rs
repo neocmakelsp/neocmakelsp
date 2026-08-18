@@ -1,24 +1,14 @@
 use std::path::PathBuf;
 
 use clap::builder::Styles;
-use clap::builder::styling::{AnsiColor, Effects};
+use clap::builder::styling::AnsiColor;
 use clap::{Parser, Subcommand, ValueHint};
 
 const STYLES: Styles = Styles::styled()
-    .header(
-        AnsiColor::Yellow
-            .on_default()
-            .effects(Effects::BOLD)
-            .effects(Effects::UNDERLINE),
-    )
-    .usage(
-        AnsiColor::Yellow
-            .on_default()
-            .effects(Effects::BOLD)
-            .effects(Effects::UNDERLINE),
-    )
-    .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
-    .invalid(AnsiColor::Red.on_default().effects(Effects::BOLD))
+    .header(AnsiColor::Yellow.on_default().bold().underline())
+    .usage(AnsiColor::Yellow.on_default().bold().underline())
+    .literal(AnsiColor::Green.on_default().bold())
+    .invalid(AnsiColor::Red.on_default().bold())
     .placeholder(AnsiColor::Green.on_default());
 
 /// CMake LSP implementation based on tower-lsp and tree-sitter.
