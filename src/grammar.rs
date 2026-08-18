@@ -692,7 +692,7 @@ aa.cmake:57: [C0301] Line too long (145/80)";
             result,
             ErrorType::UpLowerCase {
                 command_case: CommandCase::Upper,
-                name: "hello".to_owned()
+                name: "Hello".to_owned()
             }
         );
     }
