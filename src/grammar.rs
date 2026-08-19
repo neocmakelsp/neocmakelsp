@@ -8,7 +8,7 @@ use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::utils::query::get_normal_commands;
+use crate::utils::query::{get_functions, get_macros, get_normal_commands};
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{NeoStrExt, include_is_module};
 
@@ -233,6 +233,70 @@ fn checkerror_inner<P: AsRef<Path>>(
                 related_information: None,
                 tags: None,
                 data: Some(serde_json::to_value(ErrorType::Gammar).unwrap()),
+            });
+        }
+    }
+    if use_lint && let Some(command_case) = config::CONFIG.command_case {
+        let macros = get_macros(source_bytes, input, None);
+        let functions = get_functions(source_bytes, input, None);
+        for macro_node in macros {
+            let name = macro_node.name;
+            let Some(hint) = command_case.check(name) else {
+                continue;
+            };
+            let pointx = macro_node.name_node.start_position().to_position();
+            let pointy = macro_node.name_node.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+
+            output.push(Diagnostic {
+                range,
+                message: hint.into(),
+                severity: Some(DiagnosticSeverity::Hint),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(
+                    serde_json::to_value(ErrorType::UpLowerCase {
+                        command_case,
+                        name: name.to_owned(),
+                    })
+                    .unwrap(),
+                ),
+            });
+        }
+        for fun_node in functions {
+            let name = fun_node.name;
+            let Some(hint) = command_case.check(name) else {
+                continue;
+            };
+            let pointx = fun_node.name_node.start_position().to_position();
+            let pointy = fun_node.name_node.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+
+            output.push(Diagnostic {
+                range,
+                message: hint.into(),
+                severity: Some(DiagnosticSeverity::Hint),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(
+                    serde_json::to_value(ErrorType::UpLowerCase {
+                        command_case,
+                        name: name.to_owned(),
+                    })
+                    .unwrap(),
+                ),
             });
         }
     }

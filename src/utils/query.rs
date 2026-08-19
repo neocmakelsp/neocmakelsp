@@ -272,6 +272,7 @@ pub struct BracketCommentNode<'a> {
 
 pub struct MacroNode<'a> {
     pub name: &'a str,
+    pub name_node: Node<'a>,
     pub node: Node<'a>,
     pub arguments: Vec<Node<'a>>,
 }
@@ -290,6 +291,7 @@ impl<'a> MacroNode<'a> {
 }
 pub struct FuncNode<'a> {
     pub name: &'a str,
+    pub name_node: Node<'a>,
     pub node: Node<'a>,
     pub arguments: Vec<Node<'a>>,
 }
@@ -615,19 +617,21 @@ where
         else {
             continue;
         };
-        let mut macro_node = MacroNode {
-            node,
-            name: "",
-            arguments: vec![],
-        };
         let args: Vec<&QueryCapture> = m
             .captures
             .iter()
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
         let first_arg = args[0].node;
-        macro_node.name = first_arg.utf8_text(source).unwrap();
-        macro_node.arguments = args.iter().map(|q| q.node).collect();
+        let name = first_arg.utf8_text(source).unwrap();
+        let arguments = args.iter().map(|q| q.node).collect();
+        let macro_node = MacroNode {
+            node,
+            name,
+            name_node: first_arg,
+            arguments,
+        };
+
         macros.push(macro_node);
     }
     macros
@@ -765,19 +769,21 @@ where
         else {
             continue;
         };
-        let mut fun_node = FuncNode {
-            node,
-            name: "",
-            arguments: vec![],
-        };
         let args: Vec<&QueryCapture> = m
             .captures
             .iter()
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
         let first_arg = args[0].node;
-        fun_node.name = first_arg.utf8_text(source).unwrap();
-        fun_node.arguments = args.iter().map(|q| q.node).collect();
+        let name = first_arg.utf8_text(source).unwrap();
+        let arguments = args.iter().map(|q| q.node).collect();
+        let fun_node = FuncNode {
+            node,
+            name,
+            name_node: first_arg,
+            arguments,
+        };
+
         funs.push(fun_node);
     }
     funs
