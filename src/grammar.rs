@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
@@ -17,6 +18,21 @@ const INCLUDE_CHECK_KEYWORDS: &[&str; 2] = &["include", "add_subdirectory"];
 pub struct LintConfigInfo {
     pub use_lint: bool,
     pub use_extra_cmake_lint: bool,
+}
+
+trait CharacterCount {
+    fn character_counts(&self) -> usize;
+}
+
+impl CharacterCount for str {
+    fn character_counts(&self) -> usize {
+        self.graphemes(true).count()
+    }
+}
+impl CharacterCount for String {
+    fn character_counts(&self) -> usize {
+        self.graphemes(true).count()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -77,7 +93,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
     let mut info = vec![];
     let max_len = CONFIG.line_max_words;
     for (index, line) in contexts.iter().enumerate() {
-        let len = line.len();
+        let len = line.character_counts();
         if len > max_len {
             let start_point = Point {
                 row: index,
@@ -759,5 +775,13 @@ aa.cmake:57: [C0301] Line too long (145/80)";
                 name: "Hello".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn character_counts() {
+        assert_eq!("é".character_counts(), 1);
+        assert_eq!("ラウトは難しいです！".character_counts(), 10);
+        assert_eq!("#яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя".character_counts(), 43);
+        assert_eq!("#йцукенйцукенйцукенйцукенйцукенйцукенйцукен".character_counts(), 43);
     }
 }
