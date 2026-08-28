@@ -781,7 +781,13 @@ aa.cmake:57: [C0301] Line too long (145/80)";
     fn character_counts() {
         assert_eq!("é".character_counts(), 1);
         assert_eq!("ラウトは難しいです！".character_counts(), 10);
-        assert_eq!("#яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя".character_counts(), 43);
-        assert_eq!("#йцукенйцукенйцукенйцукенйцукенйцукенйцукен".character_counts(), 43);
+        assert_eq!(
+            "#яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя".character_counts(),
+            43
+        );
+        assert_eq!(
+            "#йцукенйцукенйцукенйцукенйцукенйцукенйцукен".character_counts(),
+            43
+        );
     }
 }
