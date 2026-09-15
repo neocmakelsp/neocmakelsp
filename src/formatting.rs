@@ -73,8 +73,8 @@ pub fn format_file(
             );
             print!("{}{}", sign, change);
         }
-        println!("");
-        println!("");
+        println!();
+        println!();
     }
     Ok(())
 }
