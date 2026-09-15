@@ -186,8 +186,7 @@ async fn main() -> Result<ExitCode> {
                                 .file_name()
                                 .is_some_and(|name| name == "CMakeLists.txt")
                                 || path.extension().is_some_and(|ext| ext == "cmake"))
-                        {
-                            if format_file(
+                            && format_file(
                                 path,
                                 inplace,
                                 use_space,
@@ -196,7 +195,6 @@ async fn main() -> Result<ExitCode> {
                             )? {
                                 exit_code = ExitCode::from(1);
                             }
-                        }
                         // FIXME: Does this ignore recursive directories??
                     }
                 }
