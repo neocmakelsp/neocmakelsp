@@ -6,12 +6,25 @@ use lsp_types::{MessageType, Position, TextEdit};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tower_lsp::lsp_types;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::CMakeNodeKinds;
 use crate::config::CONFIG;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::contain_comment;
+use nu_ansi_term::{Color, Style};
+use similar::{ChangeTag, TextDiff};
 
+struct Line(Option<usize>);
+
+impl std::fmt::Display for Line {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.0 {
+            None => write!(f, "    "),
+            Some(idx) => write!(f, "{:<4}", idx + 1),
+        }
+    }
+}
 const CLOSURE: &[&str] = &[
     CMakeNodeKinds::FUNCTION_DEF,
     CMakeNodeKinds::MACRO_DEF,
@@ -32,7 +45,36 @@ pub fn format_file(
     if inplace {
         std::fs::write(path, formatted_content)?;
     } else {
-        println!("{formatted_content}");
+        let diff = TextDiff::from_lines(content, formatted_content);
+        let changes: Vec<similar::Change<&str>> = diff
+            .iter_all_changes()
+            .filter(|change| change.tag() != ChangeTag::Equal)
+            .collect();
+        if changes.is_empty() {
+            return Ok(());
+        }
+        let file_name = path.as_os_str().display().to_string();
+        let name_len = file_name.graphemes(true).count();
+        let split_line: String = vec!['='; name_len].iter().collect();
+        println!("{split_line}");
+        println!("{file_name}");
+        println!("{split_line}");
+        for change in changes {
+            let (sign, style) = match change.tag() {
+                ChangeTag::Delete => ("-", Style::new().on(Color::Red)),
+                ChangeTag::Insert => ("+", Style::new().on(Color::Green)),
+                ChangeTag::Equal => unreachable!(),
+            };
+            print!(
+                "{}{} |{}",
+                style.dimmed().paint(Line(change.old_index()).to_string()),
+                style.dimmed().paint(Line(change.new_index()).to_string()),
+                style.bold().paint(sign)
+            );
+            print!("{}{}", sign, change);
+        }
+        println!("");
+        println!("");
     }
     Ok(())
 }
