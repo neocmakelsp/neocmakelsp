@@ -14,6 +14,10 @@ use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::contain_comment;
 use nu_ansi_term::{Color, Style};
 use similar::{ChangeTag, TextDiff};
+use syntect::easy::HighlightLines;
+use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxSet;
+use syntect::util::{LinesWithEndings, as_24_bit_terminal_escaped};
 
 struct Line(Option<usize>);
 
@@ -53,6 +57,14 @@ pub fn format_file(
         if changes.is_empty() {
             return Ok(());
         }
+        // Load these once at the start of your program
+        let ps = SyntaxSet::load_defaults_newlines();
+        let ts = ThemeSet::load_defaults();
+
+        // NOTE: just because the rust syntax can provide the highlight for cmake, so it is usable
+        // here
+        let syntax = ps.find_syntax_by_extension("rs").unwrap();
+        let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
         let file_name = path.as_os_str().display().to_string();
         let name_len = file_name.graphemes(true).count();
         let split_line: String = vec!['='; name_len].iter().collect();
@@ -61,8 +73,8 @@ pub fn format_file(
         println!("{split_line}");
         for change in changes {
             let (sign, style) = match change.tag() {
-                ChangeTag::Delete => ("-", Style::new().on(Color::Red)),
-                ChangeTag::Insert => ("+", Style::new().on(Color::Green)),
+                ChangeTag::Delete => ("-", Style::new().on(Color::Rgb(63, 0, 1))),
+                ChangeTag::Insert => ("+", Style::new().on(Color::Rgb(0, 40, 0))),
                 ChangeTag::Equal => unreachable!(),
             };
             print!(
@@ -71,7 +83,12 @@ pub fn format_file(
                 style.dimmed().paint(Line(change.new_index()).to_string()),
                 style.bold().paint(sign)
             );
-            print!("{}{}", sign, change);
+            let s = change.to_string();
+            for line in LinesWithEndings::from(s.as_str()) {
+                let ranges: Vec<(_, &str)> = h.highlight_line(line, &ps).unwrap();
+                let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
+                print!("{}", style.paint(escaped));
+            }
         }
         println!();
         println!();

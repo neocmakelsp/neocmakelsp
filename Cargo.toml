@@ -28,6 +28,7 @@ rust-ini = "0.21.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 similar = "3.2.0"
+syntect = "5.3.0"
 tokio = { version = "1.53.1", features = ["full"] }
 toml = "1.1.6"
 tower-lsp = { package = "tower-lsp-f", version = "0.26.0" }
