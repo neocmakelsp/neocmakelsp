@@ -192,9 +192,10 @@ async fn main() -> Result<ExitCode> {
                                 use_space,
                                 indent_size,
                                 insert_final_newline,
-                            )? {
-                                exit_code = ExitCode::from(1);
-                            }
+                            )?
+                        {
+                            exit_code = ExitCode::from(1);
+                        }
                         // FIXME: Does this ignore recursive directories??
                     }
                 }
