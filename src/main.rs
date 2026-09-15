@@ -123,9 +123,9 @@ fn editconfig_setting_read<P: AsRef<Path>>(editconfig_path: P) -> Option<EditCon
         insert_final_newline,
     })
 }
-
+use std::process::ExitCode;
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<ExitCode> {
     clap_complete::CompleteEnv::with_factory(Cli::command)
         .completer(env!("CARGO_BIN_NAME"))
         .complete();
@@ -141,6 +141,7 @@ async fn main() -> Result<()> {
         log.init();
     }
 
+    let mut exit_code = ExitCode::SUCCESS;
     match args.command {
         Command::Stdio => {
             let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
@@ -174,7 +175,9 @@ async fn main() -> Result<()> {
                     continue;
                 }
                 if path.is_file() {
-                    format_file(&path, inplace, use_space, indent_size, insert_final_newline)?;
+                    if format_file(&path, inplace, use_space, indent_size, insert_final_newline)? {
+                        exit_code = ExitCode::from(1);
+                    }
                 } else if path.is_dir() {
                     for entry in Walk::new(path).flatten() {
                         let path = entry.path();
@@ -184,13 +187,15 @@ async fn main() -> Result<()> {
                                 .is_some_and(|name| name == "CMakeLists.txt")
                                 || path.extension().is_some_and(|ext| ext == "cmake"))
                         {
-                            format_file(
+                            if format_file(
                                 path,
                                 inplace,
                                 use_space,
                                 indent_size,
                                 insert_final_newline,
-                            )?;
+                            )? {
+                                exit_code = ExitCode::from(1);
+                            }
                         }
                         // FIXME: Does this ignore recursive directories??
                     }
@@ -240,7 +245,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(exit_code)
 }
 
 #[cfg(test)]

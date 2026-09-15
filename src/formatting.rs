@@ -37,17 +37,19 @@ const CLOSURE: &[&str] = &[
 ];
 
 // TODO: Maybe make this async and run formatting in parallel.
+/// the return value means there are changes
 pub fn format_file(
     path: &Path,
     inplace: bool,
     use_space: bool,
     indent_size: u32,
     insert_final_newline: bool,
-) -> Result<()> {
+) -> Result<bool> {
     let content = std::fs::read_to_string(path)?;
     let formatted_content = get_format_cli(&content, indent_size, use_space, insert_final_newline)?;
     if inplace {
         std::fs::write(path, formatted_content)?;
+        return Ok(false);
     } else {
         let diff = TextDiff::from_lines(content, formatted_content);
         let changes: Vec<similar::Change<&str>> = diff
@@ -55,7 +57,7 @@ pub fn format_file(
             .filter(|change| change.tag() != ChangeTag::Equal)
             .collect();
         if changes.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
         // Load these once at the start of your program
         let ps = SyntaxSet::load_defaults_newlines();
@@ -93,7 +95,7 @@ pub fn format_file(
         println!();
         println!();
     }
-    Ok(())
+    Ok(true)
 }
 
 /// NOTE: when element in the same place, format bugs
