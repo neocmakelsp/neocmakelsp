@@ -86,11 +86,13 @@ pub fn format_file(
                 style.bold().paint(sign)
             );
             let s = change.to_string();
+            let mut escapes = String::new();
             for line in LinesWithEndings::from(s.as_str()) {
                 let ranges: Vec<(_, &str)> = h.highlight_line(line, &ps).unwrap();
                 let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
-                print!("{}", style.paint(escaped));
+                escapes.push_str(&escaped);
             }
+            print!("{}", style.paint(escapes));
         }
         println!();
         println!();
