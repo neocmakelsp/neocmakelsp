@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2026-09-27
+
+### Changed
+- Fix: bump tree-sitter-cmake to fix the grammar parse error of the regex
+- Feat: add a colorful diff output for format
+- fix: add handling for optional fileapi fields (#383)
+
+[0.11.2]: https://github.com/neocmakelsp/neocmakelsp/compare/v0.11.2...v0.11.1
+
 ## [0.11.1] - 2026-08-29
 
 ### Changed
