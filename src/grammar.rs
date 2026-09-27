@@ -231,7 +231,7 @@ fn checkerror_inner<P: AsRef<Path>>(
     let mut cursor_e = QueryCursor::new();
     let mut matches_e = cursor_e.matches(&query_error, input, source_bytes);
     while let Some(m) = matches_e.next() {
-        for err in m.captures {
+        for err in m.captures() {
             let input = err.node;
             let pointx = input.start_position().to_position();
             let pointy = input.end_position().to_position();

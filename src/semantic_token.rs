@@ -178,7 +178,7 @@ fn get_tokens(node: tree_sitter::Node, source: &str) -> Vec<SemanticToken> {
     let names = query.capture_names();
     let mut ranges = vec![];
     while let Some(m) = matches.next() {
-        for e in m.captures {
+        for e in m.captures() {
             if ranges.contains(&e.node.range()) {
                 continue;
             }

@@ -159,7 +159,7 @@ fn get_symbols(node: tree_sitter::Node, source: &str) -> Vec<DocumentSymbol> {
         let mut first_argument = None;
         let mut node = None;
         let mut arg_node = None;
-        for e in m.captures {
+        for e in m.captures() {
             let name = names[e.index as usize];
             if name == "block" {
                 let ast_node = AstNode::new(e.node, name).with_data(SymbolData::Block);

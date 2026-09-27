@@ -369,7 +369,7 @@ where
     }
     let mut matches_comments = cursor_vars.matches(&query_comment, node, source);
     while let Some(m) = matches_comments.next() {
-        for c in m.captures {
+        for c in m.captures() {
             let node = c.node;
 
             let content = node.utf8_text(source).unwrap();
@@ -491,7 +491,7 @@ where
     let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
 
     while let Some(m) = matches_comments.next() {
-        for e in m.captures {
+        for e in m.captures() {
             let node = e.node;
 
             let content = node
@@ -554,7 +554,7 @@ where
     let mut matches_comments = cursor_comments.matches(&query_comment, node, source);
 
     while let Some(m) = matches_comments.next() {
-        for e in m.captures {
+        for e in m.captures() {
             let node = e.node;
 
             comments.push(BracketCommentNode {
@@ -610,7 +610,7 @@ where
 
     while let Some(m) = matches_macro.next() {
         let Some(node) = m
-            .captures
+            .captures()
             .iter()
             .find(|c| c.node.kind() == CMakeNodeKinds::MACRO_DEF)
             .map(|c| c.node)
@@ -618,7 +618,7 @@ where
             continue;
         };
         let args: Vec<&QueryCapture> = m
-            .captures
+            .captures()
             .iter()
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
@@ -762,7 +762,7 @@ where
 
     while let Some(m) = matches_fun.next() {
         let Some(node) = m
-            .captures
+            .captures()
             .iter()
             .find(|c| c.node.kind() == CMakeNodeKinds::FUNCTION_DEF)
             .map(|c| c.node)
@@ -770,7 +770,7 @@ where
             continue;
         };
         let args: Vec<&QueryCapture> = m
-            .captures
+            .captures()
             .iter()
             .filter(|c| c.node.kind() == CMakeNodeKinds::ARGUMENT)
             .collect();
