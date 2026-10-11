@@ -17,6 +17,9 @@ pub struct Config {
     pub line_max_words: usize,
     #[serde(default)]
     pub format: FormatConfig,
+
+    #[serde(default)]
+    pub extra_files: Vec<String>,
 }
 
 const fn default_max_words() -> usize {
@@ -30,6 +33,7 @@ impl Default for Config {
             enable_external_cmake_lint: false,
             line_max_words: default_max_words(),
             format: FormatConfig::default(),
+            extra_files: Vec::new(),
         }
     }
 }
