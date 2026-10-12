@@ -133,6 +133,15 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
 }
 
 pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
+    update_cache_inner(path, context, &mut Vec::new(), &mut Vec::new()).await
+}
+
+pub async fn update_cache_inner<P: AsRef<Path>>(
+    path: P,
+    context: &str,
+    include_files: &mut Vec<PathBuf>,
+    complete_packages: &mut Vec<String>,
+) -> Vec<CompletionItem> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
@@ -143,8 +152,8 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
         path.as_ref(),
         PositionType::VarOrFun,
         None,
-        &mut Vec::new(),
-        &mut Vec::new(),
+        include_files,
+        complete_packages,
         true,
         true,
     ) else {
@@ -155,10 +164,19 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<Complet
     result_data
 }
 
-pub async fn get_cached_completion<P: AsRef<Path>>(
+pub struct CachedInfo {
+    pub completions: Vec<CompletionItem>,
+    pub include_files: Vec<PathBuf>,
+    pub complete_packages: Vec<String>,
+}
+
+/// NOTE: it scans the cached data, and filter the scanned packages and include cmake files
+pub async fn get_cached_information<P: AsRef<Path>>(
     path: P,
     documents: &DashMap<Uri, String>,
-) -> Vec<CompletionItem> {
+) -> CachedInfo {
+    let mut include_files = Vec::new();
+    let mut complete_packages = Vec::new();
     let mut extra_files = get_extra_files();
     let mut path = path.as_ref().to_path_buf();
     let mut completions = Vec::new();
@@ -166,12 +184,23 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
     let tree_map = TREE_MAP.lock().await;
 
     let mut update_cache_fn = async |file_path: &PathBuf| {
+        if file_path.ends_with(".cmake") {
+            include_files.push(file_path.clone());
+        }
         let complete_cache = COMPLETE_CACHE.lock().await;
         if let Some(data) = complete_cache.get(file_path) {
             completions.extend(data.clone());
         } else if let Ok(context) = get_or_update_buffer_contents(file_path, documents).await {
             drop(complete_cache);
-            completions.extend(update_cache(file_path, context.as_str()).await);
+            completions.extend(
+                update_cache_inner(
+                    file_path,
+                    context.as_str(),
+                    &mut include_files,
+                    &mut complete_packages,
+                )
+                .await,
+            );
             return file_path.clone();
         }
         file_path.clone()
@@ -188,7 +217,11 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
         update_cache_fn(&extra).await;
     }
 
-    completions
+    CachedInfo {
+        completions,
+        include_files,
+        complete_packages,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -241,7 +274,11 @@ pub async fn getcomplete<P: AsRef<Path>>(
     let command_case = crate::config::CONFIG.command_case;
     match postype {
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude => {
-            let cached_completion = get_cached_completion(local_path, documents).await;
+            let CachedInfo {
+                completions: cached_completion,
+                mut include_files,
+                mut complete_packages,
+            } = get_cached_information(local_path, documents).await;
             if !cached_completion.is_empty() {
                 complete.extend(cached_completion.filter_cache(command_case));
             }
@@ -254,8 +291,8 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 Path::new(local_path),
                 postype,
                 Some(location),
-                &mut Vec::new(),
-                &mut Vec::new(),
+                &mut include_files,
+                &mut complete_packages,
                 true,
                 find_cmake_in_package,
             ) {
@@ -281,9 +318,12 @@ pub async fn getcomplete<P: AsRef<Path>>(
             complete.extend(findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
-            let cached_completion = get_cached_completion(local_path, documents).await;
-            if !cached_completion.is_empty() {
-                complete.extend(cached_completion);
+            let CachedInfo {
+                completions: cached_completions,
+                ..
+            } = get_cached_information(local_path, documents).await;
+            if !cached_completions.is_empty() {
+                complete.extend(cached_completions);
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
                 complete.extend(cmake_cache);
