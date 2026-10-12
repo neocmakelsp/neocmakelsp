@@ -179,7 +179,7 @@ impl LanguageServer for Backend {
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
 
-        set_extra_files(CONFIG.extra_files.clone());
+        set_extra_files(CONFIG.included_cmake.extra_cmakes());
 
         init_snippet_setting(initial_config.use_snippets());
 
