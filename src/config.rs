@@ -38,10 +38,8 @@ impl IncludedCMake {
             let Ok(paths) = glob::glob(rule) else {
                 continue;
             };
-            for path in paths.flatten() {
-                if path.ends_with(".cmake") && !files.contains(&path) {
-                    files.push(path);
-                }
+            for path in paths.flatten().filter(|p| p.is_file()) {
+                files.push(path);
             }
         }
         files

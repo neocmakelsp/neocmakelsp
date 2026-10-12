@@ -184,7 +184,7 @@ pub async fn get_cached_information<P: AsRef<Path>>(
     let tree_map = TREE_MAP.lock().await;
 
     let mut update_cache_fn = async |file_path: &PathBuf| {
-        if file_path.ends_with(".cmake") {
+        if !file_path.ends_with("CMakeLists.txt") {
             include_files.push(file_path.clone());
         }
         let complete_cache = COMPLETE_CACHE.lock().await;
