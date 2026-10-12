@@ -19,7 +19,7 @@ pub struct Config {
     pub format: FormatConfig,
 
     #[serde(default)]
-    pub extra_files: Vec<String>,
+    pub extra_files: Vec<PathBuf>,
 }
 
 const fn default_max_words() -> usize {
@@ -114,6 +114,8 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
@@ -169,7 +171,19 @@ mod tests {
         assert_eq!(config.format.program, Some("cmake-format".to_owned()));
         assert_eq!(args, None);
     }
-
+    #[test]
+    fn path_parse() {
+        let config_file = indoc::indoc! {r#"
+            extra_files = ["./test.cmake"]
+        "#};
+        let config: Config = toml::from_str(config_file).unwrap();
+        let args = config.format.args;
+        assert_eq!(
+            config.extra_files,
+            vec![PathBuf::from_str("./test.cmake").unwrap()]
+        );
+        assert_eq!(args, None);
+    }
     #[test]
     fn has_args() {
         let config_file = indoc::indoc! {r#"

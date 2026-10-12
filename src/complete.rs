@@ -18,7 +18,7 @@ use tower_lsp::lsp_types::{
 use crate::config::CommandCase;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::fileapi;
-use crate::languageserver::get_or_update_buffer_contents;
+use crate::languageserver::{get_extra_files, get_or_update_buffer_contents};
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
@@ -159,22 +159,33 @@ pub async fn get_cached_completion<P: AsRef<Path>>(
     path: P,
     documents: &DashMap<Uri, String>,
 ) -> Vec<CompletionItem> {
+    let mut extra_files = get_extra_files();
     let mut path = path.as_ref().to_path_buf();
     let mut completions = Vec::new();
 
     let tree_map = TREE_MAP.lock().await;
 
-    while let Some(parent) = tree_map.get(&path) {
+    let mut update_cache_fn = async |file_path: &PathBuf| {
         let complete_cache = COMPLETE_CACHE.lock().await;
-        if let Some(data) = complete_cache.get(parent) {
+        if let Some(data) = complete_cache.get(file_path) {
             completions.extend(data.clone());
-        } else if let Ok(context) = get_or_update_buffer_contents(parent, documents).await {
+        } else if let Ok(context) = get_or_update_buffer_contents(file_path, documents).await {
             drop(complete_cache);
-            completions.extend(update_cache(parent, context.as_str()).await);
-            path.clone_from(parent);
-            continue;
+            completions.extend(update_cache(file_path, context.as_str()).await);
+            return file_path.clone();
         }
-        path.clone_from(parent);
+        file_path.clone()
+    };
+
+    while let Some(parent) = tree_map.get(&path) {
+        if let Some(index) = extra_files.iter().position(|pa| pa == parent) {
+            extra_files.remove(index);
+        }
+        path.clone_from(&update_cache_fn(parent).await);
+    }
+
+    for extra in extra_files {
+        update_cache_fn(&extra).await;
     }
 
     completions

@@ -33,6 +33,22 @@ use crate::{
     quick_fix, scansubs, semantic_token, utils,
 };
 
+use std::sync::OnceLock;
+
+static EXTRA_FILES: OnceLock<Vec<PathBuf>> = OnceLock::new();
+
+fn set_extra_files(files: Vec<PathBuf>) {
+    let _ = EXTRA_FILES.set(files);
+}
+
+pub fn get_extra_files() -> Vec<PathBuf> {
+    EXTRA_FILES
+        .get_or_init(Vec::new)
+        .iter()
+        .filter_map(|p| std::path::absolute(p).ok())
+        .collect()
+}
+
 static CLIENT_CAPABILITIES: RwLock<Option<TextDocumentClientCapabilities>> = RwLock::new(None);
 static ENABLE_SNIPPET: AtomicBool = AtomicBool::new(false);
 
@@ -162,6 +178,8 @@ impl LanguageServer for Backend {
             .initialization_options
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
+
+        set_extra_files(CONFIG.extra_files.clone());
 
         init_snippet_setting(initial_config.use_snippets());
 
