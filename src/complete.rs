@@ -3,16 +3,18 @@ mod findpackage;
 mod includescanner;
 use std::collections::HashMap;
 use std::fs::read_dir;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use builtin::{BUILTIN_COMMAND, BUILTIN_MODULE, BUILTIN_VARIABLE};
 use dashmap::DashMap;
 use glob::glob;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionResponse, Documentation, MessageType, Position,
-    Uri,
+    CompletionItem, CompletionItemKind, CompletionResponse, Documentation, Location, MessageType,
+    Position, Uri,
 };
 
 use crate::config::CommandCase;
@@ -24,12 +26,59 @@ use crate::utils::query::{
     FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
     get_normal_commands,
 };
-use crate::utils::treehelper::{CurrentNodeInfo, PositionType, ToPoint, location_range_contain};
+use crate::utils::treehelper::{
+    CurrentNodeInfo, PositionType, ToPoint, ToPosition, location_range_contain,
+};
 use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, NeoStrExt, gen_module_pattern, include_is_module,
 };
 
-pub type CompleteKV = HashMap<PathBuf, HashMap<String, CompletionItem>>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PCacheInfo {
+    location: Option<Location>,
+    completion: CompletionItem,
+}
+
+impl PCacheInfo {
+    pub fn location(&self) -> Option<&Location> {
+        self.location.as_ref()
+    }
+    pub fn completion(&self) -> &CompletionItem {
+        &self.completion
+    }
+    pub fn new(completion: CompletionItem) -> Self {
+        Self {
+            location: None,
+            completion,
+        }
+    }
+
+    pub fn with_location(mut self, location: Location) -> Self {
+        self.location = Some(location);
+        self
+    }
+}
+
+impl Deref for PCacheInfo {
+    type Target = CompletionItem;
+    fn deref(&self) -> &Self::Target {
+        &self.completion
+    }
+}
+
+impl Into<CompletionItem> for PCacheInfo {
+    fn into(self) -> CompletionItem {
+        self.completion
+    }
+}
+
+impl Into<CompletionItem> for &PCacheInfo {
+    fn into(self) -> CompletionItem {
+        self.completion.clone()
+    }
+}
+
+pub type CompleteKV = HashMap<PathBuf, HashMap<String, PCacheInfo>>;
 
 /// NOTE: collect the all completeitems in this PathBuf
 /// Include the top CMakeList.txt
@@ -86,24 +135,65 @@ trait CompletionFilter {
     fn filter_builtin_command_case(self, command_case: CommandCase) -> Self;
 }
 
-impl CompletionFilter for HashMap<String, CompletionItem> {
+impl CompletionFilter for HashMap<String, PCacheInfo> {
     fn filter_cache_command_case(self, command_case: CommandCase) -> Self {
         self.into_iter()
             .map(|(key, item)| {
-                let mut label = item.label;
+                let mut label = item.label.clone();
                 if item
                     .kind
                     .is_some_and(|kind| kind == CompletionItemKind::Function)
                 {
                     label = command_case.operator(&label);
                 }
-                (key, CompletionItem { label, ..item })
+                (
+                    key,
+                    PCacheInfo {
+                        completion: CompletionItem {
+                            label,
+                            ..item.completion
+                        },
+                        ..item
+                    },
+                )
             })
             .collect()
     }
     fn filter_builtin_command_case(self, command_case: CommandCase) -> Self {
         self.into_iter()
             .filter(|(_, item)| {
+                item.data.as_ref().is_some_and(|data| {
+                    serde_json::from_value::<CommandCase>(data.clone())
+                        .is_ok_and(|case| case == command_case)
+                })
+            })
+            .collect()
+    }
+}
+impl CompletionFilter for Vec<PCacheInfo> {
+    fn filter_cache_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .map(|item| {
+                let mut label = item.label.clone();
+                if item
+                    .kind
+                    .is_some_and(|kind| kind == CompletionItemKind::Function)
+                {
+                    label = command_case.operator(&label);
+                }
+                PCacheInfo {
+                    completion: CompletionItem {
+                        label,
+                        ..item.completion
+                    },
+                    ..item
+                }
+            })
+            .collect()
+    }
+    fn filter_builtin_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .filter(|item| {
                 item.data.as_ref().is_some_and(|data| {
                     serde_json::from_value::<CommandCase>(data.clone())
                         .is_ok_and(|case| case == command_case)
@@ -140,26 +230,25 @@ impl CompletionFilter for Vec<CompletionItem> {
     }
 }
 
-pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
+pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<PCacheInfo> {
     doc.lines()
         .filter(|line| line.starts_with(".. command:: "))
         .map(|line| &line[13..])
-        .map(|line| CompletionItem {
-            label: line.to_string(),
-            kind: Some(CompletionItemKind::Function),
-            detail: Some("Command".to_string()),
-            documentation: Some(Documentation::String(format!(
-                "defined command from {filename}\n{doc}"
-            ))),
-            ..Default::default()
+        .map(|line| {
+            PCacheInfo::new(CompletionItem {
+                label: line.to_string(),
+                kind: Some(CompletionItemKind::Function),
+                detail: Some("Command".to_string()),
+                documentation: Some(Documentation::String(format!(
+                    "defined command from {filename}\n{doc}"
+                ))),
+                ..Default::default()
+            })
         })
         .collect()
 }
 
-pub async fn update_cache<P: AsRef<Path>>(
-    path: P,
-    context: &str,
-) -> HashMap<String, CompletionItem> {
+pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> HashMap<String, PCacheInfo> {
     update_cache_inner(path, context, &mut Vec::new(), &mut Vec::new()).await
 }
 
@@ -168,7 +257,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
     context: &str,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> HashMap<String, CompletionItem> {
+) -> HashMap<String, PCacheInfo> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
@@ -192,7 +281,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
 }
 
 pub struct CachedInfo {
-    pub completions: HashMap<String, CompletionItem>,
+    pub completions: HashMap<String, PCacheInfo>,
     pub include_files: Vec<PathBuf>,
     pub complete_packages: Vec<String>,
 }
@@ -270,7 +359,7 @@ impl From<Option<String>> for TriggerType {
 pub async fn getcompletions<P: AsRef<Path>>(
     source: &str,
     triggered: impl Into<TriggerType>,
-    location: Position,
+    position: Position,
     client: &tower_lsp::Client,
     local_path: P,
     find_cmake_in_package: bool,
@@ -283,7 +372,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
     let tree = thetree.unwrap();
     let mut completions: Vec<CompletionItem> = vec![];
 
-    let current_point = location.to_point();
+    let current_point = position.to_point();
     let node_info = CurrentNodeInfo::get(source, tree.root_node(), current_point);
     let postype = node_info.pos_type();
     if matches!(triggered.into(), TriggerType::Path)
@@ -310,6 +399,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                     cached_completion
                         .filter_cache(command_case)
                         .into_values()
+                        .map(|info| info.completion)
                         .collect::<Vec<CompletionItem>>(),
                 );
             }
@@ -321,13 +411,14 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 source,
                 Path::new(local_path),
                 postype,
-                Some(location),
+                Some(position),
                 &mut include_files,
                 &mut complete_packages,
                 true,
                 find_cmake_in_package,
             ) {
-                let messages: Vec<CompletionItem> = message.into_values().collect();
+                let messages: Vec<CompletionItem> =
+                    message.into_values().map(|info| info.completion).collect();
                 completions.extend(messages);
             }
 
@@ -358,6 +449,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 completions.extend(
                     cached_completions
                         .into_values()
+                        .map(|info| info.completion)
                         .collect::<Vec<CompletionItem>>(),
                 );
             }
@@ -505,6 +597,7 @@ fn get_path_completions<SubP: AsRef<Path>, P: AsRef<Path>>(
     Some(completions)
 }
 
+/// TODO: move it to scansubs
 /// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude | ArgumentOrList
 /// get the variable from the loop
 /// use position to make only can complete which has show before
@@ -519,14 +612,14 @@ fn getsubcomplete<P: AsRef<Path>>(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-) -> Option<HashMap<String, CompletionItem>> {
+) -> Option<HashMap<String, PCacheInfo>> {
     assert!(matches!(
         postype,
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
     ));
     let local_path = local_path.as_ref();
     let source_bytes = source.as_bytes();
-    let mut completions: HashMap<String, CompletionItem> = HashMap::new();
+    let mut completions: HashMap<String, PCacheInfo> = HashMap::new();
 
     let end_location = location.map(|p| p.to_point());
 
@@ -547,7 +640,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             completions.insert(comment.label.clone(), comment);
         }
     }
-
+    use tower_lsp::lsp_types::Range;
     // NOTE: check functions
     for fun in functions {
         let name = fun.name;
@@ -566,29 +659,45 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
+        let node_location = Location {
+            uri: Uri::from_file_path(local_path).unwrap(),
+            range: Range {
+                start: fun.node.start_position().to_position(),
+                end: fun.node.end_position().to_position(),
+            },
+        };
         completions.insert(
             name.to_owned(),
-            CompletionItem {
+            PCacheInfo::new(CompletionItem {
                 label: name.to_string(),
                 kind: Some(CompletionItemKind::Function),
                 detail: Some("Function".to_string()),
                 documentation: Some(Documentation::String(document_info)),
                 ..Default::default()
-            },
+            })
+            .with_location(node_location),
         );
         if let Some(location) = location
             && location_range_contain(location.to_point(), fun.node)
         {
-            for FunMarcoArg { content, .. } in fun.args(source_bytes) {
+            for FunMarcoArg { content, node } in fun.args(source_bytes) {
+                let node_location = Location {
+                    uri: Uri::from_file_path(local_path).unwrap(),
+                    range: Range {
+                        start: node.start_position().to_position(),
+                        end: node.end_position().to_position(),
+                    },
+                };
                 completions.insert(
                     content.to_owned(),
-                    CompletionItem {
+                    PCacheInfo::new(CompletionItem {
                         label: content.to_string(),
                         kind: Some(CompletionItemKind::Variable),
                         detail: Some("VARIABLE".to_string()),
                         documentation: Some(Documentation::String(variable_info.clone())),
                         ..Default::default()
-                    },
+                    })
+                    .with_location(node_location),
                 );
             }
         }
@@ -612,29 +721,45 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
+        let node_location = Location {
+            uri: Uri::from_file_path(local_path).unwrap(),
+            range: Range {
+                start: macro_node.node.start_position().to_position(),
+                end: macro_node.node.end_position().to_position(),
+            },
+        };
         completions.insert(
             name.to_owned(),
-            CompletionItem {
+            PCacheInfo::new(CompletionItem {
                 label: name.to_string(),
                 kind: Some(CompletionItemKind::Function),
                 detail: Some("Function".to_string()),
                 documentation: Some(Documentation::String(document_info)),
                 ..Default::default()
-            },
+            })
+            .with_location(node_location),
         );
         if let Some(location) = location
             && location_range_contain(location.to_point(), macro_node.node)
         {
-            for FunMarcoArg { content, .. } in macro_node.args(source_bytes) {
+            for FunMarcoArg { content, node } in macro_node.args(source_bytes) {
+                let node_location = Location {
+                    uri: Uri::from_file_path(local_path).unwrap(),
+                    range: Range {
+                        start: node.start_position().to_position(),
+                        end: node.end_position().to_position(),
+                    },
+                };
                 completions.insert(
                     content.to_owned(),
-                    CompletionItem {
+                    PCacheInfo::new(CompletionItem {
                         label: content.to_string(),
                         kind: Some(CompletionItemKind::Variable),
                         detail: Some("VARIABLE".to_string()),
                         documentation: Some(Documentation::String(variable_info.clone())),
                         ..Default::default()
-                    },
+                    })
+                    .with_location(node_location),
                 );
             }
         }
@@ -689,9 +814,16 @@ fn getsubcomplete<P: AsRef<Path>>(
         } else if name == "mark_as_advanced" {
             for arg in command.args {
                 let variable = arg.utf8_text(source_bytes).unwrap();
+                let node_location = Location {
+                    uri: Uri::from_file_path(local_path).unwrap(),
+                    range: Range {
+                        start: arg.start_position().to_position(),
+                        end: arg.end_position().to_position(),
+                    },
+                };
                 completions.insert(
                     variable.to_owned(),
-                    CompletionItem {
+                    PCacheInfo::new(CompletionItem {
                         label: variable.to_string(),
                         kind: Some(CompletionItemKind::Variable),
                         detail: Some("Variable".to_string()),
@@ -700,7 +832,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                             local_path.display()
                         ))),
                         ..Default::default()
-                    },
+                    })
+                    .with_location(node_location),
                 );
             }
         } else {
@@ -728,15 +861,23 @@ fn getsubcomplete<P: AsRef<Path>>(
                 {
                     document_info = format!("{}\n\n{}", document_info, line_comment);
                 }
+                let node_location = Location {
+                    uri: Uri::from_file_path(local_path).unwrap(),
+                    range: Range {
+                        start: command.args[0].start_position().to_position(),
+                        end: command.args[0].end_position().to_position(),
+                    },
+                };
                 completions.insert(
                     name.to_owned(),
-                    CompletionItem {
+                    PCacheInfo::new(CompletionItem {
                         label: name.to_string(),
                         kind: Some(CompletionItemKind::Value),
                         detail: Some("Value".to_string()),
                         documentation: Some(Documentation::String(document_info)),
                         ..Default::default()
-                    },
+                    })
+                    .with_location(node_location),
                 );
             }
             if name == "find_package" && should_in {
@@ -782,7 +923,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     for component in components {
                         completions.insert(
                             component.to_owned(),
-                            CompletionItem {
+                            PCacheInfo::new(CompletionItem {
                                 label: component,
                                 kind: Some(CompletionItemKind::Variable),
                                 detail: Some("Variable".to_string()),
@@ -790,7 +931,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                     "package from: {package_name}",
                                 ))),
                                 ..Default::default()
-                            },
+                            }),
                         );
                     }
                 }
@@ -799,7 +940,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_LIBRARIES");
                     completions.insert(
                         label.clone(),
-                        CompletionItem {
+                        PCacheInfo::new(CompletionItem {
                             label,
                             kind: Some(CompletionItemKind::Variable),
                             detail: Some("Variable".to_string()),
@@ -807,7 +948,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        },
+                        }),
                     );
                 }
 
@@ -818,7 +959,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_INCLUDE_DIRS");
                     completions.insert(
                         label.clone(),
-                        CompletionItem {
+                        PCacheInfo::new(CompletionItem {
                             label,
                             kind: Some(CompletionItemKind::Variable),
                             detail: Some("Variable".to_string()),
@@ -826,7 +967,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        },
+                        }),
                     );
                 }
                 for package in cmakepackages {
@@ -867,7 +1008,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("PkgConfig::{package_name}");
                     completions.insert(
                         label.clone(),
-                        CompletionItem {
+                        PCacheInfo::new(CompletionItem {
                             label,
                             kind: Some(CompletionItemKind::Variable),
                             detail: Some("Package".to_string()),
@@ -875,14 +1016,14 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        },
+                        }),
                     );
                 }
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
                     let label = format!("{package_name}_LIBRARIES");
                     completions.insert(
                         label.clone(),
-                        CompletionItem {
+                        PCacheInfo::new(CompletionItem {
                             label,
                             kind: Some(CompletionItemKind::Variable),
                             detail: Some("Package".to_string()),
@@ -890,7 +1031,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        },
+                        }),
                     );
                 }
                 if matches!(
@@ -900,7 +1041,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_INCLUDE_DIRS");
                     completions.insert(
                         label.clone(),
-                        CompletionItem {
+                        PCacheInfo::new(CompletionItem {
                             label,
                             kind: Some(CompletionItemKind::Variable),
                             detail: Some("Package".to_string()),
@@ -908,7 +1049,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        },
+                        }),
                     );
                 }
             }
@@ -926,7 +1067,7 @@ fn get_cmake_package_complete(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<HashMap<String, CompletionItem>> {
+) -> Option<HashMap<String, PCacheInfo>> {
     let packageinfo = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package_name)?;
     let mut complete_infos = HashMap::new();
 
@@ -1224,6 +1365,7 @@ endfunction()
         )
         .unwrap()
         .into_values()
+        .map(|info| info.completion)
         .collect();
         let test_data = vec![
             CompletionItem {
@@ -1487,7 +1629,11 @@ endfunction()
         ];
         assert_eq!(data.len(), test_data.len());
         for test_item in test_data {
-            assert!(data.values().find(|item| **item == test_item).is_some());
+            assert!(
+                data.values()
+                    .find(|item| item.completion == test_item)
+                    .is_some()
+            );
         }
     }
 }

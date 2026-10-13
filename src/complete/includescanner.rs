@@ -3,13 +3,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
 
-use tower_lsp::lsp_types::CompletionItem;
-
-use super::getsubcomplete;
+use super::{PCacheInfo, getsubcomplete};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::PositionType;
 
-type CacheData = HashMap<PathBuf, HashMap<String, CompletionItem>>;
+type CacheData = HashMap<PathBuf, HashMap<String, PCacheInfo>>;
 
 static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -21,7 +19,7 @@ pub fn scanner_include_complete(
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
     is_builtin: bool,
-) -> Option<HashMap<String, CompletionItem>> {
+) -> Option<HashMap<String, PCacheInfo>> {
     if is_builtin
         && let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
         && let Some(complete_items) = cache.get(path)
@@ -59,7 +57,7 @@ pub fn scanner_package_complete(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<HashMap<String, CompletionItem>> {
+) -> Option<HashMap<String, PCacheInfo>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
         && let Some(complete_items) = cache.get(path)
     {
@@ -95,6 +93,8 @@ mod tests {
 
     use tempfile::tempdir;
     use tower_lsp::lsp_types::{CompletionItemKind, Documentation};
+
+    use tower_lsp::lsp_types::CompletionItem;
 
     use super::*;
 
@@ -180,7 +180,10 @@ endfunction()
             },
         ];
         assert_eq!(data.len(), test_data.len());
-        let data = data.into_values().collect::<Vec<CompletionItem>>();
+        let data = data
+            .into_values()
+            .map(|info| info.completion)
+            .collect::<Vec<CompletionItem>>();
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
@@ -268,7 +271,10 @@ endfunction()
             },
         ];
         assert_eq!(data.len(), test_data.len());
-        let data = data.into_values().collect::<Vec<CompletionItem>>();
+        let data = data
+            .into_values()
+            .map(|info| info.completion)
+            .collect::<Vec<CompletionItem>>();
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
