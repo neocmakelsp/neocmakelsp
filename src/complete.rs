@@ -198,16 +198,15 @@ pub async fn get_cached_information<P: AsRef<Path>>(
                 )
                 .await,
             );
-            return file_path.clone();
         }
-        file_path.clone()
     };
 
     while let Some(parent) = tree_map.get(&path) {
         if let Some(index) = extra_files.iter().position(|pa| pa == parent) {
             extra_files.remove(index);
         }
-        path.clone_from(&update_cache_fn(parent).await);
+        update_cache_fn(parent).await;
+        path.clone_from(parent);
     }
 
     for extra in extra_files {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{Location, MessageType, Position, Range, Uri};
 
-use crate::languageserver::get_or_update_buffer_contents;
+use crate::languageserver::{get_extra_files, get_or_update_buffer_contents};
 use crate::scansubs::TREE_CMAKE_MAP;
 use crate::utils::NeoStrExt;
 /// provide go to definition
@@ -104,6 +104,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(
 ) -> Option<ReferenceInfo> {
     let mut path = path.as_ref().to_path_buf();
 
+    let extra_files = get_extra_files();
     let tree_map = TREE_MAP.lock().await;
 
     let jump_cache = JUMP_CACHE.lock().await;
@@ -136,8 +137,12 @@ pub async fn get_cached_def<P: AsRef<Path>>(
             });
         }
     }
+    enum CacheState {
+        Continue,
+        Break(ReferenceInfo),
+    }
 
-    while let Some(parent) = tree_map.get(&path) {
+    let update_cache_fn = async |file_path: &PathBuf| {
         let jump_cache = JUMP_CACHE.lock().await;
         if let Some(JumpCacheUnit {
             location,
@@ -145,14 +150,14 @@ pub async fn get_cached_def<P: AsRef<Path>>(
             ..
         }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
         {
-            return Some(ReferenceInfo {
+            return CacheState::Break(ReferenceInfo {
                 loc: location.clone(),
                 is_function: *is_function,
             });
         }
         drop(jump_cache);
-        if let Ok(context) = get_or_update_buffer_contents(&path, documents).await {
-            update_cache(&path, context.as_str()).await;
+        if let Ok(context) = get_or_update_buffer_contents(&file_path, documents).await {
+            update_cache(&file_path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
             if let Some(JumpCacheUnit {
                 location,
@@ -160,13 +165,29 @@ pub async fn get_cached_def<P: AsRef<Path>>(
                 ..
             }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
             {
-                return Some(ReferenceInfo {
+                return CacheState::Break(ReferenceInfo {
                     loc: location.clone(),
                     is_function: *is_function,
                 });
             }
         }
-        path.clone_from(parent);
+        CacheState::Continue
+    };
+
+    for file in &extra_files {
+        match update_cache_fn(&file).await {
+            CacheState::Break(info) => return Some(info),
+            _ => {}
+        }
+    }
+
+    while let Some(parent) = tree_map.get(&path) {
+        match update_cache_fn(&path).await {
+            CacheState::Continue => {
+                path.clone_from(parent);
+            }
+            CacheState::Break(info) => return Some(info),
+        }
     }
 
     None
