@@ -1,10 +1,14 @@
+use std::path::Path;
+
+use dashmap::DashMap;
 use lsp_types::Position;
 use tower_lsp::lsp_types;
+use tower_lsp::lsp_types::Uri;
 use tree_sitter::Node;
 
 use crate::fileapi;
 use crate::fileapi::get_target_hover;
-use crate::jump::JUMP_CACHE;
+use crate::jump::get_cached_def;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 #[cfg(unix)]
@@ -46,7 +50,13 @@ PackageVersion: {}
 }
 
 /// get the doc for on hover
-pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -> Option<String> {
+pub async fn get_hovered_doc<P: AsRef<Path>>(
+    location: Position,
+    root: Node<'_>,
+    source: &str,
+    originuri: P,
+    documents: &DashMap<Uri, String>,
+) -> Option<String> {
     let current_node_info = CurrentNodeInfo::get(source, root, location.to_point());
     let message = current_node_info.content()?;
     let inner_result = match current_node_info.pos_type() {
@@ -85,13 +95,10 @@ pub async fn get_hovered_doc(location: Position, root: Node<'_>, source: &str) -
         return inner_result;
     }
 
-    let jump_cache = JUMP_CACHE.lock().await;
     // NOTE: if cannot find the key, then it can be lowercase
-    let cached_info = jump_cache
-        .get(message)
-        .or(jump_cache.get(&message.to_lowercase()))?
-        .document_info
-        .clone();
+    let cached_info = get_cached_def(originuri.as_ref(), message, documents)
+        .await?
+        .document_info;
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data()
         && let Some(value) = cache_data.get(message)
@@ -125,6 +132,8 @@ find_package(bash-completion-fake)
             },
             thetree.root_node(),
             content,
+            "",
+            &DashMap::new(),
         )
         .await
         .unwrap();
