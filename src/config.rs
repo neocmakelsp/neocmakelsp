@@ -1,10 +1,11 @@
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use etcetera::{BaseStrategy, choose_base_strategy};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Config {
     /// Check letter case of commands.
     #[serde(default, alias = "command_upcase")]
@@ -23,7 +24,7 @@ pub struct Config {
     pub included_cmake: IncludedCMake,
 }
 
-#[derive(Deserialize, PartialEq, Eq, Debug, Default)]
+#[derive(Deserialize, PartialEq, Eq, Debug, Default, Clone)]
 pub struct IncludedCMake {
     #[serde(default)]
     pub files: Vec<PathBuf>,
@@ -98,7 +99,7 @@ impl CommandCase {
     }
 }
 
-#[derive(Default, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Default, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct FormatConfig {
     pub program: Option<String>,
     pub args: Option<Vec<String>>,
@@ -129,16 +130,53 @@ fn find_config_file() -> Option<PathBuf> {
     None
 }
 
-pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
-    if let Some(path) = find_config_file()
-        && let Ok(buf) = std::fs::read_to_string(path)
+#[derive(Debug, Clone)]
+pub struct ConfigWrapper {
+    config: Config,
+    load_failed: bool,
+}
+
+impl ConfigWrapper {
+    pub fn load_failed(&self) -> bool {
+        self.load_failed
+    }
+}
+
+impl Default for ConfigWrapper {
+    fn default() -> Self {
+        Self {
+            config: Config::default(),
+            load_failed: true,
+        }
+    }
+}
+
+impl Deref for ConfigWrapper {
+    type Target = Config;
+    fn deref(&self) -> &Self::Target {
+        &self.config
+    }
+}
+
+pub static CONFIG: LazyLock<ConfigWrapper> = LazyLock::new(|| {
+    let Some(path) = find_config_file() else {
+        tracing::info!(".neocmake.toml is not found");
+        return ConfigWrapper {
+            config: Config::default(),
+            load_failed: false,
+        };
+    };
+    if let Ok(buf) = std::fs::read_to_string(path)
         && let Ok(config) = toml::from_str::<Config>(&buf)
     {
-        println!("buf = {buf}");
-        return config;
+        return ConfigWrapper {
+            config,
+            load_failed: false,
+        };
     }
 
-    Config::default()
+    tracing::info!(".neocmake.toml cannot load");
+    ConfigWrapper::default()
 });
 
 #[cfg(test)]

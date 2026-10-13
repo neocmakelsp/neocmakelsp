@@ -179,6 +179,25 @@ impl LanguageServer for Backend {
             .and_then(|value| serde_json::from_value(value).unwrap_or(None))
             .unwrap_or_default();
 
+        // NOTE: I think it only contains one workspace
+        if let Some(ref top_path) = initial
+            .workspace_folders_initialize_params
+            .workspace_folders
+            .as_ref()
+            .and_then(|folders| match folders {
+                WorkspaceFolders::Null => None,
+                WorkspaceFolders::WorkspaceFolderList(list) => list.first(),
+            })
+            .and_then(|folder| folder.uri.to_file_path().ok())
+        {
+            let _ = std::env::set_current_dir(top_path);
+        }
+        if CONFIG.load_failed() {
+            self.client
+                .log_message(MessageType::Warning, "Cannot load .neocmake.toml")
+                .await;
+        }
+
         set_extra_files(CONFIG.included_cmake.extra_cmakes());
 
         init_snippet_setting(initial_config.use_snippets());
