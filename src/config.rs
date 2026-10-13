@@ -137,7 +137,7 @@ pub struct ConfigWrapper {
 }
 
 impl ConfigWrapper {
-    pub fn load_failed(&self) -> bool {
+    pub const fn load_failed(&self) -> bool {
         self.load_failed
     }
 }
