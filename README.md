@@ -41,9 +41,13 @@ A new documentation site can be found at https://neocmakelsp.github.io/docs.
 
 ## Configuration
 
-The configuration file can either be named .neocmake.toml or .neocmakelint.toml and is resolved in the current project directory. If neither is found, a user configuration file in $XDG_CONFIG_DIR/neocmakelsp either named config.toml or lint.toml can be used.
+The configuration file can either be named `.neocmake.toml` or `.neocmakelint.toml` and is resolved in the current project directory. If neither is found, a user configuration file named `config.toml` or `lint.toml` can be used. The location of this user configuration file differs across different operating systems:
 
-for example
+* Linux:  `$XDG_CONFIG_HOME/neocmakelsp/config.toml` or  `$HOME/.config/neocmakelsp/config.toml`
+* macOS:  `$HOME/Library/Application Support/neocmakelsp/config.toml`
+* Windows: `{FOLDERID_RoamingAppData}/neocmakelsp/config.toml`
+
+The configuration file could look like this as example
 
 ```toml
 command_case = "lower_case" # or "upper_case"
