@@ -91,84 +91,32 @@ pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Option<()> 
     None
 }
 
-#[derive(Debug, Clone)]
-pub struct ReferenceInfo {
-    is_function: bool,
-    loc: Location,
-}
-
 pub async fn get_cached_def<P: AsRef<Path>>(
     path: P,
     key: &str,
     documents: &DashMap<Uri, String>,
-) -> Option<ReferenceInfo> {
+) -> Option<JumpCacheUnit> {
     let mut path = path.as_ref().to_path_buf();
 
     let extra_files = get_extra_files();
     let tree_map = TREE_MAP.lock().await;
 
-    let jump_cache = JUMP_CACHE.lock().await;
-    // NOTE: because function is saved with lowercase
-    // So we need to search it twice
-    if let Some(JumpCacheUnit {
-        location,
-        is_function,
-        ..
-    }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
-    {
-        return Some(ReferenceInfo {
-            loc: location.clone(),
-            is_function: *is_function,
-        });
-    }
-    drop(jump_cache);
-    if let Ok(context) = get_or_update_buffer_contents(&path, documents).await {
-        update_cache(&path, context.as_str()).await;
-        let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit {
-            location,
-            is_function,
-            ..
-        }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
-        {
-            return Some(ReferenceInfo {
-                loc: location.clone(),
-                is_function: *is_function,
-            });
-        }
-    }
     enum CacheState {
         Continue,
-        Break(ReferenceInfo),
+        Break(JumpCacheUnit),
     }
 
     let update_cache_fn = async |file_path: &PathBuf| {
         let jump_cache = JUMP_CACHE.lock().await;
-        if let Some(JumpCacheUnit {
-            location,
-            is_function,
-            ..
-        }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
-        {
-            return CacheState::Break(ReferenceInfo {
-                loc: location.clone(),
-                is_function: *is_function,
-            });
+        if let Some(unit) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase())) {
+            return CacheState::Break(unit.clone());
         }
         drop(jump_cache);
         if let Ok(context) = get_or_update_buffer_contents(&file_path, documents).await {
             update_cache(&file_path, context.as_str()).await;
             let jump_cache = JUMP_CACHE.lock().await;
-            if let Some(JumpCacheUnit {
-                location,
-                is_function,
-                ..
-            }) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase()))
-            {
-                return CacheState::Break(ReferenceInfo {
-                    loc: location.clone(),
-                    is_function: *is_function,
-                });
+            if let Some(unit) = jump_cache.get(key).or(jump_cache.get(&key.to_lowercase())) {
+                return CacheState::Break(unit.clone());
             }
         }
         CacheState::Continue
@@ -181,8 +129,15 @@ pub async fn get_cached_def<P: AsRef<Path>>(
         }
     }
 
+    // NOTE: search self first
+    match update_cache_fn(&path).await {
+        CacheState::Continue => {}
+        CacheState::Break(info) => return Some(info),
+    }
+
+    // NOTE: then search parent
     while let Some(parent) = tree_map.get(&path) {
-        match update_cache_fn(&path).await {
+        match update_cache_fn(&parent).await {
             CacheState::Continue => {
                 path.clone_from(parent);
             }
@@ -251,9 +206,10 @@ async fn godef_inner<P: AsRef<Path>>(
     match jumptype {
         PositionType::VarOrFun | PositionType::FunOrMacroIdentifier => {
             let mut locations = vec![];
-            let Some(ReferenceInfo {
-                loc: jump_cache,
+            let Some(JumpCacheUnit {
+                location: jump_cache,
                 is_function,
+                ..
             }) = get_cached_def(&originuri, tofind, documents).await
             else {
                 if !is_jump {

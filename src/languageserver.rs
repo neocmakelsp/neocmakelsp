@@ -617,6 +617,10 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
+        let Ok(path) = uri.to_file_path() else {
+            tracing::error!("Cannot get path from {uri:?}");
+            return Err(LspError::internal_error());
+        };
         let Some(text) = self.get_cached_buffer(&uri) else {
             return Ok(None);
         };
@@ -627,7 +631,9 @@ impl LanguageServer for Backend {
         parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
         let tree = parse.parse(&text, None).unwrap();
 
-        let Some(value) = hover::get_hovered_doc(position, tree.root_node(), &text).await else {
+        let Some(value) =
+            hover::get_hovered_doc(position, tree.root_node(), &text, path, &self.documents).await
+        else {
             return Ok(None);
         };
         Ok(Some(Hover {
