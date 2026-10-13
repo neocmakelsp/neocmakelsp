@@ -252,7 +252,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             });
         }
     }
-    if use_lint && let Some(command_case) = config::CONFIG.command_case {
+    if use_lint && let command_case = config::CONFIG.command_case {
         let macros = get_macros(source_bytes, input, None);
         let functions = get_functions(source_bytes, input, None);
         for macro_node in macros {
@@ -321,7 +321,7 @@ fn checkerror_inner<P: AsRef<Path>>(
         let name = query_now.identifier;
         let name_node = query_now.identifier_node;
         if use_lint
-            && let Some(command_case) = config::CONFIG.command_case
+            && let command_case = config::CONFIG.command_case
             && let Some(hint) = command_case.check(name)
         {
             let pointx = name_node.start_position().to_position();
