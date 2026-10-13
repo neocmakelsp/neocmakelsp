@@ -29,7 +29,7 @@ use crate::utils::{
     CACHE_CMAKE_PACKAGES_WITHKEYS, NeoStrExt, gen_module_pattern, include_is_module,
 };
 
-pub type CompleteKV = HashMap<PathBuf, Vec<CompletionItem>>;
+pub type CompleteKV = HashMap<PathBuf, HashMap<String, CompletionItem>>;
 
 /// NOTE: collect the all completeitems in this PathBuf
 /// Include the top CMakeList.txt
@@ -86,6 +86,33 @@ trait CompletionFilter {
     fn filter_builtin_command_case(self, command_case: CommandCase) -> Self;
 }
 
+impl CompletionFilter for HashMap<String, CompletionItem> {
+    fn filter_cache_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .map(|(key, item)| {
+                let mut label = item.label;
+                if item
+                    .kind
+                    .is_some_and(|kind| kind == CompletionItemKind::Function)
+                {
+                    label = command_case.operator(&label);
+                }
+                (key, CompletionItem { label, ..item })
+            })
+            .collect()
+    }
+    fn filter_builtin_command_case(self, command_case: CommandCase) -> Self {
+        self.into_iter()
+            .filter(|(_, item)| {
+                item.data.as_ref().is_some_and(|data| {
+                    serde_json::from_value::<CommandCase>(data.clone())
+                        .is_ok_and(|case| case == command_case)
+                })
+            })
+            .collect()
+    }
+}
+
 impl CompletionFilter for Vec<CompletionItem> {
     fn filter_cache_command_case(self, command_case: CommandCase) -> Self {
         self.into_iter()
@@ -129,7 +156,10 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-pub async fn update_cache<P: AsRef<Path>>(path: P, context: &str) -> Vec<CompletionItem> {
+pub async fn update_cache<P: AsRef<Path>>(
+    path: P,
+    context: &str,
+) -> HashMap<String, CompletionItem> {
     update_cache_inner(path, context, &mut Vec::new(), &mut Vec::new()).await
 }
 
@@ -138,7 +168,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
     context: &str,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Vec<CompletionItem> {
+) -> HashMap<String, CompletionItem> {
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
@@ -154,7 +184,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
         true,
         true,
     ) else {
-        return Vec::new();
+        return HashMap::new();
     };
     let mut cache = COMPLETE_CACHE.lock().await;
     cache.insert(path.as_ref().to_path_buf(), result_data.clone());
@@ -162,7 +192,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
 }
 
 pub struct CachedInfo {
-    pub completions: Vec<CompletionItem>,
+    pub completions: HashMap<String, CompletionItem>,
     pub include_files: Vec<PathBuf>,
     pub complete_packages: Vec<String>,
 }
@@ -176,7 +206,7 @@ pub async fn get_cached_information<P: AsRef<Path>>(
     let mut complete_packages = Vec::new();
     let mut extra_files = get_extra_files();
     let mut path = path.as_ref().to_path_buf();
-    let mut completions = Vec::new();
+    let mut completions = HashMap::new();
 
     let tree_map = TREE_MAP.lock().await;
 
@@ -276,7 +306,12 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 mut complete_packages,
             } = get_cached_information(local_path, documents).await;
             if !cached_completion.is_empty() {
-                completions.extend(cached_completion.filter_cache(command_case));
+                completions.extend(
+                    cached_completion
+                        .filter_cache(command_case)
+                        .into_values()
+                        .collect::<Vec<CompletionItem>>(),
+                );
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
                 completions.extend(cmake_cache);
@@ -292,7 +327,8 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 true,
                 find_cmake_in_package,
             ) {
-                completions.extend(message);
+                let messages: Vec<CompletionItem> = message.into_values().collect();
+                completions.extend(messages);
             }
 
             if !node_info.in_argument_list() {
@@ -319,7 +355,11 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 ..
             } = get_cached_information(local_path, documents).await;
             if !cached_completions.is_empty() {
-                completions.extend(cached_completions);
+                completions.extend(
+                    cached_completions
+                        .into_values()
+                        .collect::<Vec<CompletionItem>>(),
+                );
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
                 completions.extend(cmake_cache);
@@ -479,7 +519,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     complete_packages: &mut Vec<String>,
     should_in: bool, // if is searched to findpackage, it should not in
     find_cmake_in_package: bool,
-) -> Option<Vec<CompletionItem>> {
+) -> Option<HashMap<String, CompletionItem>> {
     assert!(matches!(
         postype,
         PositionType::VarOrFun | PositionType::TargetLink | PositionType::TargetInclude
@@ -640,8 +680,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                     find_cmake_in_package,
                     is_builtin,
                 ) {
-                    for comp in comps {
-                        completions.insert(comp.label.clone(), comp);
+                    for (key, comp) in comps {
+                        completions.insert(key, comp);
                     }
                 }
                 include_files.push(subpath);
@@ -802,8 +842,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                     ) else {
                         continue;
                     };
-                    for complete_item in complete_items {
-                        completions.insert(complete_item.label.clone(), complete_item);
+                    for (key, complete_item) in complete_items {
+                        completions.insert(key, complete_item);
                     }
                 }
             }
@@ -877,7 +917,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     if completions.is_empty() {
         None
     } else {
-        Some(completions.values().cloned().collect())
+        Some(completions)
     }
 }
 
@@ -886,9 +926,9 @@ fn get_cmake_package_complete(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<CompletionItem>> {
+) -> Option<HashMap<String, CompletionItem>> {
     let packageinfo = CACHE_CMAKE_PACKAGES_WITHKEYS.get(package_name)?;
-    let mut complete_infos = Vec::new();
+    let mut complete_infos = HashMap::new();
 
     for path in packageinfo.tojump.iter() {
         let Some(packages) = includescanner::scanner_package_complete(
@@ -1171,7 +1211,7 @@ endfunction()
         let root_cmake = dir.path().join("CMakeList.txt");
         let mut file = File::create(&root_cmake).unwrap();
         writeln!(file, "{}", file_info).unwrap();
-        let data = getsubcomplete(
+        let data: Vec<CompletionItem> = getsubcomplete(
             thetree.root_node(),
             file_info,
             &root_cmake,
@@ -1182,7 +1222,9 @@ endfunction()
             false,
             false,
         )
-        .unwrap();
+        .unwrap()
+        .into_values()
+        .collect();
         let test_data = vec![
             CompletionItem {
                 label: "bb".to_string(),
@@ -1445,7 +1487,7 @@ endfunction()
         ];
         assert_eq!(data.len(), test_data.len());
         for test_item in test_data {
-            assert!(data.contains(&test_item));
+            assert!(data.values().find(|item| **item == test_item).is_some());
         }
     }
 }
