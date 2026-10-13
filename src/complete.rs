@@ -64,24 +64,24 @@ pub fn init_system_modules() {
 }
 
 trait CompletionFilter {
-    fn filter_cache(self, command_case: Option<CommandCase>) -> Self
+    fn filter_cache(self, command_case: CommandCase) -> Self
     where
         Self: Sized,
     {
-        if let Some(command_case) = command_case {
-            return self.filter_cache_command_case(command_case);
+        if matches!(command_case, CommandCase::Ignore) {
+            return self;
         }
-        self
+        self.filter_cache_command_case(command_case)
     }
     fn filter_cache_command_case(self, command_case: CommandCase) -> Self;
-    fn filter_builtin(self, command_case: Option<CommandCase>) -> Self
+    fn filter_builtin(self, command_case: CommandCase) -> Self
     where
         Self: Sized,
     {
-        if let Some(command_case) = command_case {
-            return self.filter_builtin_command_case(command_case);
+        if matches!(command_case, CommandCase::Ignore) {
+            return self;
         }
-        self
+        self.filter_builtin_command_case(command_case)
     }
     fn filter_builtin_command_case(self, command_case: CommandCase) -> Self;
 }
@@ -95,10 +95,7 @@ impl CompletionFilter for Vec<CompletionItem> {
                     .kind
                     .is_some_and(|kind| kind == CompletionItemKind::Function)
                 {
-                    label = match command_case {
-                        CommandCase::Upper => label.to_uppercase(),
-                        CommandCase::Lower => label.to_lowercase(),
-                    };
+                    label = command_case.operator(&label);
                 }
                 CompletionItem { label, ..item }
             })
@@ -1241,7 +1238,7 @@ endfunction()
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
-        let data = data.filter_cache(Some(CommandCase::Upper));
+        let data = data.filter_cache(CommandCase::Upper);
         let test_data = vec![
             CompletionItem {
                 label: "BB".to_string(),
@@ -1347,13 +1344,13 @@ endfunction()
             ..Default::default()
         };
         let test_data = vec![item1.clone(), item2.clone()];
-        let test_data1 = test_data.clone().filter_builtin(Some(CommandCase::Lower));
+        let test_data1 = test_data.clone().filter_builtin(CommandCase::Lower);
         assert_eq!(test_data1.len(), 1);
         assert_eq!(test_data1[0], item1);
-        let test_data2 = test_data.clone().filter_builtin(Some(CommandCase::Upper));
+        let test_data2 = test_data.clone().filter_builtin(CommandCase::Upper);
         assert_eq!(test_data2.len(), 1);
         assert_eq!(test_data2[0], item2);
-        let test_data3 = test_data.clone().filter_builtin(None);
+        let test_data3 = test_data.clone().filter_builtin(CommandCase::Ignore);
         assert_eq!(test_data3.len(), 2);
         assert_eq!(test_data3, test_data);
     }

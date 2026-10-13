@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     /// Check letter case of commands.
     #[serde(default, alias = "command_upcase")]
-    pub command_case: Option<CommandCase>,
+    pub command_case: CommandCase,
     /// Use `cmake-lint` to provide more lints.
     #[serde(default)]
     pub enable_external_cmake_lint: bool,
@@ -53,7 +53,7 @@ const fn default_max_words() -> usize {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            command_case: None,
+            command_case: CommandCase::Ignore,
             enable_external_cmake_lint: false,
             line_max_words: default_max_words(),
             format: FormatConfig::default(),
@@ -62,9 +62,12 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandCase {
+    #[default]
+    #[serde(alias = "ignore")]
+    Ignore,
     #[serde(alias = "upcase", alias = "upper_case")]
     Upper,
     #[serde(alias = "lowercase", alias = "lower_case")]
@@ -88,6 +91,7 @@ impl CommandCase {
     }
     pub fn operator(&self, target: &str) -> String {
         match self {
+            Self::Ignore => target.to_string(),
             Self::Upper => target.to_uppercase(),
             Self::Lower => target.to_lowercase(),
         }
@@ -130,6 +134,7 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
         && let Ok(buf) = std::fs::read_to_string(path)
         && let Ok(config) = toml::from_str::<Config>(&buf)
     {
+        println!("buf = {buf}");
         return config;
     }
 
