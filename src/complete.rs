@@ -237,7 +237,7 @@ impl From<Option<String>> for TriggerType {
 }
 
 /// get the complete messages
-pub async fn getcomplete<P: AsRef<Path>>(
+pub async fn getcompletions<P: AsRef<Path>>(
     source: &str,
     triggered: impl Into<TriggerType>,
     location: Position,
@@ -251,7 +251,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(source, None);
     let tree = thetree.unwrap();
-    let mut complete: Vec<CompletionItem> = vec![];
+    let mut completions: Vec<CompletionItem> = vec![];
 
     let current_point = location.to_point();
     let node_info = CurrentNodeInfo::get(source, tree.root_node(), current_point);
@@ -264,8 +264,8 @@ pub async fn getcomplete<P: AsRef<Path>>(
         && let Some(list) = get_path_completions(&prompt, local_path)
         && !list.is_empty()
     {
-        complete.extend(list);
-        return Some(CompletionResponse::CompletionItemList(complete));
+        completions.extend(list);
+        return Some(CompletionResponse::CompletionItemList(completions));
     }
     let command_case = crate::config::CONFIG.command_case;
     match postype {
@@ -276,10 +276,10 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 mut complete_packages,
             } = get_cached_information(local_path, documents).await;
             if !cached_completion.is_empty() {
-                complete.extend(cached_completion.filter_cache(command_case));
+                completions.extend(cached_completion.filter_cache(command_case));
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
-                complete.extend(cmake_cache);
+                completions.extend(cmake_cache);
             }
             if let Some(message) = getsubcomplete(
                 tree.root_node(),
@@ -292,26 +292,26 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 true,
                 find_cmake_in_package,
             ) {
-                complete.extend(message);
+                completions.extend(message);
             }
 
             if !node_info.in_argument_list() {
                 let messages = (*BUILTIN_COMMAND).clone().filter_builtin(command_case);
-                complete.extend(messages);
+                completions.extend(messages);
             }
             if let Ok(messages) = &*BUILTIN_VARIABLE {
-                complete.extend(messages.clone());
+                completions.extend(messages.clone());
             }
         }
         PositionType::FindPackageSpace(space) => {
-            complete.extend(findpackage::completion_items_with_prefix(space));
+            completions.extend(findpackage::completion_items_with_prefix(space));
         }
         PositionType::FindPackage => {
-            complete.extend(findpackage::CMAKE_SOURCE.clone());
+            completions.extend(findpackage::CMAKE_SOURCE.clone());
         }
         #[cfg(unix)]
         PositionType::FindPkgConfig => {
-            complete.extend(findpackage::PKGCONFIG_SOURCE.clone());
+            completions.extend(findpackage::PKGCONFIG_SOURCE.clone());
         }
         PositionType::Include => {
             let CachedInfo {
@@ -319,20 +319,20 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 ..
             } = get_cached_information(local_path, documents).await;
             if !cached_completions.is_empty() {
-                complete.extend(cached_completions);
+                completions.extend(cached_completions);
             }
             if let Some(cmake_cache) = fileapi::get_complete_data() {
-                complete.extend(cmake_cache);
+                completions.extend(cmake_cache);
             }
             if let Ok(messages) = &*BUILTIN_MODULE {
-                complete.extend(messages.clone());
+                completions.extend(messages.clone());
             }
             if let Some(prompt) = node_info.content()
                 && node_info.is_first_argument()
                 && let Some(prompt) = prompt.try_replace_placeholders()
                 && let Some(list) = get_include_completions(&prompt, local_path)
             {
-                complete.extend(list);
+                completions.extend(list);
             }
         }
         PositionType::SubDir => {
@@ -341,7 +341,7 @@ pub async fn getcomplete<P: AsRef<Path>>(
                 && let Some(prompt) = promopt.try_replace_placeholders()
                 && let Some(list) = get_subdir_completions(&prompt, local_path)
             {
-                complete.extend(list);
+                completions.extend(list);
             }
         }
         PositionType::Comment => {
@@ -351,11 +351,11 @@ pub async fn getcomplete<P: AsRef<Path>>(
         _ => {}
     }
 
-    if complete.is_empty() {
+    if completions.is_empty() {
         client.log_message(MessageType::Info, "Empty").await;
         None
     } else {
-        Some(CompletionResponse::CompletionItemList(complete))
+        Some(CompletionResponse::CompletionItemList(completions))
     }
 }
 
@@ -486,7 +486,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     ));
     let local_path = local_path.as_ref();
     let source_bytes = source.as_bytes();
-    let mut complete: HashMap<String, CompletionItem> = HashMap::new();
+    let mut completions: HashMap<String, CompletionItem> = HashMap::new();
 
     let end_location = location.map(|p| p.to_point());
 
@@ -504,7 +504,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             local_path.file_name().unwrap().to_str().unwrap(),
         );
         for comment in comments {
-            complete.insert(comment.label.clone(), comment);
+            completions.insert(comment.label.clone(), comment);
         }
     }
 
@@ -526,7 +526,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
-        complete.insert(
+        completions.insert(
             name.to_owned(),
             CompletionItem {
                 label: name.to_string(),
@@ -540,7 +540,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             && location_range_contain(location.to_point(), fun.node)
         {
             for FunMarcoArg { content, .. } in fun.args(source_bytes) {
-                complete.insert(
+                completions.insert(
                     content.to_owned(),
                     CompletionItem {
                         label: content.to_string(),
@@ -572,7 +572,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             document_info = format!("{}\n\n{}", document_info, line_comment);
             variable_info = format!("{}\n\n{}", variable_info, line_comment);
         }
-        complete.insert(
+        completions.insert(
             name.to_owned(),
             CompletionItem {
                 label: name.to_string(),
@@ -586,7 +586,7 @@ fn getsubcomplete<P: AsRef<Path>>(
             && location_range_contain(location.to_point(), macro_node.node)
         {
             for FunMarcoArg { content, .. } in macro_node.args(source_bytes) {
-                complete.insert(
+                completions.insert(
                     content.to_owned(),
                     CompletionItem {
                         label: content.to_string(),
@@ -641,7 +641,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     is_builtin,
                 ) {
                     for comp in comps {
-                        complete.insert(comp.label.clone(), comp);
+                        completions.insert(comp.label.clone(), comp);
                     }
                 }
                 include_files.push(subpath);
@@ -649,7 +649,7 @@ fn getsubcomplete<P: AsRef<Path>>(
         } else if name == "mark_as_advanced" {
             for arg in command.args {
                 let variable = arg.utf8_text(source_bytes).unwrap();
-                complete.insert(
+                completions.insert(
                     variable.to_owned(),
                     CompletionItem {
                         label: variable.to_string(),
@@ -688,7 +688,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 {
                     document_info = format!("{}\n\n{}", document_info, line_comment);
                 }
-                complete.insert(
+                completions.insert(
                     name.to_owned(),
                     CompletionItem {
                         label: name.to_string(),
@@ -740,7 +740,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 // modern cmake like Qt5::Core
                 if let Some(components) = components_packages {
                     for component in components {
-                        complete.insert(
+                        completions.insert(
                             component.to_owned(),
                             CompletionItem {
                                 label: component,
@@ -757,7 +757,7 @@ fn getsubcomplete<P: AsRef<Path>>(
 
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
                     let label = format!("{package_name}_LIBRARIES");
-                    complete.insert(
+                    completions.insert(
                         label.clone(),
                         CompletionItem {
                             label,
@@ -776,7 +776,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     PositionType::TargetInclude | PositionType::VarOrFun
                 ) {
                     let label = format!("{package_name}_INCLUDE_DIRS");
-                    complete.insert(
+                    completions.insert(
                         label.clone(),
                         CompletionItem {
                             label,
@@ -803,7 +803,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                         continue;
                     };
                     for complete_item in complete_items {
-                        complete.insert(complete_item.label.clone(), complete_item);
+                        completions.insert(complete_item.label.clone(), complete_item);
                     }
                 }
             }
@@ -825,7 +825,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     && matches!(postype, PositionType::VarOrFun | PositionType::TargetLink)
                 {
                     let label = format!("PkgConfig::{package_name}");
-                    complete.insert(
+                    completions.insert(
                         label.clone(),
                         CompletionItem {
                             label,
@@ -840,7 +840,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                 }
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
                     let label = format!("{package_name}_LIBRARIES");
-                    complete.insert(
+                    completions.insert(
                         label.clone(),
                         CompletionItem {
                             label,
@@ -858,7 +858,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                     PositionType::TargetInclude | PositionType::VarOrFun
                 ) {
                     let label = format!("{package_name}_INCLUDE_DIRS");
-                    complete.insert(
+                    completions.insert(
                         label.clone(),
                         CompletionItem {
                             label,
@@ -874,10 +874,10 @@ fn getsubcomplete<P: AsRef<Path>>(
             }
         }
     }
-    if complete.is_empty() {
+    if completions.is_empty() {
         None
     } else {
-        Some(complete.values().cloned().collect())
+        Some(completions.values().cloned().collect())
     }
 }
 
