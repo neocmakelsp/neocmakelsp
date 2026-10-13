@@ -123,9 +123,8 @@ pub async fn get_cached_def<P: AsRef<Path>>(
     };
 
     for file in &extra_files {
-        match update_cache_fn(&file).await {
-            CacheState::Break(info) => return Some(info),
-            _ => {}
+        if let CacheState::Break(info) = update_cache_fn(file).await {
+            return Some(info);
         }
     }
 
@@ -137,7 +136,7 @@ pub async fn get_cached_def<P: AsRef<Path>>(
 
     // NOTE: then search parent
     while let Some(parent) = tree_map.get(&path) {
-        match update_cache_fn(&parent).await {
+        match update_cache_fn(parent).await {
             CacheState::Continue => {
                 path.clone_from(parent);
             }
