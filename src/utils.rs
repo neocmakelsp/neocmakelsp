@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{CompletionItem, Uri};
 
 pub use self::findpackage::*;
+use crate::complete::PCacheInfo;
 use crate::fileapi;
 use crate::jump::JumpCacheUnit;
-
 pub mod cache {
     pub const VERSION_FILE: &str = "version.json";
     pub mod builtin {
@@ -44,8 +44,7 @@ pub type CachedMessages = CachedData<HashMap<String, String>>;
 
 pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
 pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
-pub type CachedPCompleteItems =
-    CachedData<HashMap<PathBuf, HashMap<String, CompletionItem>>, false>;
+pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, HashMap<String, PCacheInfo>>, false>;
 pub type CachedPJumpItems = CachedData<HashMap<String, JumpCacheUnit>, false>;
 
 pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {

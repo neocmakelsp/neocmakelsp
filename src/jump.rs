@@ -269,7 +269,7 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
         .is_some_and(|extension| extension == "cmake")
     {
         let avaiablepaths = TREE_CMAKE_MAP.lock().await;
-        let mut temp: Vec<PathBuf> = avaiablepaths
+        let temp: Vec<PathBuf> = avaiablepaths
             .iter()
             .filter(|(cmake, _parents)| **cmake == from)
             .flat_map(|(_, parents)| parents.clone())
@@ -278,14 +278,14 @@ async fn reference_all<P: AsRef<Path>>(path: P, tofind: &str, is_function: bool)
         let mut results = vec![];
         let map = TREE_MAP.lock().await;
         for included in temp.iter() {
-            let mut childrens = map
+            let childrens: Vec<PathBuf> = map
                 .iter()
                 .filter(|(_child, parent)| *parent == included)
                 .map(|(child, _)| child.clone())
                 .collect();
-            results.append(&mut childrens);
+            results.extend(childrens);
         }
-        results.append(&mut temp);
+        results.extend(temp);
         results
     } else {
         let map = TREE_MAP.lock().await;
