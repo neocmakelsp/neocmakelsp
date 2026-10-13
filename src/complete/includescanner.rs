@@ -9,7 +9,7 @@ use super::getsubcomplete;
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::PositionType;
 
-type CacheData = HashMap<PathBuf, Vec<CompletionItem>>;
+type CacheData = HashMap<PathBuf, HashMap<String, CompletionItem>>;
 
 static PACKAGE_COMPLETE_CACHE: LazyLock<Arc<Mutex<CacheData>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -21,7 +21,7 @@ pub fn scanner_include_complete(
     complete_packages: &mut Vec<String>,
     find_cmake_in_package: bool,
     is_builtin: bool,
-) -> Option<Vec<CompletionItem>> {
+) -> Option<HashMap<String, CompletionItem>> {
     if is_builtin
         && let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
         && let Some(complete_items) = cache.get(path)
@@ -59,7 +59,7 @@ pub fn scanner_package_complete(
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
     complete_packages: &mut Vec<String>,
-) -> Option<Vec<CompletionItem>> {
+) -> Option<HashMap<String, CompletionItem>> {
     if let Ok(cache) = PACKAGE_COMPLETE_CACHE.lock()
         && let Some(complete_items) = cache.get(path)
     {
@@ -180,6 +180,7 @@ endfunction()
             },
         ];
         assert_eq!(data.len(), test_data.len());
+        let data = data.into_values().collect::<Vec<CompletionItem>>();
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }
@@ -267,6 +268,7 @@ endfunction()
             },
         ];
         assert_eq!(data.len(), test_data.len());
+        let data = data.into_values().collect::<Vec<CompletionItem>>();
         for test_item in test_data {
             assert!(data.contains(&test_item));
         }

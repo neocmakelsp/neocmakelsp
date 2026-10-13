@@ -44,7 +44,8 @@ pub type CachedMessages = CachedData<HashMap<String, String>>;
 
 pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
 pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
-pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, Vec<CompletionItem>>, false>;
+pub type CachedPCompleteItems =
+    CachedData<HashMap<PathBuf, HashMap<String, CompletionItem>>, false>;
 pub type CachedPJumpItems = CachedData<HashMap<String, JumpCacheUnit>, false>;
 
 pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
