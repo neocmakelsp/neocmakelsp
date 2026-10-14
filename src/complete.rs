@@ -36,9 +36,13 @@ use crate::utils::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PCacheInfo {
     range: LspRange,
+    /// is_definition means the value is defined this place
+    /// it means it has a place to jump
     is_definition: bool,
     location: Option<Location>,
     completion: CompletionItem,
+    /// if [PCacheInfo::is_completion] is marked as false, means it is a reference, should never be
+    /// treated as a completion
     is_completion: bool,
     pub references: Vec<Location>,
 }
@@ -79,13 +83,16 @@ impl PCacheInfo {
         }
     }
 
-    fn just_reference(mut self) -> Self {
+    const fn just_reference(mut self) -> Self {
         self.is_completion = false;
         self
     }
     // NOTE: since we will always has the document
     pub fn document(&self) -> &str {
-        let document = self.documentation.as_ref().unwrap();
+        let document = self
+            .documentation
+            .as_ref()
+            .expect("should always keep the documentation is not None");
         match document {
             Documentation::String(context) => context.as_str(),
             Documentation::MarkupContent(context) => &context.value,
@@ -1168,6 +1175,7 @@ fn getsubcomplete<P: AsRef<Path>>(
         if let Some(cache) = completions.get_mut(key) {
             cache.push_reference(node_location);
         } else {
+            // NOTE: it is not a completion_item, just a reference
             let mut cache = PCacheInfo::new(
                 CompletionItem {
                     label: key.to_string(),
