@@ -14,7 +14,6 @@ use tower_lsp::lsp_types::{CompletionItem, Uri};
 pub use self::findpackage::*;
 use crate::complete::PCacheInfo;
 use crate::fileapi;
-use crate::jump::JumpCacheUnit;
 pub mod cache {
     pub const VERSION_FILE: &str = "version.json";
     pub mod builtin {
@@ -28,8 +27,7 @@ pub mod cache {
     pub mod project {
         pub const TREE_MAP_CACHE: &str = "tree_map_cache.json";
         pub const TREE_CMAKE_MAP_CACHE: &str = "tree_cmake_map_cache.json";
-        pub const COMPLETIONS_CACHE: &str = "project_completions_cache.json";
-        pub const JUMPITEMS_CACHE: &str = "project_jumpitems_cache.json";
+        pub const COMPLETION_ITEMS_CACHE: &str = "project_completions_cache.json";
     }
 }
 
@@ -45,7 +43,6 @@ pub type CachedMessages = CachedData<HashMap<String, String>>;
 pub type CachedProjectTree = CachedData<HashMap<PathBuf, PathBuf>, false>;
 pub type CachedProjectCMakeMap = CachedData<HashMap<PathBuf, Vec<PathBuf>>, false>;
 pub type CachedPCompleteItems = CachedData<HashMap<PathBuf, HashMap<String, PCacheInfo>>, false>;
-pub type CachedPJumpItems = CachedData<HashMap<String, JumpCacheUnit>, false>;
 
 pub static BUILTIN_MODULE_CACHED_DIR: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
     let strategy = etcetera::choose_base_strategy().ok()?;

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionResponse, Documentation, Location, MessageType,
-    Position, Uri,
+    Position, Range as LspRange, Uri,
 };
 
 use crate::config::CommandCase;
@@ -23,7 +23,7 @@ use crate::fileapi;
 use crate::languageserver::{get_extra_files, get_or_update_buffer_contents};
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
-    FunMarcoArg, get_bracket_comments, get_functions, get_line_comments, get_macros,
+    FunMarcoArg, ToLspRange, get_bracket_comments, get_functions, get_line_comments, get_macros,
     get_normal_commands,
 };
 use crate::utils::treehelper::{
@@ -35,20 +35,25 @@ use crate::utils::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PCacheInfo {
+    range: LspRange,
     is_definition: bool,
     location: Option<Location>,
     completion: CompletionItem,
 }
 
 impl PCacheInfo {
-    pub const fn location(&self) -> Option<&Location> {
-        self.location.as_ref()
+    pub fn location(&self) -> Option<Location> {
+        self.location.clone()
+    }
+    pub const fn range(&self) -> LspRange {
+        self.range
     }
     pub const fn completion(&self) -> &CompletionItem {
         &self.completion
     }
-    pub const fn new(completion: CompletionItem) -> Self {
+    pub fn new(completion: CompletionItem, range: impl ToLspRange) -> Self {
         Self {
+            range: range.lsp_range(),
             location: None,
             completion,
             is_definition: true,
@@ -98,7 +103,7 @@ pub type CompleteKV = HashMap<PathBuf, HashMap<String, PCacheInfo>>;
 
 /// NOTE: collect the all completeitems in this PathBuf
 /// Include the top CMakeList.txt
-pub static COMPLETE_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
+pub static COMPLETION_CACHE: LazyLock<Arc<Mutex<CompleteKV>>> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 static LABEL_FILITER: LazyLock<regex::Regex> =
@@ -251,15 +256,18 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<PCacheInfo> {
         .filter(|line| line.starts_with(".. command:: "))
         .map(|line| &line[13..])
         .map(|line| {
-            PCacheInfo::new(CompletionItem {
-                label: line.to_string(),
-                kind: Some(CompletionItemKind::Function),
-                detail: Some("Command".to_string()),
-                documentation: Some(Documentation::String(format!(
-                    "defined command from {filename}\n{doc}"
-                ))),
-                ..Default::default()
-            })
+            PCacheInfo::new(
+                CompletionItem {
+                    label: line.to_string(),
+                    kind: Some(CompletionItemKind::Function),
+                    detail: Some("Command".to_string()),
+                    documentation: Some(Documentation::String(format!(
+                        "defined command from {filename}\n{doc}"
+                    ))),
+                    ..Default::default()
+                },
+                0,
+            )
             .not_definition()
         })
         .collect()
@@ -292,7 +300,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
     ) else {
         return HashMap::new();
     };
-    let mut cache = COMPLETE_CACHE.lock().await;
+    let mut cache = COMPLETION_CACHE.lock().await;
     cache.insert(path.as_ref().to_path_buf(), result_data.clone());
     result_data
 }
@@ -320,7 +328,7 @@ pub async fn get_cached_information<P: AsRef<Path>>(
         if !file_path.ends_with("CMakeLists.txt") {
             include_files.push(file_path.clone());
         }
-        let complete_cache = COMPLETE_CACHE.lock().await;
+        let complete_cache = COMPLETION_CACHE.lock().await;
         if let Some(data) = complete_cache.get(file_path) {
             completions.extend(data.clone());
         } else if let Ok(context) = get_or_update_buffer_contents(file_path, documents).await {
@@ -687,13 +695,16 @@ fn getsubcomplete<P: AsRef<Path>>(
         };
         completions.insert(
             name.to_owned(),
-            PCacheInfo::new(CompletionItem {
-                label: name.to_string(),
-                kind: Some(CompletionItemKind::Function),
-                detail: Some("Function".to_string()),
-                documentation: Some(Documentation::String(document_info)),
-                ..Default::default()
-            })
+            PCacheInfo::new(
+                CompletionItem {
+                    label: name.to_string(),
+                    kind: Some(CompletionItemKind::Function),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(document_info)),
+                    ..Default::default()
+                },
+                fun.node.range(),
+            )
             .with_location(node_location),
         );
         if let Some(location) = location
@@ -709,13 +720,16 @@ fn getsubcomplete<P: AsRef<Path>>(
                 };
                 completions.insert(
                     content.to_owned(),
-                    PCacheInfo::new(CompletionItem {
-                        label: content.to_string(),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("VARIABLE".to_string()),
-                        documentation: Some(Documentation::String(variable_info.clone())),
-                        ..Default::default()
-                    })
+                    PCacheInfo::new(
+                        CompletionItem {
+                            label: content.to_string(),
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("VARIABLE".to_string()),
+                            documentation: Some(Documentation::String(variable_info.clone())),
+                            ..Default::default()
+                        },
+                        node.range(),
+                    )
                     .with_location(node_location)
                     .not_definition(),
                 );
@@ -750,13 +764,16 @@ fn getsubcomplete<P: AsRef<Path>>(
         };
         completions.insert(
             name.to_owned(),
-            PCacheInfo::new(CompletionItem {
-                label: name.to_string(),
-                kind: Some(CompletionItemKind::Function),
-                detail: Some("Function".to_string()),
-                documentation: Some(Documentation::String(document_info)),
-                ..Default::default()
-            })
+            PCacheInfo::new(
+                CompletionItem {
+                    label: name.to_string(),
+                    kind: Some(CompletionItemKind::Function),
+                    detail: Some("Function".to_string()),
+                    documentation: Some(Documentation::String(document_info)),
+                    ..Default::default()
+                },
+                macro_node.node.range(),
+            )
             .with_location(node_location),
         );
         if let Some(location) = location
@@ -772,13 +789,16 @@ fn getsubcomplete<P: AsRef<Path>>(
                 };
                 completions.insert(
                     content.to_owned(),
-                    PCacheInfo::new(CompletionItem {
-                        label: content.to_string(),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("VARIABLE".to_string()),
-                        documentation: Some(Documentation::String(variable_info.clone())),
-                        ..Default::default()
-                    })
+                    PCacheInfo::new(
+                        CompletionItem {
+                            label: content.to_string(),
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("VARIABLE".to_string()),
+                            documentation: Some(Documentation::String(variable_info.clone())),
+                            ..Default::default()
+                        },
+                        node.range(),
+                    )
                     .with_location(node_location)
                     .not_definition(),
                 );
@@ -844,16 +864,19 @@ fn getsubcomplete<P: AsRef<Path>>(
                 };
                 completions.insert(
                     variable.to_owned(),
-                    PCacheInfo::new(CompletionItem {
-                        label: variable.to_string(),
-                        kind: Some(CompletionItemKind::Variable),
-                        detail: Some("Variable".to_string()),
-                        documentation: Some(Documentation::String(format!(
-                            "defined var\nfrom: {}",
-                            local_path.display()
-                        ))),
-                        ..Default::default()
-                    })
+                    PCacheInfo::new(
+                        CompletionItem {
+                            label: variable.to_string(),
+                            kind: Some(CompletionItemKind::Variable),
+                            detail: Some("Variable".to_string()),
+                            documentation: Some(Documentation::String(format!(
+                                "defined var\nfrom: {}",
+                                local_path.display()
+                            ))),
+                            ..Default::default()
+                        },
+                        arg.range(),
+                    )
                     .with_location(node_location),
                 );
             }
@@ -891,13 +914,16 @@ fn getsubcomplete<P: AsRef<Path>>(
                 };
                 completions.insert(
                     name.to_owned(),
-                    PCacheInfo::new(CompletionItem {
-                        label: name.to_string(),
-                        kind: Some(CompletionItemKind::Value),
-                        detail: Some("Value".to_string()),
-                        documentation: Some(Documentation::String(document_info)),
-                        ..Default::default()
-                    })
+                    PCacheInfo::new(
+                        CompletionItem {
+                            label: name.to_string(),
+                            kind: Some(CompletionItemKind::Value),
+                            detail: Some("Value".to_string()),
+                            documentation: Some(Documentation::String(document_info)),
+                            ..Default::default()
+                        },
+                        command.node.range(),
+                    )
                     .with_location(node_location),
                 );
             }
@@ -944,15 +970,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     for component in components {
                         completions.insert(
                             component.to_owned(),
-                            PCacheInfo::new(CompletionItem {
-                                label: component,
-                                kind: Some(CompletionItemKind::Variable),
-                                detail: Some("Variable".to_string()),
-                                documentation: Some(Documentation::String(format!(
-                                    "package from: {package_name}",
-                                ))),
-                                ..Default::default()
-                            })
+                            PCacheInfo::new(
+                                CompletionItem {
+                                    label: component,
+                                    kind: Some(CompletionItemKind::Variable),
+                                    detail: Some("Variable".to_string()),
+                                    documentation: Some(Documentation::String(format!(
+                                        "package from: {package_name}",
+                                    ))),
+                                    ..Default::default()
+                                },
+                                command.node.range(),
+                            )
                             .not_definition(),
                         );
                     }
@@ -962,15 +991,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_LIBRARIES");
                     completions.insert(
                         label.clone(),
-                        PCacheInfo::new(CompletionItem {
-                            label,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Variable".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package: {package_name}",
-                            ))),
-                            ..Default::default()
-                        })
+                        PCacheInfo::new(
+                            CompletionItem {
+                                label,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                            command.node.range(),
+                        )
                         .not_definition(),
                     );
                 }
@@ -982,15 +1014,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_INCLUDE_DIRS");
                     completions.insert(
                         label.clone(),
-                        PCacheInfo::new(CompletionItem {
-                            label,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Variable".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package: {package_name}",
-                            ))),
-                            ..Default::default()
-                        }),
+                        PCacheInfo::new(
+                            CompletionItem {
+                                label,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Variable".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                            command.node.range(),
+                        ),
                     );
                 }
                 for package in cmakepackages {
@@ -1031,15 +1066,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("PkgConfig::{package_name}");
                     completions.insert(
                         label.clone(),
-                        PCacheInfo::new(CompletionItem {
-                            label,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Package".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package: {package_name}",
-                            ))),
-                            ..Default::default()
-                        })
+                        PCacheInfo::new(
+                            CompletionItem {
+                                label,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                            command.node.range(),
+                        )
                         .not_definition(),
                     );
                 }
@@ -1047,15 +1085,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_LIBRARIES");
                     completions.insert(
                         label.clone(),
-                        PCacheInfo::new(CompletionItem {
-                            label,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Package".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package: {package_name}",
-                            ))),
-                            ..Default::default()
-                        })
+                        PCacheInfo::new(
+                            CompletionItem {
+                                label,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                            command.node.range(),
+                        )
                         .not_definition(),
                     );
                 }
@@ -1066,15 +1107,18 @@ fn getsubcomplete<P: AsRef<Path>>(
                     let label = format!("{package_name}_INCLUDE_DIRS");
                     completions.insert(
                         label.clone(),
-                        PCacheInfo::new(CompletionItem {
-                            label,
-                            kind: Some(CompletionItemKind::Variable),
-                            detail: Some("Package".to_string()),
-                            documentation: Some(Documentation::String(format!(
-                                "package: {package_name}",
-                            ))),
-                            ..Default::default()
-                        })
+                        PCacheInfo::new(
+                            CompletionItem {
+                                label,
+                                kind: Some(CompletionItemKind::Variable),
+                                detail: Some("Package".to_string()),
+                                documentation: Some(Documentation::String(format!(
+                                    "package: {package_name}",
+                                ))),
+                                ..Default::default()
+                            },
+                            command.node.range(),
+                        )
                         .not_definition(),
                     );
                 }

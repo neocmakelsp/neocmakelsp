@@ -6,15 +6,13 @@ use std::sync::{Arc, LazyLock};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-use crate::complete::{COMPLETE_CACHE, CompleteKV};
+use crate::complete;
+use crate::complete::{COMPLETION_CACHE, CompleteKV};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::jump::{JUMP_CACHE, JumpKV};
 use crate::utils::query::get_normal_commands;
 use crate::utils::{
-    CachedData, CachedPCompleteItems, CachedPJumpItems, CachedProjectCMakeMap, CachedProjectTree,
-    NeoStrExt, cache,
+    CachedData, CachedPCompleteItems, CachedProjectCMakeMap, CachedProjectTree, NeoStrExt, cache,
 };
-use crate::{complete, jump};
 
 /// NOTE: key is be included path, value is the top CMakeLists
 /// This is used to find who is on the top of the CMakeLists
@@ -36,7 +34,6 @@ struct CacheLoader {
     tree_map: TreeKey,
     tree_cmake_map: TreeCMakeKey,
     complete_cache: CompleteKV,
-    jump_cache: JumpKV,
 }
 
 fn data_load<Data, const TIME_CHECK: bool, P: AsRef<Path>>(
@@ -81,20 +78,14 @@ pub async fn cache_project_data<P: AsRef<Path>>(project_root: P) -> Option<()> {
         cache::project::TREE_CMAKE_MAP_CACHE,
     );
     drop(tree_cmake);
-    let complete_cache = COMPLETE_CACHE.lock().await;
+    let complete_cache = COMPLETION_CACHE.lock().await;
     cache_data_write(
         &cache_dir,
         complete_cache.clone(),
-        cache::project::COMPLETIONS_CACHE,
+        cache::project::COMPLETION_ITEMS_CACHE,
     );
     drop(complete_cache);
-    let jump_cache = JUMP_CACHE.lock().await;
-    cache_data_write(
-        &cache_dir,
-        jump_cache.clone(),
-        cache::project::JUMPITEMS_CACHE,
-    );
-    drop(jump_cache);
+
     Some(())
 }
 
@@ -110,13 +101,11 @@ fn load_cache_all<P: AsRef<Path>>(project_root: P) -> Option<CacheLoader> {
         data_load(&cache_dir, cache::project::TREE_CMAKE_MAP_CACHE)?;
 
     let complete_cache: CachedPCompleteItems =
-        data_load(&cache_dir, cache::project::COMPLETIONS_CACHE)?;
-    let jump_cache: CachedPJumpItems = data_load(&cache_dir, cache::project::JUMPITEMS_CACHE)?;
+        data_load(&cache_dir, cache::project::COMPLETION_ITEMS_CACHE)?;
     Some(CacheLoader {
         tree_map: project_tree_map.data,
         tree_cmake_map: project_cmake_map.data,
         complete_cache: complete_cache.data,
-        jump_cache: jump_cache.data,
     })
 }
 
@@ -127,7 +116,6 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
             tree_map,
             tree_cmake_map,
             complete_cache,
-            jump_cache,
         }) = load_cache_all(project_root.as_ref())
     {
         let mut tree = TREE_MAP.lock().await;
@@ -136,12 +124,9 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
         let mut tree_cmake = TREE_CMAKE_MAP.lock().await;
         *tree_cmake = tree_cmake_map;
         drop(tree_cmake);
-        let mut toload_complete_cache = COMPLETE_CACHE.lock().await;
+        let mut toload_complete_cache = COMPLETION_CACHE.lock().await;
         *toload_complete_cache = complete_cache;
         drop(toload_complete_cache);
-        let mut toload_jump_cache = JUMP_CACHE.lock().await;
-        *toload_jump_cache = jump_cache;
-        drop(toload_jump_cache);
         return;
     }
     let root_cmake = project_root.as_ref().join("CMakeLists.txt");
@@ -184,7 +169,6 @@ async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf
 
     if is_first {
         complete::update_cache(path.as_ref(), &source).await;
-        jump::update_cache(path.as_ref(), &source).await;
     }
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
