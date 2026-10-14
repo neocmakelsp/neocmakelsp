@@ -63,17 +63,23 @@ pub async fn get_def<P: AsRef<Path>>(
         }
         CacheState::Continue
     };
+    let mut self_searched = false;
     for file in &extra_files {
         let is_original = *file == path;
+        if is_original {
+            self_searched = true;
+        }
         if let CacheState::Break(info) = update_cache_fn(file, is_original).await {
             return Some(*info);
         }
     }
 
     // NOTE: search self first
-    match update_cache_fn(&path, true).await {
-        CacheState::Continue => {}
-        CacheState::Break(info) => return Some(*info),
+    if !self_searched {
+        match update_cache_fn(&path, true).await {
+            CacheState::Continue => {}
+            CacheState::Break(info) => return Some(*info),
+        }
     }
 
     // NOTE: then search parent
