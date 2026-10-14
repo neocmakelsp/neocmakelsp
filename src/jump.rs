@@ -205,10 +205,8 @@ async fn godef_inner<P: AsRef<Path>>(
                 Some(vec![location])
             } else {
                 let infos = get_reference(originuri, tofind, documents).await;
-                let location_origins: Vec<Location> = infos
-                    .into_iter()
-                    .flat_map(|info| info.references)
-                    .collect();
+                let location_origins: Vec<Location> =
+                    infos.into_iter().flat_map(|info| info.references).collect();
                 let mut locations = vec![];
                 for loc in location_origins {
                     if locations.contains(&loc) {
