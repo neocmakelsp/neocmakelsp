@@ -44,25 +44,28 @@ pub struct PCacheInfo {
     /// if [PCacheInfo::is_completion] is marked as false, means it is a reference, should never be
     /// treated as a completion
     is_completion: bool,
-    pub references: Vec<Location>,
+    references: Vec<Location>,
 }
 
 impl PCacheInfo {
     pub fn location(&self) -> Option<Location> {
         self.location.clone()
     }
-    pub const fn references(&self) -> &Vec<Location> {
-        &self.references
+
+    pub fn get_references(self) -> Vec<Location> {
+        self.references
     }
 
-    pub const fn is_completion(&self) -> bool {
-        self.is_completion
-    }
     pub const fn range(&self) -> LspRange {
         self.range
     }
-    pub const fn completion(&self) -> &CompletionItem {
-        &self.completion
+
+    pub fn get_completion(self) -> Option<CompletionItem> {
+        if self.is_completion {
+            Some(self.completion)
+        } else {
+            None
+        }
     }
 
     pub const fn is_definition(&self) -> bool {
@@ -114,18 +117,6 @@ impl Deref for PCacheInfo {
     type Target = CompletionItem;
     fn deref(&self) -> &Self::Target {
         &self.completion
-    }
-}
-
-impl From<PCacheInfo> for CompletionItem {
-    fn from(val: PCacheInfo) -> Self {
-        val.completion
-    }
-}
-
-impl From<&PCacheInfo> for CompletionItem {
-    fn from(val: &PCacheInfo) -> Self {
-        val.completion.clone()
     }
 }
 
@@ -458,8 +449,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                     cached_completion
                         .filter_cache(command_case)
                         .into_values()
-                        .filter(|info| info.is_completion())
-                        .map(|info| info.completion)
+                        .filter_map(|info| info.get_completion())
                         .collect::<Vec<CompletionItem>>(),
                 );
             }
@@ -509,8 +499,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 completions.extend(
                     cached_completions
                         .into_values()
-                        .filter(|info| info.is_completion())
-                        .map(|info| info.completion)
+                        .filter_map(|info| info.get_completion())
                         .collect::<Vec<CompletionItem>>(),
                 );
             }
@@ -1501,8 +1490,7 @@ endfunction()
         )
         .unwrap()
         .into_values()
-        .filter(|info| info.is_completion())
-        .map(|info| info.completion)
+        .flat_map(|info| info.get_completion())
         .collect();
         let test_data = vec![
             CompletionItem {
