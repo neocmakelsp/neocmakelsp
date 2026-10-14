@@ -27,8 +27,8 @@ pub async fn get_def<P: AsRef<Path>>(
     documents: &DashMap<Uri, String>,
 ) -> Option<PCacheInfo> {
     let location = location.into().unwrap_or(Position {
-        line: 0,
-        character: 0,
+        line: u32::MAX,
+        character: u32::MAX,
     });
     let mut path = path.as_ref().to_path_buf();
 
@@ -44,7 +44,8 @@ pub async fn get_def<P: AsRef<Path>>(
         let completion_cache = COMPLETION_CACHE.lock().await;
         if let Some(units) = completion_cache.get(file_path)
             && let Some(cache) = units.get(key)
-            && (!enter_file || cache.range().end < location)
+            && cache.is_definition()
+            && (!enter_file || cache.range().end <= location)
         {
             return CacheState::Break(Box::new(cache.clone()));
         }
@@ -54,6 +55,7 @@ pub async fn get_def<P: AsRef<Path>>(
             let completion_cache = COMPLETION_CACHE.lock().await;
             if let Some(units) = completion_cache.get(file_path)
                 && let Some(cache) = units.get(key)
+                && cache.is_definition()
                 && (!enter_file || cache.range().end < location)
             {
                 return CacheState::Break(Box::new(cache.clone()));
@@ -89,13 +91,8 @@ pub async fn get_def<P: AsRef<Path>>(
 pub async fn get_reference<P: AsRef<Path>>(
     path: P,
     key: &str,
-    location: impl Into<Option<Position>>,
     documents: &DashMap<Uri, String>,
 ) -> Vec<PCacheInfo> {
-    let location = location.into().unwrap_or(Position {
-        line: 0,
-        character: 0,
-    });
     let mut path = path.as_ref().to_path_buf();
 
     let extra_files = get_extra_files();
@@ -103,11 +100,10 @@ pub async fn get_reference<P: AsRef<Path>>(
 
     let mut results = Vec::new();
 
-    let mut update_cache_fn = async |file_path: &PathBuf, enter_file: bool| {
+    let mut update_cache_fn = async |file_path: &PathBuf| {
         let completion_cache = COMPLETION_CACHE.lock().await;
         if let Some(units) = completion_cache.get(file_path)
             && let Some(cache) = units.get(key)
-            && (!enter_file || cache.range().end < location)
         {
             results.push(cache.clone());
         }
@@ -117,23 +113,28 @@ pub async fn get_reference<P: AsRef<Path>>(
             let completion_cache = COMPLETION_CACHE.lock().await;
             if let Some(units) = completion_cache.get(file_path)
                 && let Some(cache) = units.get(key)
-                && (!enter_file || cache.range().end < location)
             {
                 results.push(cache.clone());
             }
         }
     };
+    let mut self_searched = false;
     for file in &extra_files {
         let is_original = *file == path;
-        update_cache_fn(file, is_original).await;
+        if is_original {
+            self_searched = true;
+        }
+        update_cache_fn(file).await;
     }
 
     // NOTE: search self first
-    update_cache_fn(&path, true).await;
+    if !self_searched {
+        update_cache_fn(&path).await;
+    }
 
     // NOTE: then search parent
     while let Some(parent) = tree_map.get(&path) {
-        update_cache_fn(parent, false).await;
+        update_cache_fn(parent).await;
         path.clone_from(parent);
     }
 
@@ -203,14 +204,20 @@ async fn godef_inner<P: AsRef<Path>>(
                     .and_then(|info| info.location())?;
                 Some(vec![location])
             } else {
-                let infos =
-                    get_reference(originuri, tofind, location.to_position(), documents).await;
-                Some(
-                    infos
-                        .into_iter()
-                        .filter_map(|info| info.location())
-                        .collect(),
-                )
+                let infos = get_reference(originuri, tofind, documents).await;
+                let location_origins: Vec<Location> = infos
+                    .into_iter()
+                    .map(|info| info.references)
+                    .flatten()
+                    .collect();
+                let mut locations = vec![];
+                for loc in location_origins {
+                    if locations.contains(&loc) {
+                        continue;
+                    }
+                    locations.push(loc);
+                }
+                Some(locations)
             }
         }
         PositionType::FindPackageSpace(space) => {

@@ -24,7 +24,7 @@ use crate::languageserver::{get_extra_files, get_or_update_buffer_contents};
 use crate::scansubs::TREE_MAP;
 use crate::utils::query::{
     FunMarcoArg, ToLspRange, get_bracket_comments, get_functions, get_line_comments, get_macros,
-    get_normal_commands,
+    get_normal_commands, get_variables,
 };
 use crate::utils::treehelper::{
     CurrentNodeInfo, PositionType, ToPoint, ToPosition, location_range_contain,
@@ -39,17 +39,30 @@ pub struct PCacheInfo {
     is_definition: bool,
     location: Option<Location>,
     completion: CompletionItem,
+    pub references: Vec<Location>,
 }
 
 impl PCacheInfo {
     pub fn location(&self) -> Option<Location> {
         self.location.clone()
     }
+    pub fn references(&self) -> &Vec<Location> {
+        &self.references
+    }
+
     pub const fn range(&self) -> LspRange {
         self.range
     }
     pub const fn completion(&self) -> &CompletionItem {
         &self.completion
+    }
+
+    pub const fn is_definition(&self) -> bool {
+        self.is_definition
+    }
+
+    pub fn push_reference(&mut self, location: Location) {
+        self.references.push(location);
     }
     pub fn new(completion: CompletionItem, range: impl ToLspRange) -> Self {
         Self {
@@ -57,6 +70,7 @@ impl PCacheInfo {
             location: None,
             completion,
             is_definition: true,
+            references: Vec::new(),
         }
     }
 
@@ -300,8 +314,9 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
     ) else {
         return HashMap::new();
     };
+    let path = path.as_ref().to_path_buf();
     let mut cache = COMPLETION_CACHE.lock().await;
-    cache.insert(path.as_ref().to_path_buf(), result_data.clone());
+    cache.insert(path, result_data.clone());
     result_data
 }
 
@@ -354,6 +369,9 @@ pub async fn get_cached_information<P: AsRef<Path>>(
     }
 
     for extra in extra_files {
+        if extra == path {
+            continue;
+        }
         update_cache_fn(&extra).await;
     }
 
@@ -1123,6 +1141,34 @@ fn getsubcomplete<P: AsRef<Path>>(
                     );
                 }
             }
+        }
+    }
+    let vars = get_variables(source_bytes, input, None);
+    for var in vars {
+        let key = var.content;
+        let var_node = var.node;
+        let node_location = Location {
+            uri: Uri::from_file_path(local_path).unwrap(),
+            range: Range {
+                start: var_node.start_position().to_position(),
+                end: var_node.end_position().to_position(),
+            },
+        };
+        if let Some(cache) = completions.get_mut(key) {
+            cache.push_reference(node_location);
+        } else {
+            let mut cache = PCacheInfo::new(
+                CompletionItem {
+                    label: key.to_string(),
+                    kind: None,
+                    documentation: Some(Documentation::String(format!("reference for {key}",))),
+                    ..Default::default()
+                },
+                var.node.range(),
+            )
+            .not_definition();
+            cache.push_reference(node_location);
+            completions.insert(key.to_string(), cache);
         }
     }
     if completions.is_empty() {

@@ -367,7 +367,6 @@ where
 
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use None
-#[allow(unused)]
 pub fn get_variables<'a>(
     source: &'a [u8],
     node: Node<'a>,
