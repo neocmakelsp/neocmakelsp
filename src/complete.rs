@@ -35,6 +35,7 @@ use crate::utils::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PCacheInfo {
+    is_definition: bool,
     location: Option<Location>,
     completion: CompletionItem,
 }
@@ -50,7 +51,22 @@ impl PCacheInfo {
         Self {
             location: None,
             completion,
+            is_definition: true,
         }
+    }
+
+    // NOTE: since we will always has the document
+    pub fn document(&self) -> &str {
+        let document = self.documentation.as_ref().unwrap();
+        match document {
+            Documentation::String(context) => context.as_str(),
+            Documentation::MarkupContent(context) => &context.value,
+        }
+    }
+
+    pub const fn not_definition(mut self) -> Self {
+        self.is_definition = false;
+        self
     }
 
     pub fn with_location(mut self, location: Location) -> Self {
@@ -244,6 +260,7 @@ pub fn rst_doc_read(doc: &str, filename: &str) -> Vec<PCacheInfo> {
                 ))),
                 ..Default::default()
             })
+            .not_definition()
         })
         .collect()
 }
@@ -699,7 +716,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                         documentation: Some(Documentation::String(variable_info.clone())),
                         ..Default::default()
                     })
-                    .with_location(node_location),
+                    .with_location(node_location)
+                    .not_definition(),
                 );
             }
         }
@@ -761,7 +779,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                         documentation: Some(Documentation::String(variable_info.clone())),
                         ..Default::default()
                     })
-                    .with_location(node_location),
+                    .with_location(node_location)
+                    .not_definition(),
                 );
             }
         }
@@ -933,7 +952,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                                     "package from: {package_name}",
                                 ))),
                                 ..Default::default()
-                            }),
+                            })
+                            .not_definition(),
                         );
                     }
                 }
@@ -950,7 +970,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        }),
+                        })
+                        .not_definition(),
                     );
                 }
 
@@ -1018,7 +1039,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        }),
+                        })
+                        .not_definition(),
                     );
                 }
                 if matches!(postype, PositionType::TargetLink | PositionType::VarOrFun) {
@@ -1033,7 +1055,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        }),
+                        })
+                        .not_definition(),
                     );
                 }
                 if matches!(
@@ -1051,7 +1074,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                                 "package: {package_name}",
                             ))),
                             ..Default::default()
-                        }),
+                        })
+                        .not_definition(),
                     );
                 }
             }
