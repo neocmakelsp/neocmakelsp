@@ -40,13 +40,13 @@ pub struct PCacheInfo {
 }
 
 impl PCacheInfo {
-    pub fn location(&self) -> Option<&Location> {
+    pub const fn location(&self) -> Option<&Location> {
         self.location.as_ref()
     }
-    pub fn completion(&self) -> &CompletionItem {
+    pub const fn completion(&self) -> &CompletionItem {
         &self.completion
     }
-    pub fn new(completion: CompletionItem) -> Self {
+    pub const fn new(completion: CompletionItem) -> Self {
         Self {
             location: None,
             completion,
@@ -66,15 +66,15 @@ impl Deref for PCacheInfo {
     }
 }
 
-impl Into<CompletionItem> for PCacheInfo {
-    fn into(self) -> CompletionItem {
-        self.completion
+impl From<PCacheInfo> for CompletionItem {
+    fn from(val: PCacheInfo) -> Self {
+        val.completion
     }
 }
 
-impl Into<CompletionItem> for &PCacheInfo {
-    fn into(self) -> CompletionItem {
-        self.completion.clone()
+impl From<&PCacheInfo> for CompletionItem {
+    fn from(val: &PCacheInfo) -> Self {
+        val.completion.clone()
     }
 }
 
@@ -598,6 +598,8 @@ fn get_path_completions<SubP: AsRef<Path>, P: AsRef<Path>>(
 }
 
 /// TODO: move it to scansubs
+/// We can add some information to mark if this variable is a function or just a valuable, or just
+/// an argument.
 /// NOTE: postype can only be VarOrFun | TargetLink | TargetInclude | ArgumentOrList
 /// get the variable from the loop
 /// use position to make only can complete which has show before
