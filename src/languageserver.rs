@@ -578,7 +578,6 @@ impl LanguageServer for Backend {
         };
 
         complete::update_cache(&path, &text).await;
-        jump::update_cache(&path, &text).await;
 
         self.client
             .log_message(MessageType::Info, format!("Opened file {}", path.display()))
@@ -627,7 +626,6 @@ impl LanguageServer for Backend {
         if has_root {
             scansubs::scan_dir(&path, false).await;
             complete::update_cache(&path, &text).await;
-            jump::update_cache(&path, &text).await;
         }
         self.client
             .log_message(MessageType::Info, "file saved!")

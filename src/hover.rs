@@ -8,7 +8,7 @@ use tree_sitter::Node;
 
 use crate::fileapi;
 use crate::fileapi::get_target_hover;
-use crate::jump::get_cached_def;
+use crate::jump::get_def;
 #[cfg(unix)]
 use crate::utils::packagepkgconfig::PKG_CONFIG_PACKAGES_WITHKEY;
 #[cfg(unix)]
@@ -96,9 +96,10 @@ pub async fn get_hovered_doc<P: AsRef<Path>>(
     }
 
     // NOTE: if cannot find the key, then it can be lowercase
-    let cached_info = get_cached_def(originuri.as_ref(), message, documents)
+    let cached_info = get_def(originuri.as_ref(), message, None, documents)
         .await?
-        .document_info;
+        .document()
+        .to_owned();
     // use cache_data to show info first
     if let Some(cache_data) = fileapi::get_entries_data()
         && let Some(value) = cache_data.get(message)

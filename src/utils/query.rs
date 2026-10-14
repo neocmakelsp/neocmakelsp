@@ -25,15 +25,43 @@ impl<'a, Data> PartialEq for AstNode<'a, Data> {
 }
 
 pub trait ToLspRange {
-    fn lsp_range(&self) -> LspRange;
+    fn lsp_range(self) -> LspRange;
 }
 
-impl ToLspRange for Range {
-    fn lsp_range(&self) -> LspRange {
+impl ToLspRange for &Range {
+    fn lsp_range(self) -> LspRange {
         LspRange {
             start: self.start_point.to_position(),
             end: self.end_point.to_position(),
         }
+    }
+}
+impl ToLspRange for u32 {
+    fn lsp_range(self) -> LspRange {
+        LspRange {
+            start: tower_lsp::lsp_types::Position {
+                line: self,
+                character: self,
+            },
+            end: tower_lsp::lsp_types::Position {
+                line: self,
+                character: self,
+            },
+        }
+    }
+}
+impl ToLspRange for Range {
+    fn lsp_range(self) -> LspRange {
+        LspRange {
+            start: self.start_point.to_position(),
+            end: self.end_point.to_position(),
+        }
+    }
+}
+
+impl ToLspRange for LspRange {
+    fn lsp_range(self) -> LspRange {
+        self
     }
 }
 
@@ -339,6 +367,7 @@ where
 
 /// max_height means when over this line, it will not count,
 /// if you want to ignore it, use None
+#[allow(unused)]
 pub fn get_variables<'a>(
     source: &'a [u8],
     node: Node<'a>,
