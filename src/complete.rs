@@ -39,6 +39,7 @@ pub struct PCacheInfo {
     is_definition: bool,
     location: Option<Location>,
     completion: CompletionItem,
+    is_completion: bool,
     pub references: Vec<Location>,
 }
 
@@ -46,10 +47,13 @@ impl PCacheInfo {
     pub fn location(&self) -> Option<Location> {
         self.location.clone()
     }
-    pub fn references(&self) -> &Vec<Location> {
+    pub const fn references(&self) -> &Vec<Location> {
         &self.references
     }
 
+    pub const fn is_completion(&self) -> bool {
+        self.is_completion
+    }
     pub const fn range(&self) -> LspRange {
         self.range
     }
@@ -70,10 +74,15 @@ impl PCacheInfo {
             location: None,
             completion,
             is_definition: true,
+            is_completion: true,
             references: Vec::new(),
         }
     }
 
+    fn just_reference(mut self) -> Self {
+        self.is_completion = false;
+        self
+    }
     // NOTE: since we will always has the document
     pub fn document(&self) -> &str {
         let document = self.documentation.as_ref().unwrap();
@@ -442,6 +451,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                     cached_completion
                         .filter_cache(command_case)
                         .into_values()
+                        .filter(|info| info.is_completion())
                         .map(|info| info.completion)
                         .collect::<Vec<CompletionItem>>(),
                 );
@@ -492,6 +502,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
                 completions.extend(
                     cached_completions
                         .into_values()
+                        .filter(|info| info.is_completion())
                         .map(|info| info.completion)
                         .collect::<Vec<CompletionItem>>(),
                 );
@@ -1166,7 +1177,8 @@ fn getsubcomplete<P: AsRef<Path>>(
                 },
                 var.node.range(),
             )
-            .not_definition();
+            .not_definition()
+            .just_reference();
             cache.push_reference(node_location);
             completions.insert(key.to_string(), cache);
         }
@@ -1481,6 +1493,7 @@ endfunction()
         )
         .unwrap()
         .into_values()
+        .filter(|info| info.is_completion())
         .map(|info| info.completion)
         .collect();
         let test_data = vec![
