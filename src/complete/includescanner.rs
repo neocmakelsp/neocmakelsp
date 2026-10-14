@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, Mutex};
 
-use super::{PCacheInfo, getsubcomplete};
+use super::{PCacheInfo, collect_completions};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::utils::treehelper::PositionType;
 
@@ -30,7 +30,7 @@ pub fn scanner_include_complete(
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(content.clone(), None)?;
-    let result_data = getsubcomplete(
+    let result_data = collect_completions(
         tree.root_node(),
         &content,
         path,
@@ -67,7 +67,7 @@ pub fn scanner_package_complete(
     let mut parse = tree_sitter::Parser::new();
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let tree = parse.parse(&content, None)?;
-    let result_data = getsubcomplete(
+    let result_data = collect_completions(
         tree.root_node(),
         &content,
         path,
@@ -119,7 +119,7 @@ endfunction()
         let another_cmake = dir.path().join("another.cmake");
         let mut file_2 = File::create(&another_cmake).unwrap();
         writeln!(file_2, "{}", file_info_1).unwrap();
-        let data = getsubcomplete(
+        let data = collect_completions(
             thetree.root_node(),
             file_info_0,
             &root_cmake,
@@ -210,7 +210,7 @@ endfunction()
         let another_cmake = dir.path().join("another.cmake");
         let mut file_2 = File::create(&another_cmake).unwrap();
         writeln!(file_2, "{}", file_info_1).unwrap();
-        let data = getsubcomplete(
+        let data = collect_completions(
             thetree.root_node(),
             file_info_0,
             &root_cmake,

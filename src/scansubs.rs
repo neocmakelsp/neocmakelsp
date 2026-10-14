@@ -134,15 +134,17 @@ pub async fn scan_all<P: AsRef<Path>>(project_root: P, is_first: bool) {
     while !to_scan.is_empty() {
         let mut next_to_scan = Vec::new();
         for scan_cmake in to_scan.iter() {
-            let mut out = scan_dir(scan_cmake, is_first).await;
+            let mut out = scan_top(scan_cmake, is_first).await;
             next_to_scan.append(&mut out);
         }
         to_scan = next_to_scan;
     }
 }
 
-pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
-    let (bufs, cmakebufs) = scan_dir_inner(path.as_ref(), is_first).await;
+/// Scan from the top CMakeLists.txt and form the structure of the project from the entrance
+/// if it is scanned the first time, it will load the completions for every files
+pub async fn scan_top<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
+    let (bufs, cmakebufs) = scan_top_inner(path.as_ref(), is_first).await;
     let mut tree = TREE_MAP.lock().await;
     for subpath in bufs.iter() {
         tree.insert(subpath.to_path_buf(), path.as_ref().into());
@@ -162,7 +164,7 @@ pub async fn scan_dir<P: AsRef<Path>>(path: P, is_first: bool) -> Vec<PathBuf> {
 /// First is [CMakeLists.txt], the second one is [*.cmake]
 /// First one will record the structure of project
 /// The second one is used to get all used *.cmake files and record them
-async fn scan_dir_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
+async fn scan_top_inner<P: AsRef<Path>>(path: P, is_first: bool) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(source) = tokio::fs::read_to_string(path.as_ref()).await else {
         return (Vec::new(), Vec::new());
     };
@@ -329,7 +331,7 @@ mod tests {
         fs::create_dir_all(&subdir).unwrap();
         let subdir_file = subdir.join("CMakeLists.txt");
         File::create_new(&subdir_file).unwrap();
-        let bufs = scan_dir(&top_cmake, false).await;
+        let bufs = scan_top(&top_cmake, false).await;
         assert_eq!(bufs, vec![subdir_file.clone()]);
         let cache_data = TREE_MAP.lock().await;
         assert_eq!(*cache_data, HashMap::from_iter([(subdir_file, top_cmake)]));

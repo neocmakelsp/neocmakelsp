@@ -624,7 +624,7 @@ impl LanguageServer for Backend {
 
         let has_root = self.root_path().is_some();
         if has_root {
-            scansubs::scan_dir(&path, false).await;
+            scansubs::scan_top(&path, false).await;
             complete::update_cache(&path, &text).await;
         }
         self.client

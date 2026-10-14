@@ -308,7 +308,7 @@ pub async fn update_cache_inner<P: AsRef<Path>>(
     parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
     let thetree = parse.parse(context, None);
     let tree = thetree.unwrap();
-    let Some(result_data) = getsubcomplete(
+    let Some(result_data) = collect_completions(
         tree.root_node(),
         context,
         path.as_ref(),
@@ -456,7 +456,7 @@ pub async fn getcompletions<P: AsRef<Path>>(
             if let Some(cmake_cache) = fileapi::get_complete_data() {
                 completions.extend(cmake_cache);
             }
-            if let Some(message) = getsubcomplete(
+            if let Some(message) = collect_completions(
                 tree.root_node(),
                 source,
                 Path::new(local_path),
@@ -654,7 +654,7 @@ fn get_path_completions<SubP: AsRef<Path>, P: AsRef<Path>>(
 /// get the variable from the loop
 /// use position to make only can complete which has show before
 #[allow(clippy::too_many_arguments)]
-fn getsubcomplete<P: AsRef<Path>>(
+fn collect_completions<P: AsRef<Path>>(
     input: tree_sitter::Node,
     source: &str,
     local_path: P,
@@ -1058,7 +1058,7 @@ fn getsubcomplete<P: AsRef<Path>>(
                         continue;
                     }
                     complete_packages.push(package.clone());
-                    let Some(complete_items) = get_cmake_package_complete(
+                    let Some(complete_items) = get_cmake_package_completions(
                         package.as_str(),
                         postype,
                         include_files,
@@ -1187,7 +1187,7 @@ fn getsubcomplete<P: AsRef<Path>>(
     }
 }
 
-fn get_cmake_package_complete(
+fn get_cmake_package_completions(
     package_name: &str,
     postype: PositionType,
     include_files: &mut Vec<PathBuf>,
@@ -1477,7 +1477,7 @@ endfunction()
         let root_cmake = dir.path().join("CMakeList.txt");
         let mut file = File::create(&root_cmake).unwrap();
         writeln!(file, "{}", file_info).unwrap();
-        let data: Vec<CompletionItem> = getsubcomplete(
+        let data: Vec<CompletionItem> = collect_completions(
             thetree.root_node(),
             file_info,
             &root_cmake,
@@ -1689,7 +1689,7 @@ endfunction()
         let root_cmake = dir.path().join("CMakeList.txt");
         let mut file = File::create(&root_cmake).unwrap();
         writeln!(file, "{}", file_info).unwrap();
-        let data = getsubcomplete(
+        let data = collect_completions(
             thetree.root_node(),
             file_info,
             &root_cmake,
