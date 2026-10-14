@@ -1,8 +1,8 @@
-project('neocmakelsp', 'rust', version: '0.11.0', meson_version: '>= 1.1.0')
+project('neocmakelsp', 'rust', version: '0.12.0', meson_version: '>= 1.1.0')
 
-find_program('cargo', version: '>= 1.80')
+find_program('cargo', version: '>= 1.99')
 
-find_program('rustc', version: '>= 1.80')
+find_program('rustc', version: '>= 1.99')
 
 python = find_program('python')
 
