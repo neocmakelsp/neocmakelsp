@@ -198,7 +198,7 @@ impl LanguageServer for Backend {
                 .await;
         }
 
-        set_extra_files(CONFIG.included_cmake.extra_cmakes());
+        set_extra_files(CONFIG.included_cmakes.extra_cmakes());
 
         init_snippet_setting(initial_config.use_snippets());
 

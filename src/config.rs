@@ -21,18 +21,18 @@ pub struct Config {
 
     /// Manually include some cmake, make it always be scan at first
     #[serde(default)]
-    pub included_cmake: IncludedCMake,
+    pub included_cmakes: IncludedCMakes,
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug, Default, Clone)]
-pub struct IncludedCMake {
+pub struct IncludedCMakes {
     #[serde(default)]
     pub files: Vec<PathBuf>,
     #[serde(default)]
     pub glob_rules: Vec<String>,
 }
 
-impl IncludedCMake {
+impl IncludedCMakes {
     pub fn extra_cmakes(&self) -> Vec<PathBuf> {
         let mut files = self.files.clone();
         for rule in &self.glob_rules {
@@ -58,7 +58,7 @@ impl Default for Config {
             enable_external_cmake_lint: false,
             line_max_words: default_max_words(),
             format: FormatConfig::default(),
-            included_cmake: IncludedCMake::default(),
+            included_cmakes: IncludedCMakes::default(),
         }
     }
 }
@@ -241,13 +241,13 @@ mod tests {
     #[test]
     fn path_parse() {
         let config_file = indoc::indoc! {r#"
-            [included_cmake]
+            [included_cmakes]
             files = ["./test.cmake"]
         "#};
         let config: Config = toml::from_str(config_file).unwrap();
-        println!("{:?}", config.included_cmake);
+        println!("{:?}", config.included_cmakes);
         assert_eq!(
-            config.included_cmake.extra_cmakes(),
+            config.included_cmakes.extra_cmakes(),
             vec![PathBuf::from_str("./test.cmake").unwrap()]
         );
     }

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-10-24
+
+### Breaking Changed
+
+- Now in the project cache, jump cache is merged with completion cache. It now can provide better jump and reference
+- Induce include_cmakes options for .neocmake.toml, it can be used to set global include files
+
+### Changed
+
+- Fix the case if the `command_upcase` is set to "ignore", the config loading fail
+- Update the config about the global user config, add the information about the file location on windows and macos by @sinbi
+- Always set the current directory to the to the work folder
+
 ## [0.11.2] - 2026-09-27
 
 ### Changed
