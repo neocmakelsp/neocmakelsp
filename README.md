@@ -58,6 +58,10 @@ line_max_words =  80
 program = "gersemi"
 # Use two space indentation.
 args = ["--indent", "2"]
+
+[included_cmakes]
+files = ["global/config.cmake"] # some cmake files as global included files
+glob_rules = ["global/*.cmake"]
 ```
 
 You can read https://neocmakelsp.github.io/docs for more details.
