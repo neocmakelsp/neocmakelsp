@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix the case if the `command_upcase` is set to "ignore", the config loading fail
 - Update the config about the global user config, add the information about the file location on windows and macos by @sinbi
 - Always set the current directory to the to the work folder
+- Update tree-sitter-cmake
 
 ## [0.11.2] - 2026-09-27
 
