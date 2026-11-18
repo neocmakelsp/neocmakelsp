@@ -964,6 +964,8 @@ fn collect_completions<P: AsRef<Path>>(
                     if argument_count >= 2 {
                         let mut support_component = false;
                         let mut components_packages = Vec::new();
+                        // NOTE: do not clippy fix it, because it is clearer
+                        #[allow(clippy::needless_range_loop)]
                         for index in 1..argument_count {
                             let package_prefix_node = command.args[index];
                             let component = package_prefix_node.utf8_text(source_bytes).unwrap();
