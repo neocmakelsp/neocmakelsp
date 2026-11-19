@@ -962,6 +962,20 @@ fn collect_completions<P: AsRef<Path>>(
                     end: command.args[0].end_position().to_position(),
                 },
             };
+
+            let row = command.node.start_position().row;
+            let column = command.node.start_position().column;
+            let mut document_info = format!("Target: {target} \nfrom: {}", local_path.display());
+            if let Some(line_comment) = comments
+                .iter()
+                .find(|c| {
+                    c.node.start_position().row + 1 == row
+                        && c.node.start_position().column == column
+                })
+                .map(|c| c.content)
+            {
+                document_info = format!("{}\n\n{}", document_info, line_comment);
+            }
             completions.insert(
                 target.to_owned(),
                 PCacheInfo::new(
@@ -969,7 +983,7 @@ fn collect_completions<P: AsRef<Path>>(
                         label: target.to_owned(),
                         kind: Some(CompletionItemKind::Variable),
                         detail: Some("Target".to_string()),
-                        documentation: Some(Documentation::String(format!("Target: {target}",))),
+                        documentation: Some(Documentation::String(document_info)),
                         ..Default::default()
                     },
                     command.node.range(),
@@ -1498,6 +1512,7 @@ endfunction()
 add_executable(target_a
     main.cpp
 )
+# Target B
 add_library(target_b
     main.cpp
 )
@@ -1579,7 +1594,9 @@ add_library(target_b
                 label_details: None,
                 kind: Some(CompletionItemKind::Variable),
                 detail: Some("Target".to_string()),
-                documentation: Some(Documentation::String("Target: target_a".to_owned())),
+                documentation: Some(Documentation::String(
+                    format!("Target: target_a \nfrom: {}", root_cmake.display()).to_owned(),
+                )),
                 text_edit_text: None,
                 preselect: None,
                 sort_text: None,
@@ -1600,7 +1617,14 @@ add_library(target_b
                 label_details: None,
                 kind: Some(CompletionItemKind::Variable),
                 detail: Some("Target".to_string()),
-                documentation: Some(Documentation::String("Target: target_b".to_owned())),
+
+                documentation: Some(Documentation::String(
+                    format!(
+                        "Target: target_b \nfrom: {}\n\nTarget B",
+                        root_cmake.display()
+                    )
+                    .to_owned(),
+                )),
                 text_edit_text: None,
                 preselect: None,
                 sort_text: None,
@@ -1676,7 +1700,9 @@ add_library(target_b
                 label_details: None,
                 kind: Some(CompletionItemKind::Variable),
                 detail: Some("Target".to_string()),
-                documentation: Some(Documentation::String("Target: target_a".to_owned())),
+                documentation: Some(Documentation::String(
+                    format!("Target: target_a \nfrom: {}", root_cmake.display()).to_owned(),
+                )),
                 text_edit_text: None,
                 preselect: None,
                 sort_text: None,
@@ -1697,7 +1723,14 @@ add_library(target_b
                 label_details: None,
                 kind: Some(CompletionItemKind::Variable),
                 detail: Some("Target".to_string()),
-                documentation: Some(Documentation::String("Target: target_b".to_owned())),
+
+                documentation: Some(Documentation::String(
+                    format!(
+                        "Target: target_b \nfrom: {}\n\nTarget B",
+                        root_cmake.display()
+                    )
+                    .to_owned(),
+                )),
                 text_edit_text: None,
                 preselect: None,
                 sort_text: None,
