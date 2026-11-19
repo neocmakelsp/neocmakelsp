@@ -154,6 +154,8 @@ pub fn init_system_modules() {
     }
 }
 
+const TARGET_BLOCKS: &[&str] = &["add_custom_target", "add_library", "add_executable"];
+
 trait CompletionFilter {
     fn filter_cache(self, command_case: CommandCase) -> Self
     where
@@ -905,53 +907,68 @@ fn collect_completions<P: AsRef<Path>>(
                     .with_location(node_location),
                 );
             }
-        } else {
-            if name == "set" || name == "option" {
-                let Some(name) = command.first_arg else {
-                    continue;
-                };
-                // NOTE: some label is defined in macro with this way
-                // I do not want to address macro, because the lsp does not need to be that clever
-                // So I just do not complete them
-                if LABEL_FILITER.is_match(name) {
-                    continue;
-                }
-                let row = command.node.start_position().row;
-                let column = command.node.start_position().column;
-                let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
-
-                if let Some(line_comment) = comments
-                    .iter()
-                    .find(|c| {
-                        c.node.start_position().row + 1 == row
-                            && c.node.start_position().column == column
-                    })
-                    .map(|c| c.content)
-                {
-                    document_info = format!("{}\n\n{}", document_info, line_comment);
-                }
-                let node_location = Location {
-                    uri: Uri::from_file_path(local_path).unwrap(),
-                    range: Range {
-                        start: command.args[0].start_position().to_position(),
-                        end: command.args[0].end_position().to_position(),
-                    },
-                };
-                completions.insert(
-                    name.to_owned(),
-                    PCacheInfo::new(
-                        CompletionItem {
-                            label: name.to_string(),
-                            kind: Some(CompletionItemKind::Value),
-                            detail: Some("Value".to_string()),
-                            documentation: Some(Documentation::String(document_info)),
-                            ..Default::default()
-                        },
-                        command.node.range(),
-                    )
-                    .with_location(node_location),
-                );
+        } else if name == "set" || name == "option" {
+            let Some(name) = command.first_arg else {
+                continue;
+            };
+            // NOTE: some label is defined in macro with this way
+            // I do not want to address macro, because the lsp does not need to be that clever
+            // So I just do not complete them
+            if LABEL_FILITER.is_match(name) {
+                continue;
             }
+            let row = command.node.start_position().row;
+            let column = command.node.start_position().column;
+            let mut document_info = format!("defined variable\nfrom: {}", local_path.display());
+
+            if let Some(line_comment) = comments
+                .iter()
+                .find(|c| {
+                    c.node.start_position().row + 1 == row
+                        && c.node.start_position().column == column
+                })
+                .map(|c| c.content)
+            {
+                document_info = format!("{}\n\n{}", document_info, line_comment);
+            }
+            let node_location = Location {
+                uri: Uri::from_file_path(local_path).unwrap(),
+                range: Range {
+                    start: command.args[0].start_position().to_position(),
+                    end: command.args[0].end_position().to_position(),
+                },
+            };
+            completions.insert(
+                name.to_owned(),
+                PCacheInfo::new(
+                    CompletionItem {
+                        label: name.to_string(),
+                        kind: Some(CompletionItemKind::Value),
+                        detail: Some("Value".to_string()),
+                        documentation: Some(Documentation::String(document_info)),
+                        ..Default::default()
+                    },
+                    command.node.range(),
+                )
+                .with_location(node_location),
+            );
+        } else if TARGET_BLOCKS.contains(&name.as_str())
+            && let Some(target) = command.first_arg
+        {
+            completions.insert(
+                target.to_owned(),
+                PCacheInfo::new(
+                    CompletionItem {
+                        label: target.to_owned(),
+                        kind: Some(CompletionItemKind::Variable),
+                        detail: Some("Target".to_string()),
+                        documentation: Some(Documentation::String(format!("Target: {target}",))),
+                        ..Default::default()
+                    },
+                    command.node.range(),
+                ),
+            );
+        } else {
             if name == "find_package" && should_in {
                 let Some(package_name) = command.first_arg else {
                     continue;
@@ -1470,6 +1487,12 @@ set(AB "100") # it will only show for once a time
 # Fun bb
 function(bb)
 endfunction()
+add_executable(target_a
+    main.cpp
+)
+add_library(target_b
+    main.cpp
+)
     "#;
 
         let mut parse = tree_sitter::Parser::new();
@@ -1543,6 +1566,48 @@ endfunction()
                 tags: None,
                 ..Default::default()
             },
+            CompletionItem {
+                label: "target_a".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Variable),
+                detail: Some("Target".to_string()),
+                documentation: Some(Documentation::String("Target: target_a".to_owned())),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "target_b".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Variable),
+                detail: Some("Target".to_string()),
+                documentation: Some(Documentation::String("Target: target_b".to_owned())),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
         ];
         assert_eq!(data.len(), test_data.len());
         for test_item in test_data {
@@ -1583,6 +1648,48 @@ endfunction()
                     "defined variable\nfrom: {}\n\nit is a comment for AB",
                     root_cmake.display()
                 ))),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "target_a".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Variable),
+                detail: Some("Target".to_string()),
+                documentation: Some(Documentation::String("Target: target_a".to_owned())),
+                text_edit_text: None,
+                preselect: None,
+                sort_text: None,
+                filter_text: None,
+                insert_text: None,
+                insert_text_format: None,
+                insert_text_mode: None,
+                text_edit: None,
+                additional_text_edits: None,
+                command: None,
+                commit_characters: None,
+                data: None,
+                tags: None,
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "target_b".to_string(),
+                label_details: None,
+                kind: Some(CompletionItemKind::Variable),
+                detail: Some("Target".to_string()),
+                documentation: Some(Documentation::String("Target: target_b".to_owned())),
                 text_edit_text: None,
                 preselect: None,
                 sort_text: None,
