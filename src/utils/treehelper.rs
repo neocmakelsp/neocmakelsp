@@ -331,6 +331,7 @@ impl<'a> CurrentNodeInfo<'a> {
                 "include" => PositionType::Include,
                 "add_subdirectory" => PositionType::SubDir,
                 id @ ("add_executable"
+                | "add_custom_target"
                 | "add_library"
                 | "target_sources"
                 | "target_include_directories"
@@ -514,6 +515,7 @@ find_package(Qt5Core CONFIG)
 macro(macro_test)
 endmacro()
 add_executable(abcedfg)
+add_custom_target(custom_target)
     "#;
         let tree = parse_tree(source);
         let input = tree.root_node();
@@ -630,6 +632,18 @@ add_executable(abcedfg)
                 Point {
                     row: 19,
                     column: 16
+                },
+            )
+            .pos_type(),
+            PositionType::Target
+        );
+        assert_eq!(
+            CurrentNodeInfo::get(
+                source,
+                input,
+                Point {
+                    row: 20,
+                    column: 20
                 },
             )
             .pos_type(),
