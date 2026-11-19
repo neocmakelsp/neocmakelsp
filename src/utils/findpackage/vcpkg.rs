@@ -82,7 +82,6 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let Some(mut packagename) = parent_path
                 .file_name()
                 .and_then(|file_name| file_name.to_str())
-                .map(str::to_owned)
             else {
                 continue;
             };
@@ -92,19 +91,21 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 && config_file_location != 0
             {
                 tojump.swap(0, config_file_location);
-                let config_file = tojump[0]
+                let Some(config_file) = tojump[0]
                     .file_name()
                     .and_then(|file_name| file_name.to_str())
-                    .unwrap_or_default();
+                else {
+                    continue;
+                };
                 if let Some(config_package_name) = config_file.strip_suffix("-config.cmake") {
-                    packagename = config_package_name.to_owned();
+                    packagename = config_package_name;
                 }
                 if let Some(config_package_name) = config_file.strip_suffix("Config.cmake") {
-                    packagename = config_package_name.to_owned();
+                    packagename = config_package_name;
                 }
                 // NOTE: LLVM is wired
                 if let Some(config_package_name) = config_file.strip_suffix("-Config.cmake") {
-                    packagename = config_package_name.to_owned();
+                    packagename = config_package_name;
                 }
             }
 
@@ -115,9 +116,9 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
-                packagename.clone(),
+                packagename.to_owned(),
                 CMakePackage {
-                    name: packagename,
+                    name: packagename.to_owned(),
                     packagetype: PackageType::Dir,
                     location,
                     version,
