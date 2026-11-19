@@ -17,11 +17,15 @@ pub static CMAKE_PACKAGES: LazyLock<Vec<CMakePackage>> =
 pub static CMAKE_PACKAGES_WITHKEY: LazyLock<HashMap<String, CMakePackage>> =
     LazyLock::new(get_cmake_message);
 
-pub(super) fn get_env_prefix() -> Option<String> {
+pub(super) fn get_env_prefixes() -> Vec<String> {
+    let mut prefixes = Vec::new();
     if let Ok(prefix) = std::env::var("MSYSTEM_PREFIX") {
-        return Some(prefix);
+        prefixes.push(prefix);
     }
-    std::env::var("CMAKE_PREFIX_PATH").ok()
+    if let Ok(paths) = std::env::var("CMAKE_PREFIX_PATH") {
+        prefixes.extend(super::split_prefix_list(&paths, ';'));
+    }
+    prefixes
 }
 
 fn safe_canonicalize<P: AsRef<Path>>(path: P) -> std::io::Result<PathBuf> {
@@ -69,6 +73,7 @@ pub(super) fn get_cmake_message_with_prefixes(
             let Some(mut packagename) = parent_path
                 .file_name()
                 .and_then(|file_name| file_name.to_str())
+                .map(str::to_owned)
             else {
                 continue;
             };
@@ -79,24 +84,27 @@ pub(super) fn get_cmake_message_with_prefixes(
                 && config_file_location != 0
             {
                 tojump.swap(0, config_file_location);
-                let config_file = tojump[0].to_str().unwrap();
+                let config_file = tojump[0]
+                    .file_name()
+                    .and_then(|file_name| file_name.to_str())
+                    .unwrap_or_default();
                 if let Some(config_package_name) = config_file.strip_suffix("-config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
                 if let Some(config_package_name) = config_file.strip_suffix("Config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
                 // NOTE: LLVM is wired
                 if let Some(config_package_name) = config_file.strip_suffix("-Config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
             }
             let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
-                packagename.to_string(),
+                packagename.clone(),
                 CMakePackage {
-                    name: packagename.to_string(),
+                    name: packagename,
                     packagetype: PackageType::Dir,
                     location,
                     version,
@@ -261,5 +269,35 @@ mod tests {
             ),
         ]);
         assert_eq!(get_cmake_message_with_prefixes(&vec![prefix]), target);
+    }
+
+    #[test]
+    fn test_package_name_from_config_file() {
+        let dir = tempdir().unwrap();
+
+        let widget_dir = dir.path().join("share").join("Widget").join("cmake");
+        fs::create_dir_all(&widget_dir).unwrap();
+        let widget_config_cmake = widget_dir.join("libwidget-config.cmake");
+        File::create(&widget_config_cmake).unwrap();
+        let widget_config_version_cmake = widget_dir.join("libwidget-config-version.cmake");
+        let mut widget_config_version_file = File::create(&widget_config_version_cmake).unwrap();
+        writeln!(
+            widget_config_version_file,
+            r#"set(PACKAGE_VERSION "9.8.7")"#
+        )
+        .unwrap();
+
+        let prefix = safe_canonicalize(dir.path())
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        let packages = get_cmake_message_with_prefixes(&vec![prefix]);
+        let package = packages
+            .get("libwidget")
+            .expect("the package should be named after the config file");
+        assert_eq!(package.name, "libwidget");
+        assert_eq!(package.version, Some("9.8.7".to_string()));
     }
 }

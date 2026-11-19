@@ -82,6 +82,7 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let Some(mut packagename) = parent_path
                 .file_name()
                 .and_then(|file_name| file_name.to_str())
+                .map(str::to_owned)
             else {
                 continue;
             };
@@ -91,16 +92,19 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
                 && config_file_location != 0
             {
                 tojump.swap(0, config_file_location);
-                let config_file = tojump[0].to_str().unwrap();
+                let config_file = tojump[0]
+                    .file_name()
+                    .and_then(|file_name| file_name.to_str())
+                    .unwrap_or_default();
                 if let Some(config_package_name) = config_file.strip_suffix("-config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
                 if let Some(config_package_name) = config_file.strip_suffix("Config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
                 // NOTE: LLVM is wired
                 if let Some(config_package_name) = config_file.strip_suffix("-Config.cmake") {
-                    packagename = config_package_name;
+                    packagename = config_package_name.to_owned();
                 }
             }
 
@@ -111,9 +115,9 @@ fn get_cmake_message() -> HashMap<String, CMakePackage> {
             let location = Uri::from_file_path(&path).unwrap();
 
             packages.insert(
-                packagename.to_string(),
+                packagename.clone(),
                 CMakePackage {
-                    name: packagename.to_string(),
+                    name: packagename,
                     packagetype: PackageType::Dir,
                     location,
                     version,
