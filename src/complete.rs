@@ -955,6 +955,13 @@ fn collect_completions<P: AsRef<Path>>(
         } else if TARGET_BLOCKS.contains(&name.as_str())
             && let Some(target) = command.first_arg
         {
+            let node_location = Location {
+                uri: Uri::from_file_path(local_path).unwrap(),
+                range: Range {
+                    start: command.args[0].start_position().to_position(),
+                    end: command.args[0].end_position().to_position(),
+                },
+            };
             completions.insert(
                 target.to_owned(),
                 PCacheInfo::new(
@@ -966,7 +973,8 @@ fn collect_completions<P: AsRef<Path>>(
                         ..Default::default()
                     },
                     command.node.range(),
-                ),
+                )
+                .with_location(node_location),
             );
         } else {
             if name == "find_package" && should_in {
