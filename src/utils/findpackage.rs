@@ -164,7 +164,7 @@ static CMAKECONFIG: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
 // config version file
 static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"ConfigVersion\.cmake$|-config-version\.cmake$").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"ConfigVersion.cmake$|-config-version.cmake$").unwrap());
 
 pub trait FindPackageFunsTrait {
     fn get_cmake_packages(&self) -> Vec<CMakePackage> {
