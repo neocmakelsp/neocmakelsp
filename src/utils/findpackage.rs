@@ -79,17 +79,27 @@ static CMAKE_PREFIXES: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 fn query_cmake_prefixes_or(default: Vec<String>) -> Vec<String> {
-    match query_cmake_prefixes() {
-        Some(prefixes) => prefixes,
-        None => {
-            let mut prefix_paths = default;
-            // Add platform specific prefixes from the environment
-            if let Some(prefix) = get_env_prefix() {
-                prefix_paths.push(prefix);
-            }
-            prefix_paths
+    let mut prefix_paths = query_cmake_prefixes().unwrap_or(default);
+    // The CMAKE_PREFIX_PATH environment variable is an additional list of
+    // search prefixes, so it must be merged with the system prefixes even
+    // when `cmake --system-information` succeeds.
+    for prefix in get_env_prefixes() {
+        if !prefix_paths.contains(&prefix) {
+            prefix_paths.push(prefix);
         }
     }
+    prefix_paths
+}
+
+/// Splits a path list such as `CMAKE_PREFIX_PATH` into individual prefixes.
+/// CMake uses `;` on Windows and `:` on UNIX, following the `PATH` convention.
+fn split_prefix_list(paths: &str, separator: char) -> Vec<String> {
+    paths
+        .split(separator)
+        .map(|prefix| prefix.trim_matches(|c: char| c == '"' || c.is_whitespace()))
+        .filter(|prefix| !prefix.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 fn query_cmake_prefixes() -> Option<Vec<String>> {
@@ -154,7 +164,7 @@ static CMAKECONFIG: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"^*Config.cmake$|^*-config.cmake$").unwrap());
 // config version file
 static CMAKECONFIGVERSION: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"^*ConfigVersion.cmake$").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"ConfigVersion\.cmake$|-config-version\.cmake$").unwrap());
 
 pub trait FindPackageFunsTrait {
     fn get_cmake_packages(&self) -> Vec<CMakePackage> {
@@ -410,6 +420,33 @@ mod tests {
         assert!(CMAKECONFIG.is_match("DtkCore-config.cmake"));
         assert!(CMAKECONFIG.is_match("/usr/share/ECM/cmake/ECMConfig.cmake"));
         assert!(!CMAKECONFIG.is_match("DtkCoreconfig.cmake"));
+    }
+
+    #[test]
+    fn config_version_test() {
+        assert!(CMAKECONFIGVERSION.is_match("DtkCoreConfigVersion.cmake"));
+        assert!(CMAKECONFIGVERSION.is_match("dtkcore-config-version.cmake"));
+        assert!(!CMAKECONFIGVERSION.is_match("dtkcore-config.cmake"));
+    }
+
+    #[test]
+    fn split_prefix_list_test() {
+        assert_eq!(
+            split_prefix_list(
+                r"C:\Qt\6.8.0\msvc2022_64; D:\vcpkg\installed\x64-windows;",
+                ';'
+            ),
+            vec![
+                r"C:\Qt\6.8.0\msvc2022_64",
+                r"D:\vcpkg\installed\x64-windows"
+            ]
+        );
+        assert_eq!(
+            split_prefix_list("/opt/qt6:/usr/local:/usr", ':'),
+            vec!["/opt/qt6", "/usr/local", "/usr"]
+        );
+        assert_eq!(split_prefix_list("\" /opt/qt6 \"", ':'), vec!["/opt/qt6"]);
+        assert!(split_prefix_list("::", ':').is_empty());
     }
 
     #[test]
