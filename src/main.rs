@@ -25,6 +25,7 @@ mod grammar;
 mod hover;
 mod jump;
 mod languageserver;
+mod lint;
 mod quick_fix;
 mod rename;
 mod scansubs;
@@ -133,8 +134,9 @@ async fn main() -> Result<ExitCode> {
     let args = Cli::parse();
 
     let log = tracing_subscriber::fmt();
-    if matches!(args.command, Command::Stdio) {
-        // NOTE: `stdio` is used for the language server protocol, so we need to log to `stderr`.
+    if matches!(args.command, Command::Stdio | Command::Lint { .. }) {
+        // NOTE: `stdio` is used for the language server protocol and `lint` writes
+        // diagnostics to stdout, so we need to log to `stderr`.
         // Most editors can't handle ANSI escape codes in their logfiles.
         log.with_writer(std::io::stderr).with_ansi(false).init();
     } else {
@@ -206,6 +208,11 @@ async fn main() -> Result<ExitCode> {
                 println!("{}", search::search_result_tojson(&module)?);
             } else {
                 println!("{}", search::search_result(&module)?);
+            }
+        }
+        Command::Lint { paths } => {
+            if lint::lint(&paths)? {
+                exit_code = ExitCode::from(1);
             }
         }
         Command::Tree { path, json } => {

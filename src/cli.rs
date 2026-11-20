@@ -54,6 +54,13 @@ pub enum Command {
         json: bool,
     },
 
+    /// Lint CMake files and print their diagnostics.
+    Lint {
+        /// Files or directories to lint.
+        #[arg(default_value = ".", value_hint = ValueHint::AnyPath)]
+        paths: Vec<PathBuf>,
+    },
+
     /// Print a tree of CMake files.
     Tree {
         /// File to start with.
