@@ -68,12 +68,17 @@ You can read https://neocmakelsp.github.io/docs for more details.
 
 ### Linting from the command line
 
-`neocmakelsp lint [PATH]...` reports the same diagnostics as the language server and prints them as
+`neocmakelsp lint` reports the same diagnostics as the language server and prints them as
 `file:line:col: [code] message`. It exits with a non-zero status when any diagnostic is found, so it
-can be used in scripts and CI. Without arguments it lints the current directory.
+can be used in scripts and CI. Without arguments it lints the current directory; files and
+directories can also be passed explicitly.
 
 ```sh
-neocmakelsp lint .
+# lint the current directory
+neocmakelsp lint
+
+# lint specific files or directories
+neocmakelsp lint CMakeLists.txt cmake/
 ```
 
 ## Editor Support
