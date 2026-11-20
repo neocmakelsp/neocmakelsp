@@ -13,7 +13,7 @@ pub struct Config {
     /// Use `cmake-lint` to provide more lints.
     #[serde(default)]
     pub enable_external_cmake_lint: bool,
-    /// Max line length.
+    /// Max line length in characters.
     #[serde(default = "default_max_words")]
     pub line_max_words: usize,
     #[serde(default)]

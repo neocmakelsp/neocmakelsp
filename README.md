@@ -52,7 +52,7 @@ The configuration file could look like this as example
 ```toml
 command_case = "lower_case" # or "upper_case"
 enable_external_cmake_lint = true # true to use external cmake-lint
-line_max_words =  80
+line_max_words =  80 # maximum line length in characters
 
 [format]
 program = "gersemi"
@@ -65,6 +65,16 @@ glob_rules = ["global/*.cmake"]
 ```
 
 You can read https://neocmakelsp.github.io/docs for more details.
+
+### Linting from the command line
+
+`neocmakelsp lint [PATH]...` reports the same diagnostics as the language server and prints them as
+`file:line:col: [code] message`. It exits with a non-zero status when any diagnostic is found, so it
+can be used in scripts and CI. Without arguments it lints the current directory.
+
+```sh
+neocmakelsp lint .
+```
 
 ## Editor Support
 
