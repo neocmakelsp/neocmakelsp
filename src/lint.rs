@@ -104,3 +104,65 @@ fn display_path(path: &Path) -> String {
         .display()
         .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn collects_cmake_files_and_skips_other_files() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("CMakeLists.txt"), "project(demo)\n").unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("sub").join("global.cmake"), "set(A 1)\n").unwrap();
+        fs::write(dir.path().join("notes.txt"), "notes\n").unwrap();
+
+        let files = collect_cmake_files(&[dir.path().to_path_buf()]).unwrap();
+
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().any(|path| path.ends_with("CMakeLists.txt")));
+        assert!(files.iter().any(|path| path.ends_with("global.cmake")));
+    }
+
+    #[test]
+    fn accepts_explicit_cmake_files() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("custom.cmake");
+        fs::write(&path, "set(A 1)\n").unwrap();
+
+        let files = collect_cmake_files(std::slice::from_ref(&path)).unwrap();
+
+        assert_eq!(files, vec![path]);
+    }
+
+    #[test]
+    fn rejects_missing_paths() {
+        let dir = tempdir().unwrap();
+
+        let result = collect_cmake_files(&[dir.path().join("missing")]);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn reports_diagnostics_for_long_lines() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("CMakeLists.txt");
+        fs::write(&path, format!("set(VAR {})\n", "a".repeat(100))).unwrap();
+
+        assert!(lint(&[path]).unwrap());
+    }
+
+    #[test]
+    fn accepts_clean_files() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("CMakeLists.txt");
+        fs::write(&path, "project(demo)\n").unwrap();
+
+        assert!(!lint(&[path]).unwrap());
+    }
+}
