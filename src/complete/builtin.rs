@@ -5,8 +5,8 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
-    ParameterInformation, ParameterInformationLabel,
+    CompletionItem, CompletionItemKind, CompletionItemTag, Documentation, InsertTextFormat,
+    MarkupContent, MarkupKind, ParameterInformation, ParameterInformationLabel,
 };
 
 use crate::config::CommandCase;
@@ -243,10 +243,30 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
+    let segment_re = regex::Regex::new(r"(Deprecated\s)?Variables\s[a-zA-Z\s]+\n=+").unwrap();
+    let is_deprecateds: Vec<bool> = segment_re
+        .find_iter(raw_info)
+        .map(|message| message.as_str().starts_with("Deprecated"))
+        .collect();
+    let contents: Vec<_> = segment_re.split(raw_info).skip(1).collect();
+    contents
+        .into_iter()
+        .zip(is_deprecateds.into_iter())
+        .map(|(context, deprecated)| gen_builtin_variables_inner(context, deprecated))
+        .flatten()
+        .collect()
+}
+
+fn gen_builtin_variables_inner(raw_info: &str, is_deprecated: bool) -> Vec<CompletionItem> {
     let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\r?\n-+").unwrap();
     let mut key_iter = re.captures_iter(raw_info).peekable();
     let mut result = Vec::<CompletionItem>::new();
 
+    let tags = if is_deprecated {
+        Some(vec![CompletionItemTag::Deprecated])
+    } else {
+        None
+    };
     let mut push_item = |label: String, doc: &str| {
         result.push(CompletionItem {
             label,
@@ -256,6 +276,7 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
                 kind: MarkupKind::Markdown,
                 value: doc.trim().to_string(),
             })),
+            tags: tags.clone(),
             ..Default::default()
         });
     };
@@ -559,6 +580,27 @@ mod tests {
     #[test]
     fn test_cmake_variables_builtin() {
         let raw_doc = r"
+cmake-variables(7)
+******************
+
+This page documents variables that are provided by CMake
+or have meaning to CMake when set by project code.
+
+For general information on variables, see the
+:ref:`Variables <CMake Language Variables>`
+section in the cmake-language manual.
+
+.. note::
+
+  CMake reserves identifiers that:
+
+  * begin with ``CMAKE_`` (upper-, lower-, or mixed-case), or
+  * begin with ``_CMAKE_`` (upper-, lower-, or mixed-case), or
+  * begin with ``_`` followed by the name of any ``CMake Command``.
+
+Variables that Provide Information
+==================================
+
 CMAKE_COMMAND
 -------------
 
@@ -571,6 +613,20 @@ The full path to the compiler for ``LANG``.
 
 This is the command that will be used as the ``<LANG>`` compiler.  Once
 set, you can not change this variable.
+
+Deprecated Variables that Control the Build
+===========================================
+
+CMAKE_IOS_INSTALL_COMBINED
+--------------------------
+
+.. versionadded:: 3.5
+Default value for ``IOS_INSTALL_COMBINED`` of targets.
+
+This variable is used to initialize the ``IOS_INSTALL_COMBINED``
+property on all the targets.  See that target property for additional
+information.
+
 ";
         let output = gen_builtin_variables(raw_doc);
         assert_eq!(output[0].label, "CMAKE_COMMAND");
@@ -595,12 +651,14 @@ set, you can not change this variable."
                 .to_string()
         );
         assert_eq!(output[2].label, "CMAKE_C_COMPILER");
+        assert_eq!(output[3].label, "CMAKE_IOS_INSTALL_COMBINED");
+        assert_eq!(output[3].tags, Some(vec![CompletionItemTag::Deprecated]));
     }
 
     #[test]
     fn test_cmake_modules_builtin() {
         // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
+        let output = include_str!("../../assets_for_test/cmake_help_modules.txt");
 
         let output = gen_builtin_modules(output);
 
