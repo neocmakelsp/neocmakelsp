@@ -58,22 +58,33 @@ pub fn checkerror<P: AsRef<Path>>(
         use_extra_cmake_lint,
     }: LintConfigInfo,
 ) -> Option<Vec<Diagnostic>> {
-    let newsource = source.lines().collect();
-    let cmake_lint_info = if use_lint {
-        run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
-    } else {
-        None
-    };
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None)?;
-    let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
-    if let Some(v) = cmake_lint_info {
-        let error_info = result.get_or_insert(vec![]);
-        error_info.extend(v);
-    }
-
-    result
+    use std::thread;
+    let local_path = local_path.as_ref();
+    thread::scope(|s| {
+        let cmake_lint_info_h = s.spawn(|| {
+            let newsource = source.lines().collect();
+            if use_lint {
+                run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
+            } else {
+                None
+            }
+        });
+        let result_h = s.spawn(|| {
+            let mut parse = tree_sitter::Parser::new();
+            parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+            let thetree = parse.parse(source, None)?;
+            checkerror_inner(local_path, source, thetree.root_node(), use_lint)
+        });
+        let (Ok(mut result), Ok(cmake_lint_info)) = (result_h.join(), cmake_lint_info_h.join())
+        else {
+            return None;
+        };
+        if let Some(v) = cmake_lint_info {
+            let error_info = result.get_or_insert(vec![]);
+            error_info.extend(v);
+        }
+        result
+    })
 }
 
 const RE_MATCH_LINT_RESULT: &str =
