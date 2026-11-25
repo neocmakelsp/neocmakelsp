@@ -4,6 +4,7 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemTag, Documentation, InsertTextFormat,
     MarkupContent, MarkupKind, ParameterInformation, ParameterInformationLabel,
@@ -11,7 +12,9 @@ use tower_lsp::lsp_types::{
 
 use crate::config::CommandCase;
 use crate::languageserver::to_use_snippet;
-use crate::utils::{BUILTIN_MODULE_CACHED_DIR, CachedCompleteItems, cache};
+use crate::utils::{
+    BUILTIN_MODULE_CACHED_DIR, CachedCommandsSignatures, CachedCompleteItems, cache,
+};
 
 // As regex can't resolve nested parameter struct, parse it manually
 fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
@@ -85,7 +88,7 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
-) -> HashMap<&str, CommandSignatureResource<'_>> {
+) -> HashMap<String, CommandSignatureResource> {
     let segment_re = regex::Regex::new(r"[a-zA-Z\s]+Commands\r?\n=+").unwrap();
     let is_deprecateds: Vec<bool> = segment_re
         .find_iter(raw_document)
@@ -94,7 +97,7 @@ fn gen_builtin_command_signature_resource(
     let contents: Vec<_> = segment_re.split(raw_document).skip(1).collect();
 
     #[allow(unused_mut)]
-    let mut temp: HashMap<&str, CommandSignatureResource<'_>> = contents
+    let mut temp: HashMap<String, CommandSignatureResource> = contents
         .into_iter()
         .zip(is_deprecateds)
         .flat_map(|(context, deprecated)| {
@@ -104,11 +107,11 @@ fn gen_builtin_command_signature_resource(
 
     #[cfg(unix)]
     temp.insert(
-        "pkg_check_modules",
+        "pkg_check_modules".to_owned(),
         CommandSignatureResource::new(
-            "pkg_check_modules()",
+            "pkg_check_modules()".to_owned(),
             vec![],
-            "please findpackage PkgConfig first",
+            "please findpackage PkgConfig first".to_owned(),
             false,
         ),
     );
@@ -118,7 +121,7 @@ fn gen_builtin_command_signature_resource(
 fn gen_builtin_command_signature_resource_inner(
     raw_document: &str,
     is_deprecated: bool,
-) -> HashMap<&str, CommandSignatureResource<'_>> {
+) -> HashMap<String, CommandSignatureResource> {
     let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_document)
@@ -140,8 +143,16 @@ fn gen_builtin_command_signature_resource_inner(
             let raw_parameters = capture.name("parameters").unwrap().as_str();
             let parameters = split_parameters(raw_parameters);
             Some((
-                key,
-                CommandSignatureResource::new(signature, parameters, content.trim(), is_deprecated),
+                key.to_owned(),
+                CommandSignatureResource::new(
+                    signature.to_owned(),
+                    parameters
+                        .into_iter()
+                        .map(|parameter| parameter.to_owned())
+                        .collect(),
+                    content.trim().to_owned(),
+                    is_deprecated,
+                ),
             ))
         })
         .collect()
@@ -349,23 +360,23 @@ fn gen_builtin_modules(raw_info: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-#[derive(Debug)]
-pub struct CommandSignatureResource<'a> {
-    pub signature: &'a str,
-    pub parameters: Vec<&'a str>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CommandSignatureResource {
+    pub signature: String,
+    pub parameters: Vec<String>,
     // document: Option<Documentation>,
-    pub raw_doc: &'a str,
+    pub raw_doc: String,
     pub is_deprecated: bool,
 }
 
-impl<'a> CommandSignatureResource<'a> {
+impl CommandSignatureResource {
     const fn new(
-        signature: &'a str,
-        parameters: Vec<&'a str>,
-        raw_doc: &'a str,
+        signature: String,
+        parameters: Vec<String>,
+        raw_doc: String,
         is_deprecated: bool,
     ) -> Self {
-        CommandSignatureResource {
+        Self {
             signature,
             parameters,
             raw_doc,
@@ -391,8 +402,8 @@ impl<'a> CommandSignatureResource<'a> {
             Some(
                 self.parameters
                     .iter()
-                    .map(|&para| ParameterInformation {
-                        label: ParameterInformationLabel::String(para.to_string()),
+                    .map(|para| ParameterInformation {
+                        label: ParameterInformationLabel::String(para.clone()),
                         documentation: None,
                     })
                     .collect(),
@@ -412,14 +423,36 @@ static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
 /// Resource for generating builtin signatures and commands
 /// the key is command name, not signature
 pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<
-    Option<HashMap<&str, CommandSignatureResource>>,
-> = LazyLock::new(|| {
-    CMAKE_COMMANDS_HELP
+    Option<HashMap<String, CommandSignatureResource>>,
+> = LazyLock::new(gen_builtin_command_signature_resource_res);
+
+fn gen_builtin_command_signature_resource_res() -> Option<HashMap<String, CommandSignatureResource>>
+{
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::builtin::COMMANDS_SIGNATURE_CACHE)
+        && config_file.exists()
+        && let Some(cache_completes) = CachedCommandsSignatures::read(config_file)
+        && !cache_completes.needs_update()
+    {
+        return Some(cache_completes.data);
+    }
+    let data = CMAKE_COMMANDS_HELP
         .as_ref()
         .map(String::as_str)
         .map(gen_builtin_command_signature_resource)
-        .ok()
-});
+        .ok()?;
+
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::builtin::COMMANDS_SIGNATURE_CACHE)
+        && let cached = CachedCommandsSignatures::new(data.clone())
+        && let Ok(data) = serde_json::to_string_pretty(&cached)
+    {
+        std::fs::write(config_file, data).ok();
+    }
+    Some(data)
+}
 
 /// CMake builtin commands
 pub static BUILTIN_COMMAND: LazyLock<Vec<CompletionItem>> = LazyLock::new(get_builtin_commands);
@@ -605,7 +638,7 @@ mod tests {
             "[<value>...]",
         ];
         #[cfg(not(windows))]
-        for (i, &item) in tested_command.parameters.iter().enumerate() {
+        for (i, item) in tested_command.parameters.iter().enumerate() {
             assert_eq!(item, temp[i]);
         }
     }

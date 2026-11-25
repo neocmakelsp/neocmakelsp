@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{CompletionItem, Uri};
 
 pub use self::findpackage::*;
-use crate::complete::PCacheInfo;
+use crate::complete::{PCacheInfo, builtin::CommandSignatureResource};
 use crate::fileapi;
 pub mod cache {
     pub const VERSION_FILE: &str = "version.json";
@@ -20,6 +20,7 @@ pub mod cache {
         pub const MODULE_CACHE: &str = "builtin_module_cache.json";
         pub const VARIABLE_CACHE: &str = "builtin_variable_cache.json";
         pub const COMMANDS_CACHE: &str = "builtin_commands.json";
+        pub const COMMANDS_SIGNATURE_CACHE: &str = "builtin_commands_signature.json";
         pub const COMMANDS_SNIPPET_CACHE: &str = "builtin_commands_snippet.json";
         pub const MESSAGE_CACHE: &str = "messages_cache.json";
     }
@@ -37,6 +38,7 @@ pub struct CachedData<Data, const TIME_CHECK: bool = true> {
     pub data: Data,
 }
 
+pub type CachedCommandsSignatures = CachedData<HashMap<String, CommandSignatureResource>>;
 pub type CachedCompleteItems = CachedData<Vec<CompletionItem>>;
 pub type CachedMessages = CachedData<HashMap<String, String>>;
 

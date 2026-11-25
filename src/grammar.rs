@@ -1,3 +1,4 @@
+mod rules;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
@@ -7,8 +8,11 @@ use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::grammar::rules::conversion::{C_LINE_TOO_LONG, C_UPDOWNCASE};
+use crate::grammar::rules::warn::W_DEPRECATED;
 use crate::utils::query::{get_functions, get_macros, get_normal_commands};
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{NeoStrExt, include_is_module};
@@ -114,7 +118,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 row: index,
                 column: len,
             };
-            let message = format!("[C0301] Line too long ({len}/{max_len})");
+            let message = C_LINE_TOO_LONG.gen_msg(len, max_len);
             let pointx = start_point.to_position();
             let pointy = end_point.to_position();
             use tower_lsp::lsp_types::Range;
@@ -268,9 +272,10 @@ fn checkerror_inner<P: AsRef<Path>>(
         let functions = get_functions(source_bytes, input, None);
         for macro_node in macros {
             let name = macro_node.name;
-            let Some(hint) = command_case.check(name) else {
+            let Some(check_info) = command_case.check(name) else {
                 continue;
             };
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = macro_node.name_node.start_position().to_position();
             let pointy = macro_node.name_node.end_position().to_position();
             let range = Range {
@@ -330,11 +335,36 @@ fn checkerror_inner<P: AsRef<Path>>(
     let commands = get_normal_commands(source_bytes, input, None);
     for query_now in commands {
         let name = query_now.identifier;
+
         let name_node = query_now.identifier_node;
+        if let Some(res) = &*BUILTIN_COMMAND_SIGNATURE_RES
+            && res.get(name).is_some_and(|res| res.is_deprecated)
+        {
+            let pointx = name_node.start_position().to_position();
+            let pointy = name_node.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            let message = W_DEPRECATED.gen_msg(name);
+            output.push(Diagnostic {
+                range,
+                message: message.into(),
+                severity: Some(DiagnosticSeverity::Warning),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
+            });
+        }
+
         if use_lint
             && let command_case = config::CONFIG.command_case
-            && let Some(hint) = command_case.check(name)
+            && let Some(check_info) = command_case.check(name)
         {
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = name_node.start_position().to_position();
             let pointy = name_node.end_position().to_position();
             let range = Range {
