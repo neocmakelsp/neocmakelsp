@@ -92,13 +92,14 @@ fn gen_builtin_command_signature_resource(
         .map(|message| message.as_str().trim().starts_with("Deprecated"))
         .collect();
     let contents: Vec<_> = segment_re.split(raw_document).skip(1).collect();
+
+    #[allow(unused_mut)]
     let mut temp: HashMap<&str, CommandSignatureResource<'_>> = contents
         .into_iter()
-        .zip(is_deprecateds.into_iter())
-        .map(|(context, deprecated)| {
+        .zip(is_deprecateds)
+        .flat_map(|(context, deprecated)| {
             gen_builtin_command_signature_resource_inner(context, deprecated)
         })
-        .flatten()
         .collect();
 
     #[cfg(unix)]
@@ -276,9 +277,8 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
     let contents: Vec<_> = segment_re.split(raw_info).skip(1).collect();
     contents
         .into_iter()
-        .zip(is_deprecateds.into_iter())
-        .map(|(context, deprecated)| gen_builtin_variables_inner(context, deprecated))
-        .flatten()
+        .zip(is_deprecateds)
+        .flat_map(|(context, deprecated)| gen_builtin_variables_inner(context, deprecated))
         .collect()
 }
 
