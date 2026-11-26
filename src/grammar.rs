@@ -728,7 +728,7 @@ include(abcd.text)
                     start: input.start_position().to_position(),
                     end: input.end_position().to_position()
                 },
-                message: "Grammar error".into(),
+                message: "[E1123] Grammar Error".into(),
                 severity: Some(DiagnosticSeverity::Error),
                 code: None,
                 code_description: None,
