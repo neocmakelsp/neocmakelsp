@@ -11,9 +11,15 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
-use crate::grammar::rules::conversion::{C_LINE_TOO_LONG, C_UPDOWNCASE};
-use crate::grammar::rules::error::E_GRAMMAR_ERROR;
-use crate::grammar::rules::warn::W_DEPRECATED;
+use crate::grammar::rules::error::{
+    E_FILE_OR_DIR_MISSING, W_ADD_SUBDIRECTORY_A_FILE, W_INCLUDE_A_DIR, W_INCLUDE_FILE_ERROR,
+    W_MISSING_PACKAGE,
+};
+use crate::grammar::rules::{
+    conversion::{C_LINE_TOO_LONG, C_UPDOWNCASE},
+    error::{E_GRAMMAR_ERROR, E_INCLUDE_NO_ARGUMENT},
+    warn::W_DEPRECATED,
+};
 use crate::utils::query::{get_functions, get_macros, get_normal_commands};
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{NeoStrExt, include_is_module};
@@ -304,9 +310,11 @@ fn checkerror_inner<P: AsRef<Path>>(
         }
         for fun_node in functions {
             let name = fun_node.name;
-            let Some(hint) = command_case.check(name) else {
+            let Some(check_info) = command_case.check(name) else {
                 continue;
             };
+
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = fun_node.name_node.start_position().to_position();
             let pointy = fun_node.name_node.end_position().to_position();
             let range = Range {
@@ -408,7 +416,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 if errorpackages.contains(&name.to_string()) {
                     output.push(Diagnostic {
                         range,
-                        message: "Cannot find such package".into(),
+                        message: W_MISSING_PACKAGE.gen_msg(name).into(),
                         severity: Some(DiagnosticSeverity::Error),
                         code: None,
                         code_description: None,
@@ -443,7 +451,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 };
                 output.push(Diagnostic {
                     range,
-                    message: "Argument is empty".into(),
+                    message: E_INCLUDE_NO_ARGUMENT.gen_msg().into(),
                     severity: Some(DiagnosticSeverity::Error),
                     code: None,
                     code_description: None,
@@ -463,19 +471,34 @@ fn checkerror_inner<P: AsRef<Path>>(
             } else {
                 parent_path.join(sub_path)
             };
+            let path_name = include_path.display().to_string();
             match include_path.try_exists() {
                 Ok(true) => {
                     if include_path.is_file() {
-                        if scanner_include_error(include_path) {
-                            let pointx = first_arg_node.start_position().to_position();
-                            let pointy = first_arg_node.end_position().to_position();
-                            let range = Range {
-                                start: pointx,
-                                end: pointy,
-                            };
+                        let pointx = first_arg_node.start_position().to_position();
+                        let pointy = first_arg_node.end_position().to_position();
+                        let range = Range {
+                            start: pointx,
+                            end: pointy,
+                        };
+                        if lowercase_name == "add_subdirectory" {
                             output.push(Diagnostic {
                                 range,
-                                message: "Error in include file".into(),
+                                message: W_ADD_SUBDIRECTORY_A_FILE.gen_msg(&path_name).into(),
+                                severity: Some(DiagnosticSeverity::Error),
+                                code: None,
+                                code_description: None,
+                                source: None,
+                                related_information: None,
+                                tags: None,
+                                data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
+                            });
+                            continue;
+                        }
+                        if scanner_include_error(include_path) {
+                            output.push(Diagnostic {
+                                range,
+                                message: W_INCLUDE_FILE_ERROR.gen_msg(&path_name).into(),
                                 severity: Some(DiagnosticSeverity::Error),
                                 code: None,
                                 code_description: None,
@@ -497,11 +520,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                         };
                         output.push(Diagnostic {
                             range,
-                            message: format!(
-                                "\"{}\" is a directory",
-                                include_path.to_str().unwrap()
-                            )
-                            .into(),
+                            message: W_INCLUDE_A_DIR.gen_msg(&path_name).into(),
                             severity: Some(DiagnosticSeverity::Error),
                             code: None,
                             code_description: None,
@@ -514,15 +533,9 @@ fn checkerror_inner<P: AsRef<Path>>(
                 }
                 _ => {
                     let message = if is_sub_directory {
-                        format!(
-                            "Directory \"{}\" does not exist or is inaccessible",
-                            include_path.to_str().unwrap()
-                        )
+                        E_FILE_OR_DIR_MISSING.directory_error_msg(&path_name)
                     } else {
-                        format!(
-                            "File \"{}\" does not exist or is inaccessible",
-                            include_path.to_str().unwrap()
-                        )
+                        E_FILE_OR_DIR_MISSING.file_error_msg(&path_name)
                     };
                     let pointx = first_arg_node.start_position().to_position();
                     let pointy = first_arg_node.end_position().to_position();
@@ -645,7 +658,7 @@ add_subdirectory("unexist_subdir")
                         }
                     },
                     message: format!(
-                        "File \"{}\" does not exist or is inaccessible",
+                        "[E1125] File \"{}\" does not exist or is inaccessible",
                         hello_cmake_error.display()
                     )
                     .into(),
@@ -669,7 +682,7 @@ add_subdirectory("unexist_subdir")
                         },
                     },
                     message: format!(
-                        "Directory \"{}\" does not exist or is inaccessible",
+                        "[E1125] Directory \"{}\" does not exist or is inaccessible",
                         unexist_subdir.display()
                     )
                     .into(),

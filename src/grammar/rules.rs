@@ -371,6 +371,143 @@ pub mod error {
             format!("{} {}", Self::header(), Self::description())
         }
     }
+
+    pub const E_INCLUDE_NO_ARGUMENT: IncludeNoArgument = IncludeNoArgument;
+    pub struct IncludeNoArgument;
+
+    impl Rules for IncludeNoArgument {
+        fn id() -> &'static str {
+            "1124"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "include function need at least one argument"
+        }
+    }
+
+    impl IncludeNoArgument {
+        pub fn gen_msg(&self) -> String {
+            format!("{} {}", Self::header(), Self::description())
+        }
+    }
+
+    pub const E_FILE_OR_DIR_MISSING: FileOrDirMissing = FileOrDirMissing;
+    pub struct FileOrDirMissing;
+
+    impl Rules for FileOrDirMissing {
+        fn id() -> &'static str {
+            "1125"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "File or directory does not exist"
+        }
+    }
+
+    impl FileOrDirMissing {
+        pub fn directory_error_msg(&self, file_name: &str) -> String {
+            format!(
+                "{} Directory \"{file_name}\" does not exist or is inaccessible",
+                Self::header()
+            )
+        }
+        pub fn file_error_msg(&self, file_name: &str) -> String {
+            format!(
+                "{} File \"{file_name}\" does not exist or is inaccessible",
+                Self::header()
+            )
+        }
+    }
+
+    pub const W_INCLUDE_FILE_ERROR: IncludeFileError = IncludeFileError;
+    pub struct IncludeFileError;
+
+    impl Rules for IncludeFileError {
+        fn id() -> &'static str {
+            "1126"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "Error in include file"
+        }
+    }
+    impl IncludeFileError {
+        pub fn gen_msg(&self, file_name: &str) -> String {
+            format!("{} \"{file_name}\" contains grammar error", Self::header())
+        }
+    }
+
+    pub const W_INCLUDE_A_DIR: IncludeADir = IncludeADir;
+    pub struct IncludeADir;
+
+    impl Rules for IncludeADir {
+        fn id() -> &'static str {
+            "1127"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "Misincluded a directory"
+        }
+    }
+
+    impl IncludeADir {
+        pub fn gen_msg(&self, dir_name: &str) -> String {
+            format!("{} Misincluded a directory \"{dir_name}\"", Self::header())
+        }
+    }
+
+    pub const W_ADD_SUBDIRECTORY_A_FILE: AddSubdirectoryAFile = AddSubdirectoryAFile;
+    pub struct AddSubdirectoryAFile;
+
+    impl Rules for AddSubdirectoryAFile {
+        fn id() -> &'static str {
+            "1128"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "Mistake add a file as subdirectory"
+        }
+    }
+
+    impl AddSubdirectoryAFile {
+        pub fn gen_msg(&self, file_name: &str) -> String {
+            format!(
+                "{} Mistake add a file {file_name} as a subdirectory",
+                Self::header()
+            )
+        }
+    }
+
+    pub const W_MISSING_PACKAGE: MissingPackage = MissingPackage;
+    pub struct MissingPackage;
+
+    impl Rules for MissingPackage {
+        fn id() -> &'static str {
+            "1129"
+        }
+        fn level() -> super::Level {
+            super::Level::Warning
+        }
+        fn description() -> &'static str {
+            "Cannot find a package"
+        }
+    }
+
+    impl MissingPackage {
+        pub fn gen_msg(&self, package: &str) -> String {
+            format!("{} Cannot find package {package}", Self::header())
+        }
+    }
 }
 
 pub mod warn {
