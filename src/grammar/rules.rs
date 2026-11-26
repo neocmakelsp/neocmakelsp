@@ -279,7 +279,7 @@ pub enum Level {
 }
 
 impl Level {
-    const fn head(&self) -> char {
+    const fn level_char(&self) -> char {
         match self {
             Self::Conversion => 'C',
             Self::Refactor => 'R',
@@ -288,8 +288,8 @@ impl Level {
             Self::Fatal => 'F',
         }
     }
-    fn gen_trim(&self, id: &str) -> String {
-        format!("[{}{}]", self.head(), id)
+    fn gen_header(&self, id: &str) -> String {
+        format!("[{}{}]", self.level_char(), id)
     }
 }
 
@@ -298,6 +298,9 @@ pub trait Rules {
     fn level() -> Level;
     #[allow(unused)]
     fn description() -> &'static str;
+    fn header() -> String {
+        Self::level().gen_header(Self::id())
+    }
 }
 
 pub mod conversion {
@@ -318,7 +321,7 @@ pub mod conversion {
     }
     impl UpDownCase {
         pub fn gen_msg(&self, check_info: &str) -> String {
-            format!("{} {check_info}", Self::level().gen_trim(Self::id()))
+            format!("{} {check_info}", Self::header())
         }
     }
 
@@ -339,8 +342,33 @@ pub mod conversion {
         pub fn gen_msg(&self, len: usize, max_len: usize) -> String {
             format!(
                 "{} Line too long ({len}/{max_len})",
-                Self::level().gen_trim(Self::id())
+                Self::level().gen_header(Self::id())
             )
+        }
+    }
+}
+
+pub mod error {
+    use super::Rules;
+
+    pub const E_GRAMMAR_ERROR: GrammarError = GrammarError;
+    pub struct GrammarError;
+
+    impl Rules for GrammarError {
+        fn id() -> &'static str {
+            "1123"
+        }
+        fn level() -> super::Level {
+            super::Level::Error
+        }
+        fn description() -> &'static str {
+            "Grammar Error"
+        }
+    }
+
+    impl GrammarError {
+        pub fn gen_msg(&self) -> String {
+            format!("{} {}", Self::header(), Self::description())
         }
     }
 }
@@ -363,10 +391,7 @@ pub mod warn {
     }
     impl Deprecated {
         pub fn gen_msg(&self, cmd_name: &str) -> String {
-            format!(
-                "{} the {cmd_name} is deprecated",
-                Self::level().gen_trim(Self::id())
-            )
+            format!("{} the {cmd_name} is deprecated", Self::header())
         }
     }
 }

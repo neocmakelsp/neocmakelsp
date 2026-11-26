@@ -12,6 +12,7 @@ use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
 use crate::grammar::rules::conversion::{C_LINE_TOO_LONG, C_UPDOWNCASE};
+use crate::grammar::rules::error::E_GRAMMAR_ERROR;
 use crate::grammar::rules::warn::W_DEPRECATED;
 use crate::utils::query::{get_functions, get_macros, get_normal_commands};
 use crate::utils::treehelper::ToPosition;
@@ -228,7 +229,7 @@ fn checkerror_inner<P: AsRef<Path>>(
         };
         return Some(vec![Diagnostic {
             range,
-            message: "Grammar error".into(),
+            message: E_GRAMMAR_ERROR.gen_msg().into(),
             severity: Some(DiagnosticSeverity::Error),
             code: None,
             code_description: None,
@@ -256,7 +257,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             };
             output.push(Diagnostic {
                 range,
-                message: "Grammar error".into(),
+                message: E_GRAMMAR_ERROR.gen_msg().into(),
                 severity: Some(DiagnosticSeverity::Error),
                 code: None,
                 code_description: None,
