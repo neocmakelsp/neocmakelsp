@@ -4,14 +4,17 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, Documentation, InsertTextFormat, MarkupContent, MarkupKind,
-    ParameterInformation, ParameterInformationLabel,
+    CompletionItem, CompletionItemKind, CompletionItemTag, Documentation, InsertTextFormat,
+    MarkupContent, MarkupKind, ParameterInformation, ParameterInformationLabel,
 };
 
 use crate::config::CommandCase;
 use crate::languageserver::to_use_snippet;
-use crate::utils::{BUILTIN_MODULE_CACHED_DIR, CachedCompleteItems, cache};
+use crate::utils::{
+    BUILTIN_MODULE_CACHED_DIR, CachedCommandsSignatures, CachedCompleteItems, cache,
+};
 
 // As regex can't resolve nested parameter struct, parse it manually
 fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
@@ -85,7 +88,40 @@ fn split_parameters(raw_parameters_string: &str) -> Vec<&str> {
 
 fn gen_builtin_command_signature_resource(
     raw_document: &str,
-) -> HashMap<&str, CommandSignatureResource<'_>> {
+) -> HashMap<String, CommandSignatureResource> {
+    let segment_re = regex::Regex::new(r"[a-zA-Z\s]+Commands\r?\n=+").unwrap();
+    let is_deprecateds: Vec<bool> = segment_re
+        .find_iter(raw_document)
+        .map(|message| message.as_str().trim().starts_with("Deprecated"))
+        .collect();
+    let contents: Vec<_> = segment_re.split(raw_document).skip(1).collect();
+
+    #[allow(unused_mut)]
+    let mut temp: HashMap<String, CommandSignatureResource> = contents
+        .into_iter()
+        .zip(is_deprecateds)
+        .flat_map(|(context, deprecated)| {
+            gen_builtin_command_signature_resource_inner(context, deprecated)
+        })
+        .collect();
+
+    #[cfg(unix)]
+    temp.insert(
+        "pkg_check_modules".to_owned(),
+        CommandSignatureResource::new(
+            "pkg_check_modules()".to_owned(),
+            vec![],
+            "please findpackage PkgConfig first".to_owned(),
+            false,
+        ),
+    );
+    temp
+}
+
+fn gen_builtin_command_signature_resource_inner(
+    raw_document: &str,
+    is_deprecated: bool,
+) -> HashMap<String, CommandSignatureResource> {
     let re = regex::Regex::new(r"[a-zA-Z_]+\r?\n-+").unwrap();
     let keys: Vec<_> = re
         .find_iter(raw_document)
@@ -95,36 +131,31 @@ fn gen_builtin_command_signature_resource(
         })
         .collect();
     let contents: Vec<_> = re.split(raw_document).skip(1).collect();
-    let temp_iter = keys.iter().zip(contents).filter_map(|(&key, content)| {
-        let r_match_signature = regex::Regex::new(
-            format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
-        )
-        .unwrap();
-        let capture = r_match_signature.captures(content)?;
-        let signature = capture.name("signature").unwrap().as_str();
-        let raw_parameters = capture.name("parameters").unwrap().as_str();
-        let parameters = split_parameters(raw_parameters);
-        Some((
-            key,
-            CommandSignatureResource::new(signature, parameters, content.trim()),
-        ))
-    });
-
-    #[cfg(unix)]
-    return temp_iter
-        .chain({
-            [(
-                "pkg_check_modules",
+    keys.iter()
+        .zip(contents)
+        .filter_map(|(&key, content)| {
+            let r_match_signature = regex::Regex::new(
+                format!(r"\n\s+(?P<signature>{}\((?P<parameters>[^)]*)\))", key).as_str(),
+            )
+            .unwrap();
+            let capture = r_match_signature.captures(content)?;
+            let signature = capture.name("signature").unwrap().as_str();
+            let raw_parameters = capture.name("parameters").unwrap().as_str();
+            let parameters = split_parameters(raw_parameters);
+            Some((
+                key.to_owned(),
                 CommandSignatureResource::new(
-                    "pkg_check_modules()",
-                    vec![],
-                    "please findpackage PkgConfig first",
+                    signature.to_owned(),
+                    parameters
+                        .into_iter()
+                        .map(|parameter| parameter.to_owned())
+                        .collect(),
+                    content.trim().to_owned(),
+                    is_deprecated,
                 ),
-            )]
+            ))
         })
-        .collect();
-    #[cfg(windows)]
-    return temp_iter.collect();
+        .collect()
 }
 
 const fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a str {
@@ -135,7 +166,7 @@ const fn builtin_commands_cached_file<'a>(client_support_snippet: bool) -> &'a s
     }
 }
 
-fn gen_builtin_commands() -> Vec<CompletionItem> {
+fn get_builtin_commands() -> Vec<CompletionItem> {
     let client_support_snippet = to_use_snippet();
     let cached_file = builtin_commands_cached_file(client_support_snippet);
 
@@ -160,7 +191,11 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
             let detail;
             let insert_text;
             let uppercase_insert_text;
-
+            let tags = if commandinfo.is_deprecated {
+                Some(vec![CompletionItemTag::Deprecated])
+            } else {
+                None
+            };
             if client_support_snippet {
                 detail = "Function (Snippet)";
                 insert_text_format = InsertTextFormat::Snippet;
@@ -188,6 +223,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(insert_text),
                     insert_text_format: Some(insert_text_format),
+                    tags: tags.clone(),
                     data: Some(serde_json::to_value(CommandCase::Lower).unwrap()),
                     ..Default::default()
                 },
@@ -198,6 +234,7 @@ fn gen_builtin_commands() -> Vec<CompletionItem> {
                     documentation: commandinfo.gen_document(),
                     insert_text: Some(uppercase_insert_text),
                     insert_text_format: Some(insert_text_format),
+                    tags,
                     data: Some(serde_json::to_value(CommandCase::Upper).unwrap()),
                     ..Default::default()
                 },
@@ -243,10 +280,29 @@ fn get_builtin_variables() -> Result<Vec<CompletionItem>> {
 }
 
 fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
+    let segment_re = regex::Regex::new(r"(Deprecated\s)?Variables\s[a-zA-Z\s]+\r?\n=+").unwrap();
+    let is_deprecateds: Vec<bool> = segment_re
+        .find_iter(raw_info)
+        .map(|message| message.as_str().trim().starts_with("Deprecated"))
+        .collect();
+    let contents: Vec<_> = segment_re.split(raw_info).skip(1).collect();
+    contents
+        .into_iter()
+        .zip(is_deprecateds)
+        .flat_map(|(context, deprecated)| gen_builtin_variables_inner(context, deprecated))
+        .collect()
+}
+
+fn gen_builtin_variables_inner(raw_info: &str, is_deprecated: bool) -> Vec<CompletionItem> {
     let re = regex::Regex::new(r"((?:[A-Z_]|<LANG>)+)\r?\n-+").unwrap();
     let mut key_iter = re.captures_iter(raw_info).peekable();
     let mut result = Vec::<CompletionItem>::new();
 
+    let tags = if is_deprecated {
+        Some(vec![CompletionItemTag::Deprecated])
+    } else {
+        None
+    };
     let mut push_item = |label: String, doc: &str| {
         result.push(CompletionItem {
             label,
@@ -256,6 +312,7 @@ fn gen_builtin_variables(raw_info: &str) -> Vec<CompletionItem> {
                 kind: MarkupKind::Markdown,
                 value: doc.trim().to_string(),
             })),
+            tags: tags.clone(),
             ..Default::default()
         });
     };
@@ -303,19 +360,27 @@ fn gen_builtin_modules(raw_info: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
-pub struct CommandSignatureResource<'a> {
-    pub signature: &'a str,
-    pub parameters: Vec<&'a str>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CommandSignatureResource {
+    pub signature: String,
+    pub parameters: Vec<String>,
     // document: Option<Documentation>,
-    pub raw_doc: &'a str,
+    pub raw_doc: String,
+    pub is_deprecated: bool,
 }
 
-impl<'a> CommandSignatureResource<'a> {
-    const fn new(signature: &'a str, parameters: Vec<&'a str>, raw_doc: &'a str) -> Self {
-        CommandSignatureResource {
+impl CommandSignatureResource {
+    const fn new(
+        signature: String,
+        parameters: Vec<String>,
+        raw_doc: String,
+        is_deprecated: bool,
+    ) -> Self {
+        Self {
             signature,
             parameters,
             raw_doc,
+            is_deprecated,
         }
     }
 
@@ -337,8 +402,8 @@ impl<'a> CommandSignatureResource<'a> {
             Some(
                 self.parameters
                     .iter()
-                    .map(|&para| ParameterInformation {
-                        label: ParameterInformationLabel::String(para.to_string()),
+                    .map(|para| ParameterInformation {
+                        label: ParameterInformationLabel::String(para.clone()),
                         documentation: None,
                     })
                     .collect(),
@@ -358,17 +423,39 @@ static CMAKE_COMMANDS_HELP: LazyLock<Result<String>> = LazyLock::new(|| {
 /// Resource for generating builtin signatures and commands
 /// the key is command name, not signature
 pub static BUILTIN_COMMAND_SIGNATURE_RES: LazyLock<
-    Option<HashMap<&str, CommandSignatureResource>>,
-> = LazyLock::new(|| {
-    CMAKE_COMMANDS_HELP
+    Option<HashMap<String, CommandSignatureResource>>,
+> = LazyLock::new(gen_builtin_command_signature_resource_res);
+
+fn gen_builtin_command_signature_resource_res() -> Option<HashMap<String, CommandSignatureResource>>
+{
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::builtin::COMMANDS_SIGNATURE_CACHE)
+        && config_file.exists()
+        && let Some(cache_completes) = CachedCommandsSignatures::read(config_file)
+        && !cache_completes.needs_update()
+    {
+        return Some(cache_completes.data);
+    }
+    let data = CMAKE_COMMANDS_HELP
         .as_ref()
         .map(String::as_str)
         .map(gen_builtin_command_signature_resource)
-        .ok()
-});
+        .ok()?;
+
+    if let Some(cache_dir) = BUILTIN_MODULE_CACHED_DIR.as_ref()
+        && std::fs::create_dir_all(cache_dir).is_ok()
+        && let config_file = cache_dir.join(cache::builtin::COMMANDS_SIGNATURE_CACHE)
+        && let cached = CachedCommandsSignatures::new(data.clone())
+        && let Ok(data) = serde_json::to_string_pretty(&cached)
+    {
+        std::fs::write(config_file, data).ok();
+    }
+    Some(data)
+}
 
 /// CMake builtin commands
-pub static BUILTIN_COMMAND: LazyLock<Vec<CompletionItem>> = LazyLock::new(gen_builtin_commands);
+pub static BUILTIN_COMMAND: LazyLock<Vec<CompletionItem>> = LazyLock::new(get_builtin_commands);
 
 /// cmake builtin vars
 pub static BUILTIN_VARIABLE: LazyLock<Result<Vec<CompletionItem>>> =
@@ -551,7 +638,7 @@ mod tests {
             "[<value>...]",
         ];
         #[cfg(not(windows))]
-        for (i, &item) in tested_command.parameters.iter().enumerate() {
+        for (i, item) in tested_command.parameters.iter().enumerate() {
             assert_eq!(item, temp[i]);
         }
     }
@@ -559,6 +646,27 @@ mod tests {
     #[test]
     fn test_cmake_variables_builtin() {
         let raw_doc = r"
+cmake-variables(7)
+******************
+
+This page documents variables that are provided by CMake
+or have meaning to CMake when set by project code.
+
+For general information on variables, see the
+:ref:`Variables <CMake Language Variables>`
+section in the cmake-language manual.
+
+.. note::
+
+  CMake reserves identifiers that:
+
+  * begin with ``CMAKE_`` (upper-, lower-, or mixed-case), or
+  * begin with ``_CMAKE_`` (upper-, lower-, or mixed-case), or
+  * begin with ``_`` followed by the name of any ``CMake Command``.
+
+Variables that Provide Information
+==================================
+
 CMAKE_COMMAND
 -------------
 
@@ -571,6 +679,20 @@ The full path to the compiler for ``LANG``.
 
 This is the command that will be used as the ``<LANG>`` compiler.  Once
 set, you can not change this variable.
+
+Deprecated Variables that Control the Build
+===========================================
+
+CMAKE_IOS_INSTALL_COMBINED
+--------------------------
+
+.. versionadded:: 3.5
+Default value for ``IOS_INSTALL_COMBINED`` of targets.
+
+This variable is used to initialize the ``IOS_INSTALL_COMBINED``
+property on all the targets.  See that target property for additional
+information.
+
 ";
         let output = gen_builtin_variables(raw_doc);
         assert_eq!(output[0].label, "CMAKE_COMMAND");
@@ -595,12 +717,127 @@ set, you can not change this variable."
                 .to_string()
         );
         assert_eq!(output[2].label, "CMAKE_C_COMPILER");
+        assert_eq!(output[3].label, "CMAKE_IOS_INSTALL_COMBINED");
+        assert_eq!(output[3].tags, Some(vec![CompletionItemTag::Deprecated]));
+    }
+    #[test]
+    fn test_cmake_commands_builtin() {
+        let raw_doc = r#"
+cmake-commands(7)
+*****************
+
+Scripting Commands
+==================
+
+These commands are always available.
+
+block
+-----
+
+.. versionadded:: 3.25
+
+Evaluate a group of commands with a dedicated variable and/or policy scope.
+
+ block([SCOPE_FOR [POLICIES] [VARIABLES]] [PROPAGATE <var-name>...])
+   <commands>
+ endblock()
+
+All commands between ``block()`` and the matching ``endblock()`` are
+recorded without being invoked.  Once the ``endblock()`` is evaluated, the
+recorded list of commands is invoked inside the requested scopes, then the
+scopes created by the ``block()`` command are removed.
+
+``SCOPE_FOR``
+  Specify which scopes must be created.
+
+  ``POLICIES``
+    Create a new policy scope. This is equivalent to
+    ``cmake_policy(PUSH)`` with an automatic
+    ``cmake_policy(POP)`` when leaving the block scope.
+
+  ``VARIABLES``
+    Create a new variable scope.
+
+  If ``SCOPE_FOR`` is not specified, this is equivalent to:
+
+  .. code-block:: cmake
+
+    block(SCOPE_FOR VARIABLES POLICIES)
+
+``PROPAGATE``
+  When a variable scope is created by the ``block()`` command, this
+  option sets or unsets the specified variables in the parent scope. This is
+  equivalent to ``set(PARENT_SCOPE)`` or ``unset(PARENT_SCOPE)``
+  commands.
+
+  .. code-block:: cmake
+
+    set(var1 "INIT1")
+    set(var2 "INIT2")
+    set(var3 "INIT3")
+
+    block(PROPAGATE var1 var2)
+      set(var1 "VALUE1")
+      unset(var2)
+      set(var3 "VALUE3")
+    endblock()
+
+    # Now var1 holds VALUE1, var2 is unset, and var3 holds the initial value INIT3
+
+  This option is only allowed when a variable scope is created. An error will
+  be raised in the other cases.
+
+When the ``block()`` is inside a ``foreach()`` or ``while()``
+command, the ``break()`` and ``continue()`` commands can be used
+inside the block.
+
+ while(TRUE)
+   block()
+      ...
+      # the break() command will terminate the while() command
+      break()
+   endblock()
+ endwhile()
+
+See Also
+^^^^^^^^
+
+* ``endblock()``
+* ``return()``
+* ``cmake_policy()``
+
+Deprecated Commands
+===================
+
+These commands are deprecated and are only made available to maintain
+backward compatibility.  The documentation of each command states the
+CMake version in which it was deprecated.  Do not use these commands
+in new code.
+
+build_name
+----------
+
+Disallowed since version 3.0.  See CMake Policy ``CMP0036``.
+
+Use ``${CMAKE_SYSTEM}`` and ``${CMAKE_CXX_COMPILER}`` instead.
+
+ build_name(variable)
+
+Sets the specified variable to a string representing the platform and
+compiler settings.  These values are now available through the
+``CMAKE_SYSTEM`` and
+``CMAKE_CXX_COMPILER`` variables.
+
+"#;
+        let output = gen_builtin_command_signature_resource(raw_doc);
+        assert!(!output["block"].is_deprecated);
+        assert!(output["build_name"].is_deprecated);
     }
 
     #[test]
     fn test_cmake_modules_builtin() {
         // NOTE: In case the command fails, ignore test
-        let output = include_str!("../../assets_for_test/cmake_help_commands.txt");
+        let output = include_str!("../../assets_for_test/cmake_help_modules.txt");
 
         let output = gen_builtin_modules(output);
 

@@ -1,3 +1,4 @@
+mod rules;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
@@ -7,8 +8,18 @@ use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position};
 use tree_sitter::{Point, Query, QueryCursor, StreamingIterator};
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::complete::builtin::BUILTIN_COMMAND_SIGNATURE_RES;
 use crate::config::{self, CONFIG, CommandCase};
 use crate::consts::TREESITTER_CMAKE_LANGUAGE;
+use crate::grammar::rules::error::{
+    E_FILE_OR_DIR_MISSING, W_ADD_SUBDIRECTORY_A_FILE, W_INCLUDE_A_DIR, W_INCLUDE_FILE_ERROR,
+    W_MISSING_PACKAGE,
+};
+use crate::grammar::rules::{
+    conversion::{C_LINE_TOO_LONG, C_UPDOWNCASE},
+    error::{E_GRAMMAR_ERROR, E_INCLUDE_NO_ARGUMENT},
+    warn::W_DEPRECATED,
+};
 use crate::utils::query::{get_functions, get_macros, get_normal_commands};
 use crate::utils::treehelper::ToPosition;
 use crate::utils::{NeoStrExt, include_is_module};
@@ -58,22 +69,33 @@ pub fn checkerror<P: AsRef<Path>>(
         use_extra_cmake_lint,
     }: LintConfigInfo,
 ) -> Option<Vec<Diagnostic>> {
-    let newsource = source.lines().collect();
-    let cmake_lint_info = if use_lint {
-        run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
-    } else {
-        None
-    };
-    let mut parse = tree_sitter::Parser::new();
-    parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
-    let thetree = parse.parse(source, None)?;
-    let mut result = checkerror_inner(local_path, source, thetree.root_node(), use_lint);
-    if let Some(v) = cmake_lint_info {
-        let error_info = result.get_or_insert(vec![]);
-        error_info.extend(v);
-    }
-
-    result
+    use std::thread;
+    let local_path = local_path.as_ref();
+    thread::scope(|s| {
+        let cmake_lint_info_h = s.spawn(|| {
+            let newsource = source.lines().collect();
+            if use_lint {
+                run_cmake_lint(local_path, use_extra_cmake_lint, &newsource)
+            } else {
+                None
+            }
+        });
+        let result_h = s.spawn(|| {
+            let mut parse = tree_sitter::Parser::new();
+            parse.set_language(&TREESITTER_CMAKE_LANGUAGE).unwrap();
+            let thetree = parse.parse(source, None)?;
+            checkerror_inner(local_path, source, thetree.root_node(), use_lint)
+        });
+        let (Ok(mut result), Ok(cmake_lint_info)) = (result_h.join(), cmake_lint_info_h.join())
+        else {
+            return None;
+        };
+        if let Some(v) = cmake_lint_info {
+            let error_info = result.get_or_insert(vec![]);
+            error_info.extend(v);
+        }
+        result
+    })
 }
 
 const RE_MATCH_LINT_RESULT: &str =
@@ -103,7 +125,7 @@ fn run_cmake_lint<P: AsRef<Path>>(
                 row: index,
                 column: len,
             };
-            let message = format!("[C0301] Line too long ({len}/{max_len})");
+            let message = C_LINE_TOO_LONG.gen_msg(len, max_len);
             let pointx = start_point.to_position();
             let pointy = end_point.to_position();
             use tower_lsp::lsp_types::Range;
@@ -213,7 +235,7 @@ fn checkerror_inner<P: AsRef<Path>>(
         };
         return Some(vec![Diagnostic {
             range,
-            message: "Grammar error".into(),
+            message: E_GRAMMAR_ERROR.gen_msg().into(),
             severity: Some(DiagnosticSeverity::Error),
             code: None,
             code_description: None,
@@ -241,7 +263,7 @@ fn checkerror_inner<P: AsRef<Path>>(
             };
             output.push(Diagnostic {
                 range,
-                message: "Grammar error".into(),
+                message: E_GRAMMAR_ERROR.gen_msg().into(),
                 severity: Some(DiagnosticSeverity::Error),
                 code: None,
                 code_description: None,
@@ -257,9 +279,10 @@ fn checkerror_inner<P: AsRef<Path>>(
         let functions = get_functions(source_bytes, input, None);
         for macro_node in macros {
             let name = macro_node.name;
-            let Some(hint) = command_case.check(name) else {
+            let Some(check_info) = command_case.check(name) else {
                 continue;
             };
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = macro_node.name_node.start_position().to_position();
             let pointy = macro_node.name_node.end_position().to_position();
             let range = Range {
@@ -287,9 +310,11 @@ fn checkerror_inner<P: AsRef<Path>>(
         }
         for fun_node in functions {
             let name = fun_node.name;
-            let Some(hint) = command_case.check(name) else {
+            let Some(check_info) = command_case.check(name) else {
                 continue;
             };
+
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = fun_node.name_node.start_position().to_position();
             let pointy = fun_node.name_node.end_position().to_position();
             let range = Range {
@@ -319,11 +344,36 @@ fn checkerror_inner<P: AsRef<Path>>(
     let commands = get_normal_commands(source_bytes, input, None);
     for query_now in commands {
         let name = query_now.identifier;
+
         let name_node = query_now.identifier_node;
+        if let Some(res) = &*BUILTIN_COMMAND_SIGNATURE_RES
+            && res.get(name).is_some_and(|res| res.is_deprecated)
+        {
+            let pointx = name_node.start_position().to_position();
+            let pointy = name_node.end_position().to_position();
+            let range = Range {
+                start: pointx,
+                end: pointy,
+            };
+            let message = W_DEPRECATED.gen_msg(name);
+            output.push(Diagnostic {
+                range,
+                message: message.into(),
+                severity: Some(DiagnosticSeverity::Warning),
+                code: None,
+                code_description: None,
+                source: None,
+                related_information: None,
+                tags: None,
+                data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
+            });
+        }
+
         if use_lint
             && let command_case = config::CONFIG.command_case
-            && let Some(hint) = command_case.check(name)
+            && let Some(check_info) = command_case.check(name)
         {
+            let hint = C_UPDOWNCASE.gen_msg(check_info);
             let pointx = name_node.start_position().to_position();
             let pointy = name_node.end_position().to_position();
             let range = Range {
@@ -366,7 +416,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 if errorpackages.contains(&name.to_string()) {
                     output.push(Diagnostic {
                         range,
-                        message: "Cannot find such package".into(),
+                        message: W_MISSING_PACKAGE.gen_msg(name).into(),
                         severity: Some(DiagnosticSeverity::Error),
                         code: None,
                         code_description: None,
@@ -401,7 +451,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                 };
                 output.push(Diagnostic {
                     range,
-                    message: "Argument is empty".into(),
+                    message: E_INCLUDE_NO_ARGUMENT.gen_msg().into(),
                     severity: Some(DiagnosticSeverity::Error),
                     code: None,
                     code_description: None,
@@ -421,19 +471,34 @@ fn checkerror_inner<P: AsRef<Path>>(
             } else {
                 parent_path.join(sub_path)
             };
+            let path_name = include_path.display().to_string();
             match include_path.try_exists() {
                 Ok(true) => {
                     if include_path.is_file() {
-                        if scanner_include_error(include_path) {
-                            let pointx = first_arg_node.start_position().to_position();
-                            let pointy = first_arg_node.end_position().to_position();
-                            let range = Range {
-                                start: pointx,
-                                end: pointy,
-                            };
+                        let pointx = first_arg_node.start_position().to_position();
+                        let pointy = first_arg_node.end_position().to_position();
+                        let range = Range {
+                            start: pointx,
+                            end: pointy,
+                        };
+                        if lowercase_name == "add_subdirectory" {
                             output.push(Diagnostic {
                                 range,
-                                message: "Error in include file".into(),
+                                message: W_ADD_SUBDIRECTORY_A_FILE.gen_msg(&path_name).into(),
+                                severity: Some(DiagnosticSeverity::Error),
+                                code: None,
+                                code_description: None,
+                                source: None,
+                                related_information: None,
+                                tags: None,
+                                data: Some(serde_json::to_value(ErrorType::Other).unwrap()),
+                            });
+                            continue;
+                        }
+                        if scanner_include_error(include_path) {
+                            output.push(Diagnostic {
+                                range,
+                                message: W_INCLUDE_FILE_ERROR.gen_msg(&path_name).into(),
                                 severity: Some(DiagnosticSeverity::Error),
                                 code: None,
                                 code_description: None,
@@ -455,11 +520,7 @@ fn checkerror_inner<P: AsRef<Path>>(
                         };
                         output.push(Diagnostic {
                             range,
-                            message: format!(
-                                "\"{}\" is a directory",
-                                include_path.to_str().unwrap()
-                            )
-                            .into(),
+                            message: W_INCLUDE_A_DIR.gen_msg(&path_name).into(),
                             severity: Some(DiagnosticSeverity::Error),
                             code: None,
                             code_description: None,
@@ -472,15 +533,9 @@ fn checkerror_inner<P: AsRef<Path>>(
                 }
                 _ => {
                     let message = if is_sub_directory {
-                        format!(
-                            "Directory \"{}\" does not exist or is inaccessible",
-                            include_path.to_str().unwrap()
-                        )
+                        E_FILE_OR_DIR_MISSING.directory_error_msg(&path_name)
                     } else {
-                        format!(
-                            "File \"{}\" does not exist or is inaccessible",
-                            include_path.to_str().unwrap()
-                        )
+                        E_FILE_OR_DIR_MISSING.file_error_msg(&path_name)
                     };
                     let pointx = first_arg_node.start_position().to_position();
                     let pointy = first_arg_node.end_position().to_position();
@@ -603,7 +658,7 @@ add_subdirectory("unexist_subdir")
                         }
                     },
                     message: format!(
-                        "File \"{}\" does not exist or is inaccessible",
+                        "[E1125] File \"{}\" does not exist or is inaccessible",
                         hello_cmake_error.display()
                     )
                     .into(),
@@ -627,7 +682,7 @@ add_subdirectory("unexist_subdir")
                         },
                     },
                     message: format!(
-                        "Directory \"{}\" does not exist or is inaccessible",
+                        "[E1125] Directory \"{}\" does not exist or is inaccessible",
                         unexist_subdir.display()
                     )
                     .into(),
@@ -686,7 +741,7 @@ include(abcd.text)
                     start: input.start_position().to_position(),
                     end: input.end_position().to_position()
                 },
-                message: "Grammar error".into(),
+                message: "[E1123] Grammar Error".into(),
                 severity: Some(DiagnosticSeverity::Error),
                 code: None,
                 code_description: None,
